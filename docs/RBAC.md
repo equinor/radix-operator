@@ -43,7 +43,7 @@ See table 1.3 for complete listing of permissions
 ### Clusterrole bindings
 
 - radix-platform-user-binding
-  - Purpose: Gives global access for Radix User ad group through radix-platform-user clusterrole
+  - Purpose: Gives global access for Radix User group through radix-platform-user clusterrole
   - Created by: Helm chart
 - radix-platform-user-rr-\<app\>
   - Purpose: Grants access to specific RR through radix-platform-user-rr-\<app\> clusterrole given by ad-group defined in RR for specific \<app\>

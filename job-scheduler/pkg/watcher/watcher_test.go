@@ -52,7 +52,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 			name: "Created batch, sends notification about batch without status",
 			fields: fields{
 				newRadixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
 					Spec: radixv1.RadixBatchSpec{
 						Jobs: []radixv1.RadixBatchJob{{Name: "job1"}},
 					},
@@ -76,7 +76,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 			name: "Updated only batch status, sends notification about batch status only",
 			fields: fields{
 				newRadixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
 					Spec: radixv1.RadixBatchSpec{
 						Jobs: []radixv1.RadixBatchJob{{Name: "job1"}},
 					},
@@ -104,7 +104,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 			name: "Updated batch job statuses, sends notification only about changed batch job status",
 			fields: fields{
 				newRadixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
 					Spec: radixv1.RadixBatchSpec{
 						Jobs: []radixv1.RadixBatchJob{{Name: "job1"}},
 					},
@@ -166,7 +166,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 			name: "Deleted batch status, sends notification about batch status",
 			fields: fields{
 				newRadixBatch: &radixv1.RadixBatch{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch)},
+					Name: "batch1", Labels: labels.ForBatchType(kube.RadixBatchTypeBatch),
 					Spec: radixv1.RadixBatchSpec{
 						Jobs: []radixv1.RadixBatchJob{{Name: "job1"}},
 					},
@@ -250,7 +250,7 @@ type radixBatchMatcher struct {
 	matches func(*radixv1.RadixBatch) bool
 }
 
-func (m *radixBatchMatcher) Matches(x interface{}) bool {
+func (m *radixBatchMatcher) Matches(x any) bool {
 	radixBatch := x.(*radixv1.RadixBatch)
 	return m.matches(radixBatch)
 }
@@ -267,7 +267,7 @@ type radixBatchJobStatusesMatcher struct {
 	matches func([]radixv1.RadixBatchJobStatus) bool
 }
 
-func (m *radixBatchJobStatusesMatcher) Matches(x interface{}) bool {
+func (m *radixBatchJobStatusesMatcher) Matches(x any) bool {
 	radixBatchJobStatuses := x.([]radixv1.RadixBatchJobStatus)
 	return m.matches(radixBatchJobStatuses)
 }

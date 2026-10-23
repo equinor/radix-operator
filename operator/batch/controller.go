@@ -46,13 +46,13 @@ func NewController(ctx context.Context,
 
 	logger.Info().Msg("Setting up event handlers")
 	if _, err := batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(cur interface{}) {
+		AddFunc: func(cur any) {
 			if err := controller.Enqueue(cur); err != nil {
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixBatch informer AddFunc")
 			}
 			metrics.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			oldRadixBatch := old.(*radixv1.RadixBatch)
 			newRadixBatch := cur.(*radixv1.RadixBatch)
 			if deepEqual(oldRadixBatch, newRadixBatch) {
@@ -64,7 +64,7 @@ func NewController(ctx context.Context,
 				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixBatch informer UpdateFunc")
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// TODO: We don't do any processing of the deleted object, so perhaps we should remove everything except for metrics call
 			// Also check if other event handlers have the same noop code
 			radixBatch, converted := obj.(*radixv1.RadixBatch)
@@ -83,7 +83,7 @@ func NewController(ctx context.Context,
 	}
 
 	if _, err := jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			oldMeta := oldObj.(metav1.Object)
 			newMeta := newObj.(metav1.Object)
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
@@ -91,7 +91,7 @@ func NewController(ctx context.Context,
 			}
 			controller.HandleObject(ctx, newObj, radixv1.KindRadixBatch, getOwner)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			controller.HandleObject(ctx, obj, radixv1.KindRadixBatch, getOwner)
 		},
 	}); err != nil {
@@ -104,6 +104,6 @@ func deepEqual(old, new *radixv1.RadixBatch) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec)
 }
 
-func getOwner(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getOwner(ctx context.Context, radixClient radixclient.Interface, namespace, name string) (any, error) {
 	return radixClient.RadixV1().RadixBatches(namespace).Get(ctx, name, metav1.GetOptions{})
 }

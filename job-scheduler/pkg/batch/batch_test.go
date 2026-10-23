@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	testUtil "github.com/equinor/radix-operator/job-scheduler/internal/test"
 	v1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
@@ -250,7 +249,7 @@ func TestGetRadixBatchStatus(t *testing.T) {
 					radixv1.BatchConditionTypeActive, jobStatusPhase{jobName1: radixv1.BatchJobPhaseRunning, jobName2: radixv1.BatchJobPhaseActive, jobName3: radixv1.BatchJobPhaseFailed, jobName4: radixv1.BatchJobPhaseSucceeded}),
 				batchRadixDeploy: createRadixDeployJobComponent(radixDeploymentName1, props,
 					createBatchStatusRule(radixv1.RadixBatchJobApiStatusFailed, radixv1.ConditionAny, radixv1.OperatorIn, radixv1.BatchJobPhaseFailed)),
-				activeRadixDeploy: pointers.Ptr(createRadixDeployJobComponent(radixDeploymentName2, props,
+				activeRadixDeploy: new(createRadixDeployJobComponent(radixDeploymentName2, props,
 					createBatchStatusRule(radixv1.RadixBatchJobApiStatusFailed, radixv1.ConditionAll, radixv1.OperatorIn, radixv1.BatchJobPhaseFailed),
 					createBatchStatusRule(radixv1.RadixBatchJobApiStatusRunning, radixv1.ConditionAny, radixv1.OperatorIn, radixv1.BatchJobPhaseRunning))),
 				expectedBatchStatus: "Running",
@@ -529,7 +528,7 @@ func TestDeleteRadixBatch(t *testing.T) {
 			radixClient, _, _ := testUtil.SetupTest(t, props.appName, props.envName, props.radixJobComponentName, radixDeploymentName1, 1)
 			_, err := radixClient.RadixV1().RadixBatches(operatorutils.GetEnvironmentNamespace(props.appName, props.envName)).Create(context.Background(), tt.existingRadixBatch, metav1.CreateOptions{})
 			require.NoError(t, err)
-			err = DeleteRadixBatch(context.Background(), radixClient, &radixv1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: tt.radixBatchToDelete, Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName)}})
+			err = DeleteRadixBatch(context.Background(), radixClient, &radixv1.RadixBatch{Name: tt.radixBatchToDelete, Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName)})
 			if tt.expectedError != nil {
 				assert.EqualError(t, err, tt.expectedError.Error())
 			} else {
@@ -744,7 +743,7 @@ func aRadixDeploymentWithComponentModifier(props testProps, radixDeploymentName 
 		WithJobComponent(m(operatorutils.NewDeployJobComponentBuilder().
 			WithName(props.radixJobComponentName).
 			WithImage("radixdev.azurecr.io/job:imagetag").
-			WithSchedulerPort(8080)))
+			WithSchedulerPort(new(int32(8080)))))
 	return builder
 }
 
@@ -760,15 +759,13 @@ func createRadixDeployJobComponent(radixDeploymentName string, props testProps, 
 
 func createRadixBatch(batchName, batchId string, props testProps, radixBatchType kube.RadixBatchType, radixDeploymentName string, jobNames []string, batchStatus radixv1.RadixBatchConditionType, jobStatuses jobStatusPhase) *radixv1.RadixBatch {
 	radixBatch := radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      batchName,
-			Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName),
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(props.appName),
-				radixLabels.ForComponentName(props.radixJobComponentName),
-				radixLabels.ForBatchType(radixBatchType),
-			),
-		},
+		Name:      batchName,
+		Namespace: operatorutils.GetEnvironmentNamespace(props.appName, props.envName),
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(props.appName),
+			radixLabels.ForComponentName(props.radixJobComponentName),
+			radixLabels.ForBatchType(radixBatchType),
+		),
 		Spec: radixv1.RadixBatchSpec{
 			BatchId: batchId,
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{

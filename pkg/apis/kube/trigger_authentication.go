@@ -87,7 +87,7 @@ func (kubeutil *Kube) ListTriggerAuthenticationsWithSelector(ctx context.Context
 		if err != nil {
 			return nil, err
 		}
-		return slice.PointersOf(list.Items).([]*v1alpha1.TriggerAuthentication), nil
+		return slice.PointersOf(list.Items), nil
 	}
 	selector, err := labels.Parse(labelSelectorString)
 	if err != nil {

@@ -2,14 +2,18 @@ package models
 
 import (
 	"errors"
+	"fmt"
+	"maps"
+	"strings"
+	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	"github.com/equinor/radix-operator/api-server/api/utils/secret"
 	volumemountUtils "github.com/equinor/radix-operator/api-server/api/utils/volumemount"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/robfig/cron/v3"
 )
 
 // ComponentBuilder Builds DTOs
@@ -19,11 +23,13 @@ type ComponentBuilder interface {
 	WithReplicaSummaryList([]ReplicaSummary) ComponentBuilder
 	WithSchedulerPort(schedulerPort *int32) ComponentBuilder
 	WithScheduledJobPayloadPath(scheduledJobPayloadPath string) ComponentBuilder
+	WithNextCronRun(cronSchedule *radixv1.CronSchedule) ComponentBuilder
 	WithRadixEnvironmentVariables(map[string]string) ComponentBuilder
 	WithComponent(radixv1.RadixCommonDeployComponent) ComponentBuilder
 	WithAuxiliaryResource(AuxiliaryResource) ComponentBuilder
 	WithNotifications(*radixv1.Notifications) ComponentBuilder
 	WithHorizontalScalingSummary(*HorizontalScalingSummary) ComponentBuilder
+	WithCronSchedules(cronSchedules []string) ComponentBuilder
 	WithExternalDNS(externalDNS []ExternalDNS) ComponentBuilder
 	WithRuntime(*radixv1.Runtime) ComponentBuilder
 	BuildComponentSummary() (*ComponentSummary, error)
@@ -44,6 +50,7 @@ type componentBuilder struct {
 	ports                     []Port
 	schedulerPort             *int32
 	scheduledJobPayloadPath   string
+	nextCronRun               time.Time
 	auxResource               AuxiliaryResource
 	identity                  *Identity
 	notifications             *Notifications
@@ -55,6 +62,7 @@ type componentBuilder struct {
 	resources                 *radixv1.ResourceRequirements
 	runtime                   *radixv1.Runtime
 	replicasOverride          *int
+	cronSchedules             []string
 }
 
 func (b *componentBuilder) WithStatus(status ComponentStatus) ComponentBuilder {
@@ -85,6 +93,39 @@ func (b *componentBuilder) WithSchedulerPort(schedulerPort *int32) ComponentBuil
 func (b *componentBuilder) WithScheduledJobPayloadPath(scheduledJobPayloadPath string) ComponentBuilder {
 	b.scheduledJobPayloadPath = scheduledJobPayloadPath
 	return b
+}
+
+// WithNextCronRun sets the next scheduled run time computed from the job component's cron
+// schedules. It is the earliest next run across all configured schedules, interpreted in the
+// configured timezone. When no cron is configured or all schedules are invalid, it remains unset.
+func (b *componentBuilder) WithNextCronRun(cronSchedule *radixv1.CronSchedule) ComponentBuilder {
+	b.nextCronRun = nextCronRun(cronSchedule)
+	return b
+}
+
+func nextCronRun(cronSchedule *radixv1.CronSchedule) time.Time {
+	if cronSchedule == nil || len(cronSchedule.Schedules) == 0 {
+		return time.Time{}
+	}
+	timeZone := strings.TrimSpace(cronSchedule.TimeZone)
+	if timeZone == "" {
+		timeZone = "UTC"
+	}
+	now := time.Now()
+	var earliest time.Time
+	for _, schedule := range cronSchedule.Schedules {
+		// The CRON_TZ= prefix makes the schedule always interpreted in the configured
+		// timezone, independent of the server's local time.
+		parsed, err := cron.ParseStandard(fmt.Sprintf("CRON_TZ=%s %s", timeZone, schedule))
+		if err != nil {
+			continue // invalid timezone or schedule expression - skip
+		}
+		next := parsed.Next(now).UTC()
+		if earliest.IsZero() || next.Before(earliest) {
+			earliest = next
+		}
+	}
+	return earliest
 }
 
 func (b *componentBuilder) WithAuxiliaryResource(auxResource AuxiliaryResource) ComponentBuilder {
@@ -146,16 +187,12 @@ func (b *componentBuilder) WithComponent(component radixv1.RadixCommonDeployComp
 	}
 
 	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil && component.IsPublic() {
-		oauth2, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(auth.OAuth2)
-		if err != nil {
-			b.errors = append(b.errors, err)
-		}
 		if !auth.OAuth2.GetUseAzureIdentity() {
 			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2ClientSecret)
 		}
 		b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2CookieSecret)
 
-		if oauth2.SessionStoreType == radixv1.SessionStoreRedis {
+		if auth.OAuth2.SessionStoreType == radixv1.SessionStoreRedis {
 			b.secrets = append(b.secrets, component.GetName()+suffix.OAuth2RedisPassword)
 		}
 	}
@@ -198,6 +235,11 @@ func (b *componentBuilder) WithHorizontalScalingSummary(hpa *HorizontalScalingSu
 	return b
 }
 
+func (b *componentBuilder) WithCronSchedules(cronSchedules []string) ComponentBuilder {
+	b.cronSchedules = cronSchedules
+	return b
+}
+
 func (b *componentBuilder) WithExternalDNS(externalDNS []ExternalDNS) ComponentBuilder {
 	b.externalDNS = externalDNS
 	return b
@@ -230,20 +272,16 @@ func (b *componentBuilder) BuildComponentSummary() (*ComponentSummary, error) {
 		Runtime:  b.buildRuntimeModel(),
 	}
 	if b.resources != nil && (len(b.resources.Limits) > 0 || len(b.resources.Requests) > 0) {
-		summary.Resources = pointers.Ptr(ConvertRadixResourceRequirements(*b.resources))
+		summary.Resources = new(ConvertRadixResourceRequirements(*b.resources))
 	}
 	return &summary, b.buildError()
 }
 
 func (b *componentBuilder) BuildComponent() (*Component, error) {
 	variables := radixv1.EnvVarsMap{}
-	for name, value := range b.environmentVariables {
-		variables[name] = value
-	}
+	maps.Copy(variables, b.environmentVariables)
 
-	for name, value := range b.radixEnvironmentVariables {
-		variables[name] = value
-	}
+	maps.Copy(variables, b.radixEnvironmentVariables)
 
 	component := Component{
 		Name:                     b.componentName,
@@ -258,6 +296,7 @@ func (b *componentBuilder) BuildComponent() (*Component, error) {
 		ReplicasOverride:         b.replicasOverride,
 		SchedulerPort:            b.schedulerPort,
 		ScheduledJobPayloadPath:  b.scheduledJobPayloadPath,
+		NextRun:                  b.nextCronRun,
 		AuxiliaryResource:        b.auxResource,
 		Identity:                 b.identity,
 		Notifications:            b.notifications,
@@ -266,9 +305,10 @@ func (b *componentBuilder) BuildComponent() (*Component, error) {
 		CommitID:                 variables[defaults.RadixCommitHashEnvironmentVariable],
 		GitTags:                  variables[defaults.RadixGitTagsEnvironmentVariable],
 		Runtime:                  b.buildRuntimeModel(),
+		CronSchedules:            b.cronSchedules,
 	}
 	if b.resources != nil && (len(b.resources.Limits) > 0 || len(b.resources.Requests) > 0) {
-		component.Resources = pointers.Ptr(ConvertRadixResourceRequirements(*b.resources))
+		component.Resources = new(ConvertRadixResourceRequirements(*b.resources))
 	}
 	return &component, b.buildError()
 }

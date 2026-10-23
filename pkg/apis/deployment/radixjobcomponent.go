@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"dario.cat/mergo"
-	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -117,7 +116,7 @@ func (c *jobComponentsBuilder) buildJobComponent(ctx context.Context, radixJobCo
 		Image:                image,
 		EnvironmentVariables: getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars),
 		Resources:            getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig),
-		Node:                 getRadixCommonComponentNode(ctx, &radixJobComponent, environmentSpecificConfig),
+		Node:                 getRadixCommonComponentNode(ctx, &radixJobComponent, environmentSpecificConfig), //nolint:staticcheck
 		SecretRefs:           getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig),
 		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),
@@ -165,7 +164,7 @@ func getRadixJobComponentTimeLimitSeconds(radixJobComponent v1.RadixJobComponent
 		return radixJobComponent.TimeLimitSeconds
 	}
 
-	return numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
+	return new(defaults.RadixJobTimeLimitSeconds)
 }
 
 func getRadixJobComponentBackoffLimit(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *int32 {

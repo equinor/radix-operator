@@ -168,7 +168,7 @@ func (c *Controller) syncHandler(ctx context.Context, key cache.ObjectName) erro
 
 // Enqueue takes a resource and converts it into a namespace/name
 // string which is then put onto the work queue
-func (c *Controller) Enqueue(obj interface{}) error {
+func (c *Controller) Enqueue(obj any) error {
 	objRef, err := cache.ObjectToName(obj)
 	if err != nil {
 		metrics.OperatorError(c.HandlerOf, "enqueue", "object_to_name")
@@ -181,7 +181,7 @@ func (c *Controller) Enqueue(obj interface{}) error {
 
 // HandleObject ensures that when anything happens to object which any
 // custom resource is owner of, that custom resource is synced
-func (c *Controller) HandleObject(ctx context.Context, obj interface{}, ownerKind string, getOwnerFn GetOwner) {
+func (c *Controller) HandleObject(ctx context.Context, obj any, ownerKind string, getOwnerFn GetOwner) {
 	var object metav1.Object
 	var ok bool
 	if object, ok = obj.(metav1.Object); !ok {

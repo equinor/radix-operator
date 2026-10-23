@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/stretchr/testify/assert"
@@ -115,39 +114,39 @@ func Test_GetJobCommandAndArgs(t *testing.T) {
 			wantArgs:    nil,
 		},
 		"job single command is set": {
-			jobCommand:  pointers.Ptr([]string{"bash"}),
+			jobCommand:  new([]string{"bash"}),
 			jobArgs:     nil,
 			wantCommand: []string{"bash"},
 			wantArgs:    nil,
 		},
 		"job command with arguments is set": {
-			jobCommand:  pointers.Ptr([]string{"sh", "-c", "echo hello"}),
+			jobCommand:  new([]string{"sh", "-c", "echo hello"}),
 			jobArgs:     nil,
 			wantCommand: []string{"sh", "-c", "echo hello"},
 			wantArgs:    nil,
 		},
 		"job command is set and args are set": {
-			jobCommand:  pointers.Ptr([]string{"sh", "-c"}),
-			jobArgs:     pointers.Ptr([]string{"echo hello"}),
+			jobCommand:  new([]string{"sh", "-c"}),
+			jobArgs:     new([]string{"echo hello"}),
 			wantCommand: []string{"sh", "-c"},
 			wantArgs:    []string{"echo hello"},
 		},
 		"job only args are set": {
 			jobCommand:  nil,
-			jobArgs:     pointers.Ptr([]string{"--verbose", "--output=json"}),
+			jobArgs:     new([]string{"--verbose", "--output=json"}),
 			wantCommand: nil,
 			wantArgs:    []string{"--verbose", "--output=json"},
 		},
 		"job and component command and args are set, job takes precedence": {
-			jobCommand:       pointers.Ptr([]string{"job-cmd"}),
-			jobArgs:          pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+			jobCommand:       new([]string{"job-cmd"}),
+			jobArgs:          new([]string{"job-arg1", "job-arg2"}),
 			componentCommand: []string{"comp-cmd"},
 			componentArgs:    []string{"comp-arg1", "comp-arg2"},
 			wantCommand:      []string{"job-cmd"},
 			wantArgs:         []string{"job-arg1", "job-arg2"},
 		},
 		"job command set, component args set, job command takes precedence, args from component": {
-			jobCommand:       pointers.Ptr([]string{"job-cmd"}),
+			jobCommand:       new([]string{"job-cmd"}),
 			jobArgs:          nil,
 			componentCommand: nil,
 			componentArgs:    []string{"comp-arg1", "comp-arg2"},
@@ -156,7 +155,7 @@ func Test_GetJobCommandAndArgs(t *testing.T) {
 		},
 		"job args set, component command set, job args take precedence, command from component": {
 			jobCommand:       nil,
-			jobArgs:          pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+			jobArgs:          new([]string{"job-arg1", "job-arg2"}),
 			componentCommand: []string{"comp-cmd"},
 			componentArgs:    nil,
 			wantCommand:      []string{"comp-cmd"},
@@ -171,7 +170,7 @@ func Test_GetJobCommandAndArgs(t *testing.T) {
 			wantArgs:         []string{"comp-arg1", "comp-arg2"},
 		},
 		"job command set, component command and args set, job command takes precedence, args from component": {
-			jobCommand:       pointers.Ptr([]string{"job-cmd"}),
+			jobCommand:       new([]string{"job-cmd"}),
 			jobArgs:          nil,
 			componentCommand: []string{"comp-cmd"},
 			componentArgs:    []string{"comp-arg1", "comp-arg2"},
@@ -180,14 +179,14 @@ func Test_GetJobCommandAndArgs(t *testing.T) {
 		},
 		"job args set, component command and args set, job args take precedence, command from component": {
 			jobCommand:       nil,
-			jobArgs:          pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+			jobArgs:          new([]string{"job-arg1", "job-arg2"}),
 			componentCommand: []string{"comp-cmd"},
 			componentArgs:    []string{"comp-arg1", "comp-arg2"},
 			wantCommand:      []string{"comp-cmd"},
 			wantArgs:         []string{"job-arg1", "job-arg2"},
 		},
 		"job command is empty array, component command set, job command overrides to empty": {
-			jobCommand:       pointers.Ptr([]string{}),
+			jobCommand:       new([]string{}),
 			jobArgs:          nil,
 			componentCommand: []string{"comp-cmd"},
 			componentArgs:    nil,
@@ -196,15 +195,15 @@ func Test_GetJobCommandAndArgs(t *testing.T) {
 		},
 		"job args is empty array, component args set, job args overrides to empty": {
 			jobCommand:       nil,
-			jobArgs:          pointers.Ptr([]string{}),
+			jobArgs:          new([]string{}),
 			componentCommand: nil,
 			componentArgs:    []string{"comp-arg1", "comp-arg2"},
 			wantCommand:      nil,
 			wantArgs:         []string{},
 		},
 		"job command and args are empty arrays, component command and args set, job overrides to empty": {
-			jobCommand:       pointers.Ptr([]string{}),
-			jobArgs:          pointers.Ptr([]string{}),
+			jobCommand:       new([]string{}),
+			jobArgs:          new([]string{}),
 			componentCommand: []string{"comp-cmd"},
 			componentArgs:    []string{"comp-arg1", "comp-arg2"},
 			wantCommand:      []string{},

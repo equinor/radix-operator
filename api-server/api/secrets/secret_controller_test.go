@@ -9,17 +9,17 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
 	tlsvalidationmock "github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation/mock"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -38,16 +38,14 @@ import (
 )
 
 const (
-	clusterName        = "AnyClusterName"
 	anyAppName         = "any-app"
 	anyComponentName   = "app"
 	anyJobName         = "job"
 	anyEnvironment     = "dev"
 	anyEnvironmentName = "TEST_SECRET"
-	subscriptionId     = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 )
 
-func setupTest(t *testing.T, tlsValidator tlsvalidation.Validator) (*commontest.Utils, *controllertest.Utils, kubernetes.Interface, radixclient.Interface, prometheusclient.Interface, secretsstorevclient.Interface) {
+func setupTest(t *testing.T, tlsValidator tlsvalidation.Validator) (*commontest.Utils, *controllertest.TestUtils, kubernetes.Interface, radixclient.Interface, prometheusclient.Interface, secretsstorevclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset() //nolint:staticcheck
 	radixclient := fake.NewSimpleClientset()    //nolint:staticcheck
@@ -57,7 +55,7 @@ func setupTest(t *testing.T, tlsValidator tlsvalidation.Validator) (*commontest.
 	certClient := certclientfake.NewSimpleClientset()
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	// secretControllerTestUtils is used for issuing HTTP request and processing responses
@@ -118,9 +116,7 @@ func executeUpdateSecretTest(t *testing.T, oldSecretValue, updateSecret, updateC
 	ns := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 
 	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
-		},
+		Name: ns,
 	}
 	_, err = kubeclient.CoreV1().Namespaces().Create(context.Background(), &namespace, metav1.CreateOptions{})
 	if err != nil {
@@ -130,9 +126,7 @@ func executeUpdateSecretTest(t *testing.T, oldSecretValue, updateSecret, updateC
 	// Component secret
 	secretObject := corev1.Secret{
 		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name: operatorutils.GetComponentSecretName(anyComponentName),
-		},
+		Name: operatorutils.GetComponentSecretName(anyComponentName),
 		Data: map[string][]byte{anyEnvironmentName: []byte(oldSecretValue)},
 	}
 	_, err = kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &secretObject, metav1.CreateOptions{})
@@ -143,9 +137,7 @@ func executeUpdateSecretTest(t *testing.T, oldSecretValue, updateSecret, updateC
 	// Job secret
 	secretObject = corev1.Secret{
 		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name: operatorutils.GetComponentSecretName(anyJobName),
-		},
+		Name: operatorutils.GetComponentSecretName(anyJobName),
 		Data: map[string][]byte{anyEnvironmentName: []byte(oldSecretValue)},
 	}
 	_, err = kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &secretObject, metav1.CreateOptions{})
@@ -259,7 +251,7 @@ func TestUpdateSecret_NonExistingEnvironment_Missing(t *testing.T) {
 
 type externalDNSSecretTestSuite struct {
 	suite.Suite
-	controllerTestUtils *controllertest.Utils
+	controllerTestUtils *controllertest.TestUtils
 	commonTestUtils     *commontest.Utils
 	tlsValidator        *tlsvalidationmock.MockValidator
 	kubeClient          kubernetes.Interface
@@ -303,9 +295,9 @@ func (s *externalDNSSecretTestSuite) setupTestResources(appName, envName, compon
 
 func (s *externalDNSSecretTestSuite) setupSecretForExternalDNS(namespace, fqdn string, cert []byte, privateKey []byte) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: fqdn},
-		Type:       corev1.SecretTypeTLS,
-		Data:       map[string][]byte{corev1.TLSCertKey: cert, corev1.TLSPrivateKeyKey: privateKey},
+		Name: fqdn,
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{corev1.TLSCertKey: cert, corev1.TLSPrivateKeyKey: privateKey},
 	}
 	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	return err

@@ -2,9 +2,9 @@ package annotations
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 
-	maputils "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -16,7 +16,13 @@ const (
 
 // Merge multiple maps into one
 func Merge(annotations ...map[string]string) map[string]string {
-	return maputils.MergeMaps(annotations...)
+	merged := make(map[string]string)
+
+	for _, val := range annotations {
+		maps.Copy(merged, val)
+	}
+
+	return merged
 }
 
 // ForRadixBranch returns annotations describing a branch name
@@ -27,6 +33,15 @@ func ForRadixBranch(branch string) map[string]string {
 // ForRadixDeploymentName returns annotations describing a Radix deployment name
 func ForRadixDeploymentName(deploymentName string) map[string]string {
 	return map[string]string{kube.RadixDeploymentNameAnnotation: deploymentName}
+}
+
+// ForBatchCronSchedule returns an annotation holding the cron schedule expression a RadixBatch
+// was created from. Returns nil when the schedule is empty, so non-cron batches carry no annotation.
+func ForBatchCronSchedule(schedule string) map[string]string {
+	if len(schedule) == 0 {
+		return nil
+	}
+	return map[string]string{kube.RadixBatchCronScheduleAnnotation: schedule}
 }
 
 // ForKubernetesDeploymentObservedGeneration returns annotations describing which RadixDeployment version was used while syncing

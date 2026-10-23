@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/promote"
@@ -36,7 +35,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, commonTes
 	kedaClient := kedafake.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := testUtils.CreateClusterPrerequisites("AnyClusterName", "anysubid")
+	err := testUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	return kubeclient, radixclient, testUtils
@@ -151,12 +150,12 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					FromEnvironment: scenario.fromEnvironment,
-					ToEnvironment:   scenario.toEnvironment,
-					DeploymentName:  scenario.deploymentName,
-					JobName:         scenario.jobName,
-					ImageTag:        scenario.imageTag,
-					CommitID:        anyCommitID,
+					PromoteFromEnvironment: scenario.fromEnvironment,
+					ToEnvironment:          scenario.toEnvironment,
+					PromoteDeploymentName:  scenario.deploymentName,
+					JobName:                scenario.jobName,
+					ImageTag:               scenario.imageTag,
+					CommitID:               anyCommitID,
 				},
 			}
 
@@ -248,12 +247,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
-									WithReplicas(commonTest.IntPtr(2)).
+									WithReplicas(new(2)).
 									WithEnvironmentVariable("DB_HOST", "db-dev").
 									WithEnvironmentVariable("DB_PORT", "1234"),
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyProdEnvironment).
-									WithReplicas(commonTest.IntPtr(4)).
+									WithReplicas(new(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
 									WithEnvironmentVariable("DB_PORT", "5678").
 									WithEnvironmentVariable("DB_NAME", "my-db-prod").
@@ -261,8 +260,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(8888).
-							WithPayloadPath(utils.StringPtr("/path")).
+							WithSchedulerPort(new(int32(8888))).
+							WithPayloadPath(new("/path")).
 							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
 							WithCommonEnvironmentVariable("COMMON2", "common2").
@@ -310,12 +309,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -353,7 +352,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "prod1", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON2"])
 	assert.Equal(t, "prod3", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["PROD3"])
-	assert.Equal(t, int32(8888), rds.Items[0].Spec.Jobs[0].SchedulerPort)
+	assert.Equal(t, new(int32(8888)), rds.Items[0].Spec.Jobs[0].SchedulerPort)
 	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
@@ -404,7 +403,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(8888).
+							WithSchedulerPort(new(int32(8888))).
 							WithCommonResource(map[string]string{
 								"memory": "11Mi",
 								"cpu":    "22m",
@@ -431,12 +430,12 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -501,7 +500,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 									&v1.Authentication{
 										OAuth2: &v1.OAuth2{
 											ClientID:               "client-id",
-											SetXAuthRequestHeaders: pointers.Ptr(true),
+											SetXAuthRequestHeaders: new(true),
 										},
 									},
 								),
@@ -521,12 +520,12 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -540,7 +539,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	x0 := &v1.Authentication{
 		OAuth2: &v1.OAuth2{
 			ClientID:               "client-id",
-			SetXAuthRequestHeaders: pointers.Ptr(true),
+			SetXAuthRequestHeaders: new(true),
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)
@@ -595,7 +594,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
-							WithSchedulerPort(8888).
+							WithSchedulerPort(new(int32(8888))).
 							WithCommonResource(
 								map[string]string{
 									"memory": "11Mi",
@@ -634,12 +633,12 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyProdEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -691,12 +690,12 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyDevEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: anyDevEnvironment,
+			ToEnvironment:          anyDevEnvironment,
+			PromoteDeploymentName:  anyDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -788,8 +787,8 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 								utils.AnApplicationJobComponent().
 									WithName("job1").
 									WithIdentity(scenario.commonConfig).
-									WithSchedulerPort(8888).
-									WithPayloadPath(utils.StringPtr("/path")).
+									WithSchedulerPort(new(int32(8888))).
+									WithPayloadPath(new("/path")).
 									WithEnvironmentConfigs(jobEnvironmentConfigs...),
 							)),
 			)
@@ -806,12 +805,12 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					FromEnvironment: anyDevEnvironment,
-					ToEnvironment:   anyProdEnvironment,
-					DeploymentName:  anyDeploymentName,
-					JobName:         anyPromoteJobName,
-					ImageTag:        anyImageTag,
-					CommitID:        anyCommitID,
+					PromoteFromEnvironment: anyDevEnvironment,
+					ToEnvironment:          anyProdEnvironment,
+					PromoteDeploymentName:  anyDeploymentName,
+					JobName:                anyPromoteJobName,
+					ImageTag:               anyImageTag,
+					CommitID:               anyCommitID,
 				},
 			}
 
@@ -867,12 +866,12 @@ func TestPromote_AnnotatedBySourceDeploymentAttributes(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: srcEnv,
-			ToEnvironment:   dstEnv,
-			DeploymentName:  srcDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
+			PromoteFromEnvironment: srcEnv,
+			ToEnvironment:          dstEnv,
+			PromoteDeploymentName:  srcDeploymentName,
+			JobName:                anyPromoteJobName,
+			ImageTag:               anyImageTag,
+			CommitID:               anyCommitID,
 		},
 	}
 
@@ -897,7 +896,7 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 		job1, job2      string = "job1", "job2"
 		envDev, envProd string = "dev", "prod"
 		rdSource        string = "rdsource"
-		schedulerPort   int32  = 9999
+		schedulerPort   *int32 = new(int32(9999))
 	)
 
 	// Setup
@@ -940,11 +939,11 @@ func TestPromote_Runtime_KeepFromSourceRD(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			DeploymentName:  rdSource,
-			FromEnvironment: envDev,
-			ToEnvironment:   envProd,
-			JobName:         "ajob",
-			ImageTag:        "atag",
+			PromoteDeploymentName:  rdSource,
+			PromoteFromEnvironment: envDev,
+			ToEnvironment:          envProd,
+			JobName:                "ajob",
+			ImageTag:               "atag",
 		},
 	}
 

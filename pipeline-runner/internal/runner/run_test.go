@@ -14,16 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createRadixJob(appName, jobName string) *v1.RadixJob {
 	return &v1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: utils.GetAppNamespace(appName),
-		},
+		Name:      jobName,
+		Namespace: utils.GetAppNamespace(appName),
 		Spec: v1.RadixJobSpec{
 			AppName:      appName,
 			PipeLineType: v1.Deploy,
@@ -49,7 +46,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 		gitCommitHash            string
 		expectRunError           bool
 		expectedStatus           v1.RadixJobCondition
-		expectedBuildKit         bool
 		expectedBuildCache       bool
 		expectedResolvedCommitID string
 	}{
@@ -57,7 +53,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			name:               "step succeeds",
 			stepRunFunc:        func(_ context.Context, _ *model.PipelineInfo) error { return nil },
 			expectedStatus:     v1.JobSucceeded,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
@@ -65,7 +60,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			stepRunFunc:        func(_ context.Context, _ *model.PipelineInfo) error { return fmt.Errorf("build error") },
 			expectRunError:     true,
 			expectedStatus:     v1.JobFailed,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
@@ -76,15 +70,13 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 				return nil
 			},
 			expectedStatus:     v1.JobStoppedNoChanges,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
-			name:               "buildkit and cache info",
+			name:               "cache info",
 			stepRunFunc:        func(_ context.Context, _ *model.PipelineInfo) error { return nil },
 			pipelineArgs:       model.PipelineArguments{OverrideUseBuildCache: &useBuildCache},
 			expectedStatus:     v1.JobSucceeded,
-			expectedBuildKit:   true,
 			expectedBuildCache: true,
 		},
 		{
@@ -92,7 +84,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			stepRunFunc:              func(_ context.Context, _ *model.PipelineInfo) error { return nil },
 			gitCommitHash:            "abc123def456",
 			expectedStatus:           v1.JobSucceeded,
-			expectedBuildKit:         true,
 			expectedBuildCache:       true,
 			expectedResolvedCommitID: "abc123def456",
 		},
@@ -133,7 +124,6 @@ func TestRun_PipelineRunStatusUpdated(t *testing.T) {
 			status := getPipelineRunStatus(t, fakeClient, appName, jobName)
 			require.NotNil(t, status)
 			assert.Equal(t, tt.expectedStatus, status.Status)
-			assert.Equal(t, tt.expectedBuildKit, status.UsedBuildKit)
 			assert.Equal(t, tt.expectedBuildCache, status.UsedBuildCache)
 			assert.Equal(t, tt.expectedResolvedCommitID, status.ResolvedCommitID)
 		})

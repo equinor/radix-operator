@@ -15,7 +15,6 @@ import (
 // DeploymentBuilder Handles construction of RD
 type DeploymentBuilder interface {
 	WithRadixApplication(ApplicationBuilder) DeploymentBuilder
-	WithRadixDeployment(*v1.RadixDeployment) DeploymentBuilder
 	WithDeploymentName(string) DeploymentBuilder
 	WithImageTag(string) DeploymentBuilder
 	WithAppName(string) DeploymentBuilder
@@ -79,18 +78,6 @@ func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder Appli
 // WithEmptyStatus Indicates that the RD has no reconciled status
 func (db *DeploymentBuilderStruct) WithEmptyStatus() DeploymentBuilder {
 	db.emptyStatus = true
-	return db
-}
-
-// WithRadixDeployment Reverse engineers RD
-func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.RadixDeployment) DeploymentBuilder {
-	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
-
-	db.WithImageTag(imageTag)
-	db.WithAppName(radixDeployment.Spec.AppName) //nolint:staticcheck
-	db.WithEnvironment(radixDeployment.Spec.Environment)
-	db.WithJobName(radixDeployment.GetLabels()[kube.RadixJobNameLabel])
-	db.WithCreated(radixDeployment.CreationTimestamp.Time)
 	return db
 }
 
@@ -250,21 +237,17 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	}
 
 	radixDeployment := &v1.RadixDeployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1.SchemeGroupVersion.Identifier(),
-			Kind:       v1.KindRadixDeployment,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              deployName,
-			Annotations:       db.annotations,
-			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
-			Labels:            db.Labels,
-			CreationTimestamp: metav1.Time{Time: db.Created},
-			ResourceVersion:   db.ResourceVersion,
-			UID:               db.UID,
-		},
+		APIVersion:        v1.SchemeGroupVersion.Identifier(),
+		Kind:              v1.KindRadixDeployment,
+		Name:              deployName,
+		Annotations:       db.annotations,
+		Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
+		Labels:            db.Labels,
+		CreationTimestamp: metav1.Time{Time: db.Created},
+		ResourceVersion:   db.ResourceVersion,
+		UID:               db.UID,
 		Spec: v1.RadixDeploymentSpec{
-			AppName:          db.AppName,
+			AppName:          db.AppName, //nolint:staticcheck
 			Components:       components,
 			Jobs:             jobComponents,
 			Environment:      db.Environment,
@@ -303,7 +286,7 @@ func ARadixDeploymentWithComponentModifier(m func(builder DeployComponentBuilder
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
 			WithImage("radixdev.azurecr.io/job:imagetag").
-			WithSchedulerPort(8080))
+			WithSchedulerPort(new(int32(8080))))
 	return builder
 }
 

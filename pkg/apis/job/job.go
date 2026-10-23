@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	commonmaps "github.com/equinor/radix-common/utils/maps"
 	commonslice "github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	apiconfig "github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
@@ -28,29 +28,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // Job Instance variables
 type Job struct {
-	kubeclient   kubernetes.Interface
-	radixclient  radixclient.Interface
-	kubeutil     *kube.Kube
-	radixJob     *v1.RadixJob
-	registration *v1.RadixRegistration
-	config       *apiconfig.Config
+	kubeclient    kubernetes.Interface
+	radixclient   radixclient.Interface
+	dynamicClient client.Client
+	kubeutil      *kube.Kube
+	radixJob      *v1.RadixJob
+	registration  *v1.RadixRegistration
+	cfg           config.Config
 }
 
-const jobNameLabel = "job-name"
+const (
+	jobNameLabel      = "job-name"
+	configMapKeyLabel = "configYaml"
+)
 
 // NewJob Constructor
-func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, registration *v1.RadixRegistration, radixJob *v1.RadixJob, config *apiconfig.Config) *Job {
+func NewJob(kubeClient kubernetes.Interface, kubeUtil *kube.Kube, radixClient radixclient.Interface, dynamicClient client.Client, registration *v1.RadixRegistration, radixJob *v1.RadixJob, cfg config.Config) *Job {
 	return &Job{
-		kubeclient:   kubeClient,
-		radixclient:  radixClient,
-		kubeutil:     kubeUtil,
-		registration: registration,
-		radixJob:     radixJob,
-		config:       config,
+		kubeclient:    kubeClient,
+		radixclient:   radixClient,
+		dynamicClient: dynamicClient,
+		kubeutil:      kubeUtil,
+		registration:  registration,
+		radixJob:      radixJob,
+		cfg:           cfg,
 	}
 }
 
@@ -74,7 +81,7 @@ func (job *Job) OnSync(ctx context.Context) error {
 		log.Ctx(ctx).Debug().Msgf("for BuildDeploy failed to find RadixApplication by name %s", appName)
 	}
 
-	if job.radixJob.Status.Condition.IsDoneCondition() {
+	if job.radixJob.Status.Condition.IsDone() {
 		log.Ctx(ctx).Debug().Msgf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
@@ -99,8 +106,8 @@ func (job *Job) OnSync(ctx context.Context) error {
 		return err
 	}
 
-	if job.radixJob.Status.Condition.IsDoneCondition() {
-		if err = job.setNextJobToRunning(ctx, ra); err != nil {
+	if job.radixJob.Status.Condition.IsDone() {
+		if err = job.setNextJobToWaiting(ctx, ra); err != nil {
 			return err
 		}
 	}
@@ -119,7 +126,7 @@ func (job *Job) handleStop(ctx context.Context, ra *v1.RadixApplication) (bool, 
 		return false, fmt.Errorf("failed to stop job: %w", err)
 	}
 
-	if err := job.setNextJobToRunning(ctx, ra); err != nil {
+	if err := job.setNextJobToWaiting(ctx, ra); err != nil {
 		return false, fmt.Errorf("failed to set next job to running: %w", err)
 	}
 
@@ -131,19 +138,54 @@ func (job *Job) reconcile(ctx context.Context) error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Ctx(ctx).Info().Msg("Create pipeline job")
-			return job.createPipelineJob(ctx)
+
+			if err := job.reconcilePipelineConfigMap(ctx); err != nil {
+				return fmt.Errorf("failed to reconcile pipeline config: %w", err)
+			}
+			if err := job.createPipelineJob(ctx); err != nil {
+				return fmt.Errorf("failed to create pipeline job: %w", err)
+			}
+
+			return nil
 		}
 
-		return fmt.Errorf("failed to create pipeline job: %w", err)
+		return fmt.Errorf("failed to check existence of pipeline job: %w", err)
 	}
 
 	return nil
 }
 
+func (job *Job) reconcilePipelineConfigMap(ctx context.Context) error {
+	configCm := &corev1.ConfigMap{Name: job.getPipelineConfigMapName(), Namespace: job.radixJob.Namespace}
+	op, err := controllerutil.CreateOrUpdate(ctx, job.dynamicClient, configCm, func() error {
+		if configCm.Data == nil {
+			configCm.Data = make(map[string]string)
+		}
+		configYaml, err := configcodec.Encode(job.cfg)
+		if err != nil {
+			return fmt.Errorf("failed to encode pipeline config: %w", err)
+		}
+		configCm.Data[configMapKeyLabel] = string(configYaml)
+		return controllerutil.SetControllerReference(job.radixJob, configCm, job.dynamicClient.Scheme())
+	})
+	if err != nil {
+		return fmt.Errorf("failed to reconcile pipeline config map: %w", err)
+	}
+	if op != controllerutil.OperationResultNone {
+		log.Ctx(ctx).Info().Str("op", string(op)).Msg("reconcile pipeline config map")
+	}
+
+	return nil
+}
+
+func (job *Job) getPipelineConfigMapName() string {
+	return job.radixJob.Name
+}
+
 // handleJobQueueing checks if another job is running on the same branch or environment and queues this job if necessary.
 // Returns true if the job was queued, indicating that reconciliation should stop.
 func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) (bool, error) {
-	if !slices.Contains([]v1.RadixJobCondition{"", v1.JobQueued}, job.radixJob.Status.Condition) {
+	if !job.radixJob.Status.Condition.IsQueuedOrEmpty() {
 		return false, nil
 	}
 
@@ -152,7 +194,7 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 		return false, fmt.Errorf("failed to list jobs: %w", err)
 	}
 
-	if isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
+	if shouldBeQueuedBehindOlderJobs(ra, job.radixJob, existingRadixJobs) || isOtherJobRunningOnBranchOrEnvironment(ra, job.radixJob, existingRadixJobs) {
 		if err := job.queueJob(ctx); err != nil {
 			return false, fmt.Errorf("failed to queue job: %w", err)
 		}
@@ -163,49 +205,78 @@ func (job *Job) handleJobQueueing(ctx context.Context, ra *v1.RadixApplication) 
 	return false, nil
 }
 
-func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
-	isJobActive := func(rj *v1.RadixJob) bool {
-		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
-	}
-
-	jobTargetEnvironments := getTargetEnvironments(job, ra)
-	for _, existingRadixJob := range existingRadixJobs {
-		if existingRadixJob.GetName() == job.GetName() || !isJobActive(&existingRadixJob) {
+// shouldBeQueuedBehindOlderJobs returns true if an older job, which is queued or not yet reconciled,
+// targets any of the same environments as the current job. Such a job must run first, so the current job is queued.
+func shouldBeQueuedBehindOlderJobs(ra *v1.RadixApplication, current *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+	currentTargetEnvironments := getTargetEnvironments(current, ra)
+	for _, existing := range existingRadixJobs {
+		if existing.GetName() == current.GetName() {
 			continue
 		}
-		switch existingRadixJob.Spec.PipeLineType {
-		case v1.BuildDeploy, v1.Build:
-			if len(jobTargetEnvironments) > 0 {
-				existingJobTargetEnvironments := applicationconfig.GetAllTargetEnvironments(existingRadixJob.Spec.Build.GetGitRefOrDefault(), string(existingRadixJob.Spec.Build.GitRefType), ra)
-				for _, existingJobTargetEnvironment := range existingJobTargetEnvironments {
-					if _, ok := jobTargetEnvironments[existingJobTargetEnvironment]; ok {
-						return true
-					}
-				}
-				continue
+		if !existing.CreationTimestamp.Before(&current.CreationTimestamp) {
+			continue
+		}
+		if !existing.Status.Condition.IsQueuedOrEmpty() {
+			continue
+		}
+		if hasConflictingTargetEnvironments(currentTargetEnvironments, getTargetEnvironments(&existing, ra)) {
+			return true
+		}
+	}
+	return false
+}
+
+// isOtherJobRunningOnBranchOrEnvironment returns true if another job is running on the same branch or environment as the current job.
+func isOtherJobRunningOnBranchOrEnvironment(ra *v1.RadixApplication, job *v1.RadixJob, existingRadixJobs []v1.RadixJob) bool {
+	currentJobTargetEnvironments := getTargetEnvironments(job, ra)
+	for _, existingRadixJob := range existingRadixJobs {
+		if existingRadixJob.GetName() == job.GetName() {
+			continue
+		}
+
+		if !existingRadixJob.Status.Condition.IsWaitingOrRunning() {
+			continue
+		}
+
+		// A build or build-deploy job can resolve to no target environments when its git ref is not (yet)
+		// mapped to any environment in the RadixApplication (e.g. the RA is missing, or the branch mapping
+		// is absent). In that case we fall back to matching on git ref against other running build jobs, so
+		// two builds of the same git ref are not run concurrently.
+		// Note: ApplyConfig jobs also have no target environments, but they carry no git ref and are not
+		// build jobs, so they intentionally do not conflict here.
+		if len(currentJobTargetEnvironments) == 0 {
+			currentIsBuildJob := job.Spec.PipeLineType == v1.Build || job.Spec.PipeLineType == v1.BuildDeploy
+			existingIsBuildJob := existingRadixJob.Spec.PipeLineType == v1.Build || existingRadixJob.Spec.PipeLineType == v1.BuildDeploy
+
+			gitRefsMatches := job.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
+				job.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault()
+
+			if currentIsBuildJob && existingIsBuildJob && gitRefsMatches {
+				return true // It is a conflict, make sure the job is queued
 			}
-			if job.Spec.Build.GetGitRefOrDefault() == existingRadixJob.Spec.Build.GetGitRefOrDefault() &&
-				job.Spec.Build.GetGitRefTypeOrDefault() == existingRadixJob.Spec.Build.GetGitRefTypeOrDefault() {
-				if len(job.Spec.Build.ToEnvironment) == 0 {
-					return true
-				}
-				if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Build.ToEnvironment]; ok {
-					return true
-				}
-			}
-		case v1.Deploy:
-			if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Deploy.ToEnvironment]; ok {
-				return true
-			}
-		case v1.Promote:
-			if _, ok := jobTargetEnvironments[existingRadixJob.Spec.Promote.ToEnvironment]; ok {
-				return true
+		} else {
+			existingTargetEnvironments := getTargetEnvironments(&existingRadixJob, ra)
+			if hasConflictingTargetEnvironments(currentJobTargetEnvironments, existingTargetEnvironments) {
+				return true // It is a conflict, make sure the job is queued
 			}
 		}
 	}
 	return false
 }
 
+// hasConflictingTargetEnvironments returns true if the two jobs target at least one common environment.
+func hasConflictingTargetEnvironments(jobTargetEnvironments, otherJobTargetEnvironments map[string]any) bool {
+	for envName := range jobTargetEnvironments {
+		if _, ok := otherJobTargetEnvironments[envName]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// getTargetEnvironments (or getExclusiveEnvironments) resolves the set of environments a job targets. A job can target several environments,
+// for example a build-deploy job building a branch that is mapped to multiple environments.
+// or Apply-Config returns nil, since it targets all environments, and is not considered to conflict with other jobs.
 func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]any {
 	switch rj.Spec.PipeLineType {
 	case v1.Build, v1.BuildDeploy:
@@ -221,6 +292,8 @@ func getTargetEnvironments(rj *v1.RadixJob, ra *v1.RadixApplication) map[string]
 		return map[string]any{rj.Spec.Deploy.ToEnvironment: nil}
 	case v1.Promote:
 		return map[string]any{rj.Spec.Promote.ToEnvironment: nil}
+	case v1.ApplyConfig:
+		return nil // ApplyConfig jobs do not target any specific environment and they are not considered to conflict with other jobs.
 	default:
 		return nil
 	}
@@ -294,15 +367,23 @@ func (job *Job) syncStatus(ctx context.Context, reconcileErr error) error {
 }
 
 func (job *Job) stopJob(ctx context.Context) error {
-	log.Ctx(ctx).Info().Msgf("Stop job")
+	log.Ctx(ctx).Info().Msg("Stop job")
 	isRunning := job.radixJob.Status.Condition == v1.JobRunning
-	stoppedSteps, err := job.getStoppedSteps(ctx, isRunning)
-	if err != nil {
-		return err
+	isWaiting := job.radixJob.Status.Condition == v1.JobWaiting
+
+	// The pipeline Kubernetes job is created once the RadixJob leaves the queued/empty state, i.e.
+	// while it is waiting or running. Delete it when stopping either state; otherwise stopping a
+	// waiting job would orphan its pipeline job, letting it run to completion in the background.
+	if isRunning || isWaiting {
+		if err := job.deletePipelineJobs(ctx); err != nil {
+			return err
+		}
 	}
 
+	stoppedSteps := job.getStoppedSteps(isRunning)
+
 	return job.updateStatus(ctx, func(currStatus *v1.RadixJobStatus) {
-		if isRunning && stoppedSteps != nil {
+		if stoppedSteps != nil {
 			currStatus.Steps = *stoppedSteps
 		}
 		currStatus.Created = &job.radixJob.CreationTimestamp
@@ -316,34 +397,35 @@ func (job *Job) stopJob(ctx context.Context) error {
 
 }
 
-func (job *Job) getStoppedSteps(ctx context.Context, isRunning bool) (*[]v1.RadixJobStep, error) {
+// deletePipelineJobs deletes the pipeline Kubernetes job, its pod and any step jobs of the RadixJob.
+// Deletions are idempotent: missing resources are ignored.
+func (job *Job) deletePipelineJobs(ctx context.Context) error {
+	if err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, job.radixJob.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	if err := job.deleteJobPodIfExistsAndNotCompleted(ctx, job.radixJob.Name); err != nil {
+		return err
+	}
+
+	return job.deleteStepJobs(ctx)
+}
+
+// getStoppedSteps returns the RadixJob steps with their non-terminal conditions set to stopped. It
+// returns nil when the job was not running, so the existing steps are left unchanged.
+func (job *Job) getStoppedSteps(isRunning bool) *[]v1.RadixJobStep {
 	if !isRunning {
-		return nil, nil
-	}
-	// Delete pipeline job
-	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(ctx, job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, err
+		return nil
 	}
 
-	err = job.deleteJobPodIfExistsAndNotCompleted(ctx, job.radixJob.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	err = job.deleteStepJobs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	stoppedSteps := make([]v1.RadixJobStep, 0)
+	stoppedSteps := make([]v1.RadixJobStep, 0, len(job.radixJob.Status.Steps))
 	for _, step := range job.radixJob.Status.Steps {
 		if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
 			step.Condition = v1.JobStopped
 		}
 		stoppedSteps = append(stoppedSteps, step)
 	}
-	return &stoppedSteps, nil
+	return &stoppedSteps
 }
 
 func (job *Job) deleteStepJobs(ctx context.Context) error {
@@ -371,7 +453,7 @@ func (job *Job) deleteStepJobs(ctx context.Context) error {
 	return nil
 }
 
-func (job *Job) setNextJobToRunning(ctx context.Context, ra *v1.RadixApplication) error {
+func (job *Job) setNextJobToWaiting(ctx context.Context, ra *v1.RadixApplication) error {
 	radixJobs, err := job.getAllRadixJobs(ctx)
 	if err != nil {
 		return err
@@ -383,9 +465,9 @@ func (job *Job) setNextJobToRunning(ctx context.Context, ra *v1.RadixApplication
 			continue
 		}
 		if !isOtherJobRunningOnBranchOrEnvironment(ra, &thisJob, rjs) {
-			log.Ctx(ctx).Info().Msgf("Change condition for next job %s from %s to %s", thisJob.Name, thisJob.Status.Condition, v1.JobRunning)
+			log.Ctx(ctx).Info().Msgf("Change condition for next job %s from %s to %s", thisJob.Name, thisJob.Status.Condition, v1.JobWaiting)
 			_, err := updateRadixJobStatus(ctx, job.radixclient, &thisJob, func(currStatus *v1.RadixJobStatus) {
-				currStatus.Condition = v1.JobRunning
+				currStatus.Condition = v1.JobWaiting
 			})
 			return err
 		}
@@ -539,13 +621,13 @@ func getJobStepsFromInitContainers(pod corev1.Pod, prepareStepsNames map[string]
 }
 
 func getContainerNames(buildComponentImagesMap pipeline.BuildComponentImages, buildComponentImagesList []pipeline.BuildComponentImage) []string {
-	return append(commonmaps.GetKeysFromMap(buildComponentImagesMap),
+	return append(slices.Collect(maps.Keys(buildComponentImagesMap)),
 		commonslice.Map(buildComponentImagesList, func(componentImage pipeline.BuildComponentImage) string {
 			return fmt.Sprintf("%s-%s", componentImage.ComponentName, componentImage.EnvName)
 		})...)
 }
 
-func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj interface{}) error {
+func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj any) error {
 	annotation := job.GetObjectMeta().GetAnnotations()[annotationName]
 	if !strings.EqualFold(annotation, "") {
 		err := json.Unmarshal([]byte(annotation), obj)
@@ -638,7 +720,7 @@ func (job *Job) getJobEnvironments(ctx context.Context) ([]string, error) {
 		return acc
 	})
 
-	return commonmaps.GetKeysFromMap(environmentsMap), nil
+	return slices.Collect(maps.Keys(environmentsMap)), nil
 }
 
 func (job *Job) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {

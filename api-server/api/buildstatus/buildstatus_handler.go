@@ -2,22 +2,23 @@ package buildstatus
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strings"
 
 	build_models "github.com/equinor/radix-operator/api-server/api/buildstatus/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type BuildStatusHandler struct {
-	accounts      models.Accounts
+	accounts      accounts.Accounts
 	pipelineBadge build_models.PipelineBadge
 }
 
-func Init(accounts models.Accounts, pipelineBadge build_models.PipelineBadge) BuildStatusHandler {
+func Init(accounts accounts.Accounts, pipelineBadge build_models.PipelineBadge) BuildStatusHandler {
 	return BuildStatusHandler{accounts: accounts, pipelineBadge: pipelineBadge}
 }
 
@@ -64,10 +65,8 @@ func getLatestPipelineJobToEnvironment(jobs []v1.RadixJob, env, pipeline string)
 
 	// Get status of the last job to requested environment
 	for _, buildDeployJob := range allBuildDeployJobs {
-		for _, targetEnvironment := range buildDeployJob.Status.TargetEnvs {
-			if targetEnvironment == env {
-				return &buildDeployJob
-			}
+		if slices.Contains(buildDeployJob.Status.TargetEnvs, env) {
+			return &buildDeployJob
 		}
 	}
 

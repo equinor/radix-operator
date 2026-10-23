@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	jobController "github.com/equinor/radix-operator/api-server/api/jobs"
 	jobmodels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -236,14 +236,12 @@ func buildPipelineJob(ctx context.Context, appName string, pipeline radixv1.Radi
 	}
 
 	job := radixv1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: jobSpec.GitRef,
-			},
+		Name: jobName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+		},
+		Annotations: map[string]string{
+			kube.RadixBranchAnnotation: jobSpec.GitRef,
 		},
 		Spec: radixv1.RadixJobSpec{
 			AppName:              appName,

@@ -12,20 +12,18 @@ type radixDeployCommonComponentUpdater interface {
 	setEnvironmentVariablesToComponent(envVars v1.EnvVarsMap)
 	getComponentStatus() string
 	getRadixDeployment() *v1.RadixDeployment
-	getEnvironmentConfig() v1.RadixCommonEnvironmentConfig
 	setReplicasOverrideToComponent(replicas *int)
 	setUserMutationTimestampAnnotation(timestamp string)
 }
 
 type baseComponentUpdater struct {
-	appName           string
-	envName           string
-	componentName     string
-	componentIndex    int
-	componentToPatch  v1.RadixCommonDeployComponent
-	radixDeployment   *v1.RadixDeployment
-	componentState    *deploymentModels.Component
-	environmentConfig v1.RadixCommonEnvironmentConfig
+	appName          string
+	envName          string
+	componentName    string
+	componentIndex   int
+	componentToPatch v1.RadixCommonDeployComponent
+	radixDeployment  *v1.RadixDeployment
+	componentState   *deploymentModels.Component
 }
 
 type radixDeployComponentUpdater struct {
@@ -60,10 +58,6 @@ func (updater *radixDeployComponentUpdater) getRadixDeployment() *v1.RadixDeploy
 	return updater.base.radixDeployment
 }
 
-func (updater *radixDeployComponentUpdater) getEnvironmentConfig() v1.RadixCommonEnvironmentConfig {
-	return updater.base.environmentConfig
-}
-
 func (updater *radixDeployJobComponentUpdater) getComponentToPatch() v1.RadixCommonDeployComponent {
 	return updater.base.componentToPatch
 }
@@ -86,8 +80,4 @@ func (updater *radixDeployJobComponentUpdater) getComponentStatus() string {
 
 func (updater *radixDeployJobComponentUpdater) getRadixDeployment() *v1.RadixDeployment {
 	return updater.base.radixDeployment
-}
-
-func (updater *radixDeployJobComponentUpdater) getEnvironmentConfig() v1.RadixCommonEnvironmentConfig {
-	return updater.base.environmentConfig
 }

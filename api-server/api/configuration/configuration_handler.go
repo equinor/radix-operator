@@ -4,11 +4,11 @@ import (
 	"context"
 
 	configurationModels "github.com/equinor/radix-operator/api-server/api/configuration/models"
-	"github.com/equinor/radix-operator/api-server/internal/config"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 )
 
 type configurationHandler struct {
-	config config.Config
+	cfg config.Config
 }
 
 type ConfigurationHandler interface {
@@ -19,15 +19,15 @@ type ConfigurationHandler interface {
 // Init Constructor
 func Init(config config.Config) ConfigurationHandler {
 	return &configurationHandler{
-		config: config,
+		cfg: config,
 	}
 }
 
 func (h *configurationHandler) GetClusterConfiguration(ctx context.Context) (configurationModels.ClusterConfiguration, error) {
 	return configurationModels.ClusterConfiguration{
-		ClusterEgressIps:   h.config.ClusterEgressIps,
-		ClusterOidcIssuers: h.config.ClusterOidcIssuers,
-		DNSZone:            h.config.DNSZone,
-		ClusterName:        h.config.ClusterName,
+		ClusterEgressIps:   h.cfg.ApiServer.ClusterEgressIps,
+		ClusterOidcIssuers: h.cfg.ApiServer.ClusterOidcIssuers,
+		DNSZone:            h.cfg.Common.DNSZone,
+		ClusterName:        h.cfg.Common.ClusterName,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,10 +47,8 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
 						Name: "testing-secret-mount",
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: "test-illegal-secret",
-							},
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "test-illegal-secret",
 						},
 					}},
 				},
@@ -64,10 +63,8 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
 						Name: pipelineDefaults.SubstitutionRadixGitDeployKeyTarget,
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: operatorDefaults.GitPrivateKeySecretName,
-							},
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: operatorDefaults.GitPrivateKeySecretName,
 						},
 					}},
 				},
@@ -95,10 +92,8 @@ func TestValidateTask(t *testing.T) {
 					Steps: []pipelinev1.Step{{}},
 					Volumes: []corev1.Volume{{
 						Name: "test-host-path",
-						VolumeSource: corev1.VolumeSource{
-							HostPath: &corev1.HostPathVolumeSource{
-								Path: "/tmp",
-							},
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/tmp",
 						},
 					}},
 				},
@@ -156,10 +151,8 @@ func TestValidateTask(t *testing.T) {
 					Volumes: []corev1.Volume{
 						{
 							Name: "test-host-path",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/tmp",
-								},
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/tmp",
 							},
 						},
 						{
@@ -167,10 +160,8 @@ func TestValidateTask(t *testing.T) {
 						},
 						{
 							Name: "testing-secret-mount",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "test-illegal-secret",
-								},
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "test-illegal-secret",
 							},
 						},
 					},
@@ -188,7 +179,6 @@ func TestValidateTask(t *testing.T) {
 	}
 
 	for _, spec := range specs {
-		spec := spec
 		t.Run(spec.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -205,4 +195,42 @@ func TestValidateTask(t *testing.T) {
 		})
 	}
 
+}
+
+func TestValidateTask_ReportsEverySecretReference(t *testing.T) {
+	task := pipelinev1.Task{
+		Name: "Test Task",
+		Spec: pipelinev1.TaskSpec{
+			Steps: []pipelinev1.Step{{
+				Name: "show-secrets",
+				Env: []corev1.EnvVar{
+					{
+						Name:      "FIRST",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: "first-illegal-secret"}},
+					},
+					{
+						Name:      "SECOND",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: "second-illegal-secret"}},
+					},
+					{
+						Name:      "ALLOWED",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Name: pipelineDefaults.SubstitutionRadixBuildSecretsTarget}},
+					},
+				},
+				EnvFrom: []corev1.EnvFromSource{{
+					SecretRef: &corev1.SecretEnvSource{Name: "third-illegal-secret"},
+				}},
+			}},
+		},
+	}
+
+	err := validation.ValidateTask(&task)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, validation.ErrSecretReferenceNotAllowed)
+	assert.Contains(t, err.Error(), "first-illegal-secret")
+	assert.Contains(t, err.Error(), "second-illegal-secret")
+	assert.Contains(t, err.Error(), "third-illegal-secret")
+	assert.Contains(t, err.Error(), "show-secrets", "the offending step is named")
+	assert.NotContains(t, err.Error(), pipelineDefaults.SubstitutionRadixBuildSecretsTarget, "allowed secrets are not reported")
 }

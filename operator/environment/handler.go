@@ -80,7 +80,7 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 		Get(ctx, syncEnvironment.Spec.AppName, meta.GetOptions{})
 
 	nw := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, t.config)
-	env := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, &nw)
+	env := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, t.config, &nw)
 	err = env.OnSync(ctx)
 	if err != nil {
 		t.events.RecordSyncErrorEvent(syncEnvironment, err)

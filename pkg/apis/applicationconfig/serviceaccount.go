@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -35,18 +34,16 @@ func (app *ApplicationConfig) syncSubPipelineServiceAccounts(ctx context.Context
 func (app *ApplicationConfig) applySubPipelineServiceAccounts(ctx context.Context) error {
 	appNs := utils.GetAppNamespace(app.registration.Name)
 
-	for _, env := range app.config.Spec.Environments {
+	for _, env := range app.application.Spec.Environments {
 		saName := utils.GetSubPipelineServiceAccountName(env.Name)
 
 		sa := &corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      saName,
-				Namespace: appNs,
-				Labels: radixlabels.Merge(
-					radixlabels.ForServiceAccountIsForSubPipeline(),
-					radixlabels.ForEnvironmentName(env.Name),
-				),
-			},
+			Name:      saName,
+			Namespace: appNs,
+			Labels: radixlabels.Merge(
+				radixlabels.ForServiceAccountIsForSubPipeline(),
+				radixlabels.ForEnvironmentName(env.Name),
+			),
 		}
 
 		_, err := app.kubeutil.ApplyServiceAccount(ctx, sa)
@@ -68,7 +65,7 @@ func (app *ApplicationConfig) gcSubPipelineServiceAccounts(ctx context.Context) 
 	for _, sa := range accounts {
 		targetEnv := sa.Labels[kube.RadixEnvLabel]
 
-		envExists := slices.ContainsFunc(app.config.Spec.Environments, func(e radixv1.Environment) bool {
+		envExists := slices.ContainsFunc(app.application.Spec.Environments, func(e radixv1.Environment) bool {
 			return e.Name == targetEnv
 		})
 		if envExists {

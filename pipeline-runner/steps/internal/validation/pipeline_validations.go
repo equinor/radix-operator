@@ -28,6 +28,26 @@ func validatePipelineTasks(pipeline *pipelinev1.Pipeline) []error {
 					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
 					i+1, pipelineSpecTask.Name))
 		}
+		if pipelineSpecTask.TaskRef != nil && pipelineSpecTask.TaskSpec != nil {
+			validationErrors = append(validationErrors,
+				fmt.Errorf("invalid task #%d '%s': a Task within a Pipeline must have either a taskRef or a taskSpec, not both\n"+
+					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
+					i+1, pipelineSpecTask.Name))
+		}
+	}
+	for i, pipelineSpecTask := range pipeline.Spec.Finally {
+		if len(pipelineSpecTask.Name) == 0 || (pipelineSpecTask.TaskRef == nil && pipelineSpecTask.TaskSpec == nil) {
+			validationErrors = append(validationErrors,
+				fmt.Errorf("invalid finally task #%d '%s': each Task within a Pipeline must have a valid name and a taskRef or a taskSpec\n"+
+					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
+					i+1, pipelineSpecTask.Name))
+		}
+		if pipelineSpecTask.TaskRef != nil && pipelineSpecTask.TaskSpec != nil {
+			validationErrors = append(validationErrors,
+				fmt.Errorf("invalid finally task #%d '%s': a Task within a Pipeline must have either a taskRef or a taskSpec, not both\n"+
+					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
+					i+1, pipelineSpecTask.Name))
+		}
 	}
 	return validationErrors
 }

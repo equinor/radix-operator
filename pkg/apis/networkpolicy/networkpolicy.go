@@ -55,7 +55,7 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(ctx context.Context, radixEgressRu
 	)
 
 	if allowRadix != nil && *allowRadix {
-		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Gateway.Name))
+		egressRules = append(egressRules, createAllowRadixEgressRule(nw.config.Operator.Gateway.Name))
 	}
 
 	egressPolicy := nw.createEgressPolicy(appName, envName, egressRules, true)
@@ -98,13 +98,11 @@ func (nw *NetworkPolicy) createAllowOwnNamespaceEgressRule(appName, env string) 
 
 func (nw *NetworkPolicy) createEgressPolicy(appName, env string, egressRules []v1.NetworkPolicyEgressRule, isUserDefined bool) *v1.NetworkPolicy {
 	np := v1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: userDefinedEgressPolicyName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:                      appName,
-				kube.RadixEnvLabel:                      env,
-				kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(isUserDefined),
-			},
+		Name: userDefinedEgressPolicyName,
+		Labels: map[string]string{
+			kube.RadixAppLabel:                      appName,
+			kube.RadixEnvLabel:                      env,
+			kube.RadixUserDefinedNetworkPolicyLabel: strconv.FormatBool(isUserDefined),
 		},
 		Spec: v1.NetworkPolicySpec{
 			PolicyTypes: []v1.PolicyType{v1.PolicyTypeEgress},

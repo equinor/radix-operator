@@ -18,7 +18,6 @@ func BuildApplication(rr *radixv1.RadixRegistration, ra *radixv1.RadixApplicatio
 		UserIsAdmin:        userIsAdmin,
 		DNSAliases:         buildDNSAlias(dnsAliasList, dnsZone),
 		DNSExternalAliases: BuildDNSExternalAliases(rdList),
-		UseBuildKit:        useBuildKit(ra),
 		UseBuildCache:      useBuildCache(ra),
 	}
 	if ra != nil {
@@ -27,16 +26,9 @@ func BuildApplication(rr *radixv1.RadixRegistration, ra *radixv1.RadixApplicatio
 	return &application
 }
 
-func useBuildKit(ra *radixv1.RadixApplication) bool {
-	if ra == nil || ra.Spec.Build == nil || ra.Spec.Build.UseBuildKit == nil {
-		return false
-	}
-	return *ra.Spec.Build.UseBuildKit
-}
-
 func useBuildCache(ra *radixv1.RadixApplication) bool {
-	if ra == nil || ra.Spec.Build == nil || !useBuildKit(ra) {
-		return false
+	if ra == nil || ra.Spec.Build == nil {
+		return true
 	}
 	return ra.Spec.Build.UseBuildCache == nil || *ra.Spec.Build.UseBuildCache
 }

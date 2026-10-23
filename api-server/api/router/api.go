@@ -5,11 +5,12 @@ import (
 
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	"github.com/equinor/radix-operator/api-server/api/middleware/logger"
+	"github.com/equinor/radix-operator/api-server/api/middleware/radix"
 	"github.com/equinor/radix-operator/api-server/api/middleware/recovery"
 	"github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/api-server/api/utils/token"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/equinor/radix-operator/api-server/swaggerui"
 	"github.com/gorilla/mux"
 	"github.com/urfave/negroni/v3"
@@ -20,7 +21,7 @@ const (
 )
 
 // NewAPIHandler Constructor function
-func NewAPIHandler(validator token.ValidatorInterface, kubeUtil utils.KubeUtil, controllers ...models.Controller) http.Handler {
+func NewAPIHandler(validator token.ValidatorInterface, kubeUtil utils.KubeUtil, controllers ...controller.Controller) http.Handler {
 	serveMux := http.NewServeMux()
 
 	serveMux.Handle("/health/", createHealthHandler())
@@ -39,12 +40,12 @@ func NewAPIHandler(validator token.ValidatorInterface, kubeUtil utils.KubeUtil, 
 
 	return n
 }
-func createApiRouter(kubeUtil utils.KubeUtil, controllers []models.Controller) *mux.Router {
+func createApiRouter(kubeUtil utils.KubeUtil, controllers []controller.Controller) *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	for _, controller := range controllers {
-		for _, route := range controller.GetRoutes() {
+	for _, ctrl := range controllers {
+		for _, route := range ctrl.GetRoutes() {
 			path := apiVersionRoute + route.Path
-			handler := utils.NewRadixMiddleware(
+			handler := radix.NewRadixMiddleware(
 				kubeUtil,
 				path,
 				route.Method,

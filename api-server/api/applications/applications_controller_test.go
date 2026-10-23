@@ -6,15 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -24,10 +20,10 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus"
 	"github.com/equinor/radix-operator/api-server/api/metrics/prometheus/mock"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
-	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -51,14 +47,12 @@ import (
 )
 
 const (
-	clusterName    = "AnyClusterName"
-	dnsZone        = "some-dns-zone.com"
-	subscriptionId = "12347718-c8f8-4995-bfbb-02655ff1f89c"
+	dnsZone = "some-dns-zone.com"
 )
 
-func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
+func setupTest(t *testing.T, options ...ApplicationHandlerOption) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	return setupTestWithFactory(t, newTestApplicationHandlerFactory(
-		config.Config{DNSZone: dnsZone},
+		config.Config{Common: config.CommonConfig{DNSZone: dnsZone}},
 		func(ctx context.Context, kubeClient kubernetes.Interface, namespace string, configMapName string) (bool, error) {
 			return true, nil
 		},
@@ -72,7 +66,7 @@ func customWarningCollector(handler CollectContextWarningsFunc) ApplicationHandl
 	}
 }
 
-func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory) (*commontest.Utils, *controllertest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
+func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory) (*commontest.Utils, *controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, dynamicclient.Client, *secretproviderfake.Clientset, *certfake.Clientset, *tektonclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()   //nolint:staticcheck
 	radixclient := radixfake.NewSimpleClientset() //nolint:staticcheck
@@ -84,7 +78,7 @@ func setupTestWithFactory(t *testing.T, handlerFactory ApplicationHandlerFactory
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	prometheusHandlerMock := createPrometheusHandlerMock(t, nil)
 
@@ -118,7 +112,7 @@ func createPrometheusHandlerMock(t *testing.T, mockHandler *func(handler *mock.M
 	if mockHandler != nil {
 		(*mockHandler)(promQueryApi)
 	} else {
-		promQueryApi.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&model.Vector{}, nil, nil)
+		promQueryApi.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&model.Vector{}, nil, nil, nil)
 	}
 	return metricsHandler
 }
@@ -194,57 +188,41 @@ func TestGetApplications_HasAccessToSomeRR(t *testing.T) {
 	})
 }
 
-func TestGetApplications_WithFilterOnSSHRepo_Filter(t *testing.T) {
-	// Setup
-	commonTestUtils, controllerTestUtils, _, _, _, _, _, _, _ := setupTest(t)
-	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
-		WithCloneURL("git@github.com:Equinor/my-app.git"))
-	require.NoError(t, err)
-
-	// Test
-	t.Run("matching repo", func(t *testing.T) {
-		responseChannel := controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications?sshRepo=%s", url.QueryEscape("git@github.com:Equinor/my-app.git")))
-		response := <-responseChannel
-
-		applications := make([]applicationModels.ApplicationSummary, 0)
-		err = controllertest.GetResponseBody(response, &applications)
-		require.NoError(t, err)
-		assert.Equal(t, 1, len(applications))
-	})
-
-	t.Run("not matching repo", func(t *testing.T) {
-		responseChannel := controllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications?sshRepo=%s", url.QueryEscape("git@github.com:Equinor/my-app2.git")))
-		response := <-responseChannel
-
-		applications := make([]*applicationModels.ApplicationSummary, 0)
-		err = controllertest.GetResponseBody(response, &applications)
-		require.NoError(t, err)
-		assert.Equal(t, 0, len(applications))
-	})
-
-	t.Run("no filter", func(t *testing.T) {
-		responseChannel := controllerTestUtils.ExecuteRequest("GET", "/api/v1/applications")
-		response := <-responseChannel
-
-		applications := make([]*applicationModels.ApplicationSummary, 0)
-		err = controllertest.GetResponseBody(response, &applications)
-		require.NoError(t, err)
-		assert.Equal(t, 1, len(applications))
-	})
-}
-
 func TestSearchApplicationsGet(t *testing.T) {
 	// Setup
 	commonTestUtils, _, kubeclient, radixclient, kedaClient, _, secretproviderclient, certClient, _ := setupTest(t)
 	appNames := []string{"app-1", "app-2"}
+	appID := "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+	cloneURL := "git@github.com:Equinor/app-1.git"
+	adGroups := []string{"admin-group"}
+	adUsers := []string{"admin-user"}
+	readerAdGroups := []string{"reader-group"}
+	readerAdUsers := []string{"reader-user"}
+	creator := "creator@example.com"
+	owner := "owner@example.com"
+	configBranch := "config-branch"
+	radixConfigFullName := "config/radixconfig.yaml"
+	configurationItem := "configuration-item"
 
-	for _, appName := range appNames {
-		_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().WithName(appName))
-		require.NoError(t, err)
-	}
+	_, err := commonTestUtils.ApplyRegistration(builders.ARadixRegistration().
+		WithName(appNames[0]).
+		WithAppID(appID).
+		WithCloneURL(cloneURL).
+		WithAdGroups(adGroups).
+		WithAdUsers(adUsers).
+		WithReaderAdGroups(readerAdGroups).
+		WithReaderAdUsers(readerAdUsers).
+		WithCreator(creator).
+		WithOwner(owner).
+		WithConfigBranch(configBranch).
+		WithRadixConfigFullName(radixConfigFullName).
+		WithConfigurationItem(configurationItem))
+	require.NoError(t, err)
+	_, err = commonTestUtils.ApplyRegistration(builders.ARadixRegistration().WithName(appNames[1]))
+	require.NoError(t, err)
 
-	app2Job1Started, _ := radixutils.ParseTimestamp("2018-11-12T12:30:14Z")
-	err := createRadixJob(commonTestUtils, appNames[1], "app-2-job-1", app2Job1Started)
+	app2Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
+	err = createRadixJob(commonTestUtils, appNames[1], "app-2-job-1", app2Job1Started)
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(
 		context.Background(),
@@ -280,6 +258,17 @@ func TestSearchApplicationsGet(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, len(applications))
 		assert.Equal(t, appNames[0], applications[0].Name)
+		assert.Equal(t, appID, applications[0].AppID)
+		assert.Equal(t, cloneURL, applications[0].CloneURL)
+		assert.Equal(t, adGroups, applications[0].AdGroups)
+		assert.Equal(t, adUsers, applications[0].AdUsers)
+		assert.Equal(t, readerAdGroups, applications[0].ReaderAdGroups)
+		assert.Equal(t, readerAdUsers, applications[0].ReaderAdUsers)
+		assert.Equal(t, creator, applications[0].Creator)
+		assert.Equal(t, owner, applications[0].Owner)
+		assert.Equal(t, configBranch, applications[0].ConfigBranch)
+		assert.Equal(t, radixConfigFullName, applications[0].RadixConfigFullName)
+		assert.Equal(t, configurationItem, applications[0].ConfigurationItem)
 	})
 
 	t.Run("search for both apps", func(t *testing.T) {
@@ -457,7 +446,6 @@ func TestGetApplication_AllFieldsAreSet(t *testing.T) {
 		anApplicationRegistration().
 			WithName("any-name").
 			WithRepository("https://github.com/Equinor/any-repo").
-			WithSharedSecret("Any secret").
 			WithAdGroups(adGroups).
 			WithAdUsers(adUsers).
 			WithReaderAdGroups(readerAdGroups).
@@ -481,7 +469,6 @@ func TestGetApplication_AllFieldsAreSet(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "https://github.com/Equinor/any-repo", application.Registration.Repository)
-	assert.Equal(t, "Any secret", application.Registration.SharedSecret)
 	assert.Equal(t, adGroups, application.Registration.AdGroups)
 	assert.Equal(t, adUsers, application.Registration.AdUsers)
 	assert.Equal(t, readerAdGroups, application.Registration.ReaderAdGroups)
@@ -500,9 +487,9 @@ func TestGetApplication_WithJobs(t *testing.T) {
 	require.NoError(t, err)
 
 	commontest.CreateAppNamespace(kubeclient, "any-name")
-	app1Job1Started, _ := radixutils.ParseTimestamp("2018-11-12T11:45:26Z")
-	app1Job2Started, _ := radixutils.ParseTimestamp("2018-11-12T12:30:14Z")
-	app1Job3Started, _ := radixutils.ParseTimestamp("2018-11-20T09:00:00Z")
+	app1Job1Started, _ := time.Parse(time.RFC3339, "2018-11-12T11:45:26Z")
+	app1Job2Started, _ := time.Parse(time.RFC3339, "2018-11-12T12:30:14Z")
+	app1Job3Started, _ := time.Parse(time.RFC3339, "2018-11-20T09:00:00Z")
 
 	err = createRadixJob(commonTestUtils, "any-name", "any-name-job-1", app1Job1Started)
 	require.NoError(t, err)
@@ -521,53 +508,21 @@ func TestGetApplication_WithJobs(t *testing.T) {
 	assert.Equal(t, 3, len(application.Jobs))
 }
 
-func TestGetApplication_BuildKitOptions(t *testing.T) {
+func TestGetApplication_BuildCacheOption(t *testing.T) {
 	scenarios := map[string]struct {
-		useBuildKit           *bool
 		useBuildCache         *bool
-		expectedUseBuildKit   bool
 		expectedUseBuildCache bool
 	}{
-		"no buildkit or buildcache": {
-			useBuildKit:           nil,
+		"buildCache not set defaults to true": {
 			useBuildCache:         nil,
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit and buildcache": {
-			useBuildKit:           pointers.Ptr(true),
-			useBuildCache:         pointers.Ptr(true),
-			expectedUseBuildKit:   true,
 			expectedUseBuildCache: true,
 		},
-		"buildkit only": {
-			useBuildKit:           pointers.Ptr(true),
-			useBuildCache:         nil,
-			expectedUseBuildKit:   true,
+		"buildCache true": {
+			useBuildCache:         new(true),
 			expectedUseBuildCache: true,
 		},
-		"buildcache only": {
-			useBuildKit:           nil,
-			useBuildCache:         pointers.Ptr(true),
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit and buildcache false": {
-			useBuildKit:           pointers.Ptr(false),
-			useBuildCache:         pointers.Ptr(false),
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit false and buildcache true": {
-			useBuildKit:           pointers.Ptr(false),
-			useBuildCache:         pointers.Ptr(true),
-			expectedUseBuildKit:   false,
-			expectedUseBuildCache: false,
-		},
-		"buildkit true and buildcache false": {
-			useBuildKit:           pointers.Ptr(true),
-			useBuildCache:         pointers.Ptr(false),
-			expectedUseBuildKit:   true,
+		"buildCache false": {
+			useBuildCache:         new(false),
 			expectedUseBuildCache: false,
 		},
 	}
@@ -579,7 +534,7 @@ func TestGetApplication_BuildKitOptions(t *testing.T) {
 				WithName("any-name"))
 			require.NoError(t, err)
 			_, err = commonTestUtils.ApplyApplication(builders.ARadixApplication().
-				WithAppName("any-name").WithBuildKit(ts.useBuildKit).WithBuildCache(ts.useBuildCache))
+				WithAppName("any-name").WithBuildCache(ts.useBuildCache))
 			require.NoError(t, err)
 
 			commontest.CreateAppNamespace(kubeclient, "any-name")
@@ -591,7 +546,6 @@ func TestGetApplication_BuildKitOptions(t *testing.T) {
 			application := applicationModels.Application{}
 			err = controllertest.GetResponseBody(response, &application)
 			require.NoError(t, err)
-			assert.Equal(t, ts.expectedUseBuildKit, application.UseBuildKit, "Invalid UseBuildKit")
 			assert.Equal(t, ts.expectedUseBuildCache, application.UseBuildCache, "Invalid UseBuildCache")
 		})
 	}
@@ -651,7 +605,7 @@ func TestGetApplication_WithEnvironments(t *testing.T) {
 		WithEnvironmentName(anyOrphanedEnvironment))
 	orphanedRe.Status.Reconciled = metav1.Now()
 	orphanedRe.Status.Orphaned = true
-	orphanedRe.Status.OrphanedTimestamp = pointers.Ptr(metav1.Now())
+	orphanedRe.Status.OrphanedTimestamp = new(metav1.Now())
 	_, err = radix.RadixV1().RadixEnvironments().Update(context.Background(), orphanedRe, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
@@ -716,8 +670,7 @@ func TestUpdateApplication_AbleToSetAnySpecField(t *testing.T) {
 	builder :=
 		anApplicationRegistration().
 			WithName("any-name").
-			WithRepository("https://github.com/Equinor/a-repo").
-			WithSharedSecret("")
+			WithRepository("https://github.com/Equinor/a-repo")
 	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", buildApplicationRegistrationRequest(builder.Build(), false))
 	<-responseChannel
 
@@ -734,18 +687,6 @@ func TestUpdateApplication_AbleToSetAnySpecField(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, applicationRegistrationUpsertResponse.ApplicationRegistration)
 	assert.Equal(t, newRepository, applicationRegistrationUpsertResponse.ApplicationRegistration.Repository)
-
-	// Test SharedSecret
-	newSharedSecret := "Any shared secret"
-	builder = builder.
-		WithSharedSecret(newSharedSecret)
-
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("PUT", fmt.Sprintf("/api/v1/applications/%s", "any-name"), buildApplicationRegistrationRequest(builder.Build(), false))
-	response = <-responseChannel
-	applicationRegistrationUpsertResponse = applicationModels.ApplicationRegistrationUpsertResponse{}
-	err = controllertest.GetResponseBody(response, &applicationRegistrationUpsertResponse)
-	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, applicationRegistrationUpsertResponse.ApplicationRegistration.SharedSecret)
 
 	// Test ConfigBranch
 	newConfigBranch := "newcfgbranch"
@@ -781,7 +722,6 @@ func TestModifyApplication_AbleToSetField(t *testing.T) {
 		WithName("any-name").
 		WithAppID(appId).
 		WithRepository("https://github.com/Equinor/a-repo").
-		WithSharedSecret("").
 		WithAdGroups([]string{uuid.New().String()}).
 		WithAdUsers([]string{uuid.New().String()}).
 		WithReaderAdGroups([]string{uuid.New().String()}).
@@ -944,7 +884,7 @@ func TestModifyApplication_IgnoreRequireADGroupValidationWhenRequiredButCurrentI
 	// Test
 	patchRequest := applicationModels.ApplicationRegistrationPatchRequest{
 		ApplicationRegistrationPatch: &applicationModels.ApplicationRegistrationPatch{
-			ConfigBranch: radixutils.StringPtr("dummyupdate"),
+			ConfigBranch: new("dummyupdate"),
 		},
 	}
 
@@ -972,7 +912,7 @@ func TestHandleTriggerPipeline_ForNonMappedAndMappedAndMagicBranchEnvironment_Jo
 	// Test
 	unmappedBranch := "feature"
 
-	parameters := applicationModels.PipelineParametersBuild{Branch: unmappedBranch}
+	parameters := applicationModels.PipelineParametersBuild{Branch: unmappedBranch} //nolint:staticcheck
 	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", anyAppName, v1.BuildDeploy), parameters)
 	response := <-responseChannel
 
@@ -982,14 +922,14 @@ func TestHandleTriggerPipeline_ForNonMappedAndMappedAndMagicBranchEnvironment_Jo
 	assert.Equal(t, (expectedError.(*radixhttp.Error)).Message, errorResponse.Message)
 
 	// Mapped branch should start job
-	parameters = applicationModels.PipelineParametersBuild{Branch: "dev"}
+	parameters = applicationModels.PipelineParametersBuild{Branch: "dev"} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", anyAppName, v1.BuildDeploy), parameters)
 	response = <-responseChannel
 
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Magic branch should start job, even if it is not mapped
-	parameters = applicationModels.PipelineParametersBuild{Branch: configBranch}
+	parameters = applicationModels.PipelineParametersBuild{Branch: configBranch} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", anyAppName, v1.BuildDeploy), parameters)
 	response = <-responseChannel
 
@@ -1013,7 +953,7 @@ func TestHandleTriggerPipeline_ExistingAndNonExistingApplication_JobIsCreatedFor
 	// Test
 	const pushCommitID = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
 
-	parameters := applicationModels.PipelineParametersBuild{Branch: "master", CommitID: pushCommitID}
+	parameters := applicationModels.PipelineParametersBuild{Branch: "master", CommitID: pushCommitID} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", "another-app", v1.BuildDeploy), parameters)
 	response := <-responseChannel
 
@@ -1021,7 +961,7 @@ func TestHandleTriggerPipeline_ExistingAndNonExistingApplication_JobIsCreatedFor
 	errorResponse, _ := controllertest.GetErrorResponse(response)
 	assert.Equal(t, controllertest.AppNotFoundErrorMsg("another-app"), errorResponse.Message)
 
-	parameters = applicationModels.PipelineParametersBuild{Branch: "", CommitID: pushCommitID}
+	parameters = applicationModels.PipelineParametersBuild{Branch: "", CommitID: pushCommitID} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", "any-app", v1.BuildDeploy), parameters)
 	response = <-responseChannel
 
@@ -1030,7 +970,7 @@ func TestHandleTriggerPipeline_ExistingAndNonExistingApplication_JobIsCreatedFor
 	expectedError := applicationModels.AppNameAndBranchAreRequiredForStartingPipeline()
 	assert.Equal(t, (expectedError.(*radixhttp.Error)).Message, errorResponse.Message)
 
-	parameters = applicationModels.PipelineParametersBuild{Branch: "maincfg", CommitID: pushCommitID}
+	parameters = applicationModels.PipelineParametersBuild{Branch: "maincfg", CommitID: pushCommitID} //nolint:staticcheck
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/pipelines/%s", "any-app", v1.BuildDeploy), parameters)
 	response = <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
@@ -1210,7 +1150,7 @@ func TestDeleteApplication_ApplicationIsDeleted(t *testing.T) {
 func TestGetApplication_WithAppAlias_ContainsAppAlias(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretproviderclient, certClient, _ := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretproviderclient, certClient, builders.ARadixDeployment().
 		WithRadixApplication(builders.ARadixApplication().
 			WithAppName("any-app").
 			WithDNSAppAlias("prod", "frontend")).
@@ -1274,22 +1214,21 @@ func TestRegenerateDeployKey_WhenApplicationNotExist_Fail(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{SharedSecret: "new shared secret"}
 	appName := "any-non-existing-name"
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 
 	assert.Equal(t, http.StatusNotFound, response.Code)
 }
 
-func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
+func TestRegenerateDeployKey_CreateUpdatesSharedSecret(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, kubeUtil, radixClient, kedaClient, _, _, _, _ := setupTest(t)
 	appName := "any-name"
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Test
@@ -1304,64 +1243,27 @@ func TestRegenerateDeployKey_UpdatesSharedSecret(t *testing.T) {
 	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
 	<-appResponseChannel
 
-	const newSharedSecret = "new shared secret"
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{SharedSecret: newSharedSecret}
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
+	// Get old secret
+	oldSharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
+	require.NoError(t, err)
+	oldSharedSecretData := oldSharedSecret.Data[defaults.WebhookSharedSecretKey]
+
+	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), nil)
 	response := <-responseChannel
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	sharedSecret, err := kubeUtil.CoreV1().Secrets(builders.GetAppNamespace(appName)).Get(context.Background(), defaults.WebhookSharedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, radixRegistration.Spec.SharedSecret)
+	newSharedSecretData := sharedSecret.Data[defaults.WebhookSharedSecretKey]
+	assert.NotEqual(t, oldSharedSecretData, newSharedSecretData)
 
 	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
+	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), nil)
 	response = <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
 	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
 	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, deployKeyAndSecret.SharedSecret)
-}
-
-func TestRegenerateDeployKey_CreateSharedSecret(t *testing.T) {
-	// Setup
-	commonTestUtils, controllerTestUtils, kubeUtil, radixClient, kedaClient, _, _, _, _ := setupTest(t)
-	appName := "any-name"
-	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
-
-	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
-	require.NoError(t, err)
-
-	// Test
-	parameters := buildApplicationRegistrationRequest(
-		anApplicationRegistration().
-			WithName("any-name").
-			WithRepository("https://github.com/Equinor/any-repo").
-			Build(),
-		false,
-	)
-
-	appResponseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", "/api/v1/applications", parameters)
-	<-appResponseChannel
-
-	regenerateParameters := &applicationModels.RegenerateSharedSecretData{}
-	responseChannel := controllerTestUtils.ExecuteRequestWithParameters("POST", fmt.Sprintf("/api/v1/applications/%s/regenerate-shared-secret", appName), regenerateParameters)
-	response := <-responseChannel
-	assert.Equal(t, http.StatusNoContent, response.Code)
-
-	radixRegistration, err := radixClient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
-	require.NoError(t, err)
-	newSharedSecret := radixRegistration.Spec.SharedSecret
-	assert.NotEmpty(t, newSharedSecret)
-
-	deployKeyAndSecret := &applicationModels.DeployKeyAndSecret{}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("GET", fmt.Sprintf("/api/v1/applications/%s/deploy-key-and-secret", appName), regenerateParameters)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	err = controllertest.GetResponseBody(response, &deployKeyAndSecret)
-	require.NoError(t, err)
-	assert.Equal(t, newSharedSecret, deployKeyAndSecret.SharedSecret)
+	assert.Equal(t, string(newSharedSecretData), deployKeyAndSecret.SharedSecret)
 }
 
 func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
@@ -1371,7 +1273,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been created
@@ -1386,7 +1288,7 @@ func TestRegenerateDeployKey_NoSecretInParam_SecretIsReCreated(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is different from first secret
@@ -1403,7 +1305,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// make some valid private key
@@ -1417,7 +1319,7 @@ func TestRegenerateDeployKey_PrivateKeyInParam_SavedPrivateKeyIsEqualToWebParam(
 	assert.Equal(t, http.StatusNoContent, response.Code)
 
 	// forcing resync of RR
-	err = utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err = controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// Check that secret has been re-created and is equal to the one in the web parameter
@@ -1433,7 +1335,7 @@ func TestRegenerateDeployKey_InvalidKeyInParam_ErrorIsReturned(t *testing.T) {
 	rrBuilder := builders.ARadixRegistration().WithName(appName).WithCloneURL("git@github.com:Equinor/my-app.git")
 
 	// Creating RR and syncing it
-	err := utils.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
+	err := controllertest.ApplyRegistrationWithSync(kubeUtil, radixClient, kedaClient, commonTestUtils, rrBuilder)
 	require.NoError(t, err)
 
 	// calling regenerate-deploy-key with invalid private key, expecting error
@@ -1556,7 +1458,6 @@ func anApplicationRegistration() applicationModels.ApplicationRegistrationBuilde
 	return applicationModels.NewApplicationRegistrationBuilder().
 		WithName("my-app").
 		WithRepository("https://github.com/Equinor/my-app").
-		WithSharedSecret("AnySharedSecret").
 		WithAdGroups([]string{"a6a3b81b-34gd-sfsf-saf2-7986371ea35f"}).
 		WithReaderAdGroups([]string{"40e794dc-244c-4d0a-9f29-55fda1fe3972"}).
 		WithCreator("a_test_user@equinor.com").
@@ -1572,22 +1473,22 @@ func buildApplicationRegistrationRequest(applicationRegistration applicationMode
 }
 
 type testApplicationHandlerFactory struct {
-	config                  config.Config
+	cfg                     config.Config
 	hasAccessToGetConfigMap hasAccessToGetConfigMapFunc
 	options                 []ApplicationHandlerOption
 }
 
 func newTestApplicationHandlerFactory(config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) *testApplicationHandlerFactory {
 	return &testApplicationHandlerFactory{
-		config:                  config,
+		cfg:                     config,
 		hasAccessToGetConfigMap: hasAccessToGetConfigMap,
 		options:                 options,
 	}
 }
 
 // Create creates a new ApplicationHandler
-func (f *testApplicationHandlerFactory) Create(accounts models.Accounts) ApplicationHandler {
-	return NewApplicationHandler(accounts, f.config, f.hasAccessToGetConfigMap, f.options...)
+func (f *testApplicationHandlerFactory) Create(accounts accounts.Accounts) ApplicationHandler {
+	return NewApplicationHandler(accounts, f.cfg, f.hasAccessToGetConfigMap, f.options...)
 }
 
 func createTime(timestamp string) *time.Time {

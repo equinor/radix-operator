@@ -9,8 +9,6 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixhttp "github.com/equinor/radix-common/net/http"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
@@ -19,13 +17,14 @@ import (
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -55,11 +54,10 @@ const (
 	anyDeployment    = "deployment1"
 	anyEnvironment   = "dev1"
 	anySecretName    = "TEST_SECRET"
-	subscriptionId   = "12347718-c8f8-4995-bfbb-02655ff1f89c"
 	nodeType1        = "some-node-type1"
 )
 
-func setupTest(t *testing.T, envHandlerOpts []EnvironmentHandlerOptions) (*commontest.Utils, *controllertest.Utils, *controllertest.Utils, *kubefake.Clientset, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certclientfake.Clientset) {
+func setupTest(t *testing.T, envHandlerOpts []EnvironmentHandlerOptions) (*commontest.Utils, *controllertest.TestUtils, *controllertest.TestUtils, *kubefake.Clientset, radixclient.Interface, kedav2.Interface, client.Client, secretsstorevclient.Interface, *certclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewClientset()
 	radixClient := radixfake.NewSimpleClientset() //nolint:staticcheck
@@ -70,7 +68,7 @@ func setupTest(t *testing.T, envHandlerOpts []EnvironmentHandlerOptions) (*commo
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixClient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
 	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))
@@ -560,9 +558,7 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
 	createEvent := func(namespace, eventName string) {
 		_, err := kubeClient.CoreV1().Events(namespace).CreateWithEventNamespaceWithContext(context.Background(), &corev1.Event{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: eventName,
-			},
+			Name: eventName,
 		})
 		require.NoError(t, err)
 	}
@@ -612,7 +608,7 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -672,7 +668,7 @@ func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.
 func TestUpdateSecret_AccountSecretForJobVolumeMount_UpdatedOk(t *testing.T) {
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -734,7 +730,7 @@ func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
 	// Setup
 	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
 		WithRadixApplication(operatorutils.ARadixApplication().
@@ -765,7 +761,7 @@ func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
 
 	// Update client secret when k8s secret exists should set Data
 	secretName := operatorutils.GetAuxiliaryComponentSecretName(anyComponentName, v1.OAuthProxyAuxiliaryComponentSuffix)
-	_, err = client.CoreV1().Secrets(envNs).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName}}, metav1.CreateOptions{})
+	_, err = client.CoreV1().Secrets(envNs).Create(context.Background(), &corev1.Secret{Name: secretName}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
@@ -1079,10 +1075,8 @@ func TestRestartAuxiliaryResource(t *testing.T) {
 
 	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 	_, err = kubeClient.AppsV1().Deployments(envNs).Create(context.Background(), &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "comp1-aux-resource",
-			Labels: map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixAuxiliaryComponentLabel: anyComponentName, kube.RadixAuxiliaryComponentTypeLabel: auxType},
-		},
+		Name:   "comp1-aux-resource",
+		Labels: map[string]string{kube.RadixAppLabel: anyAppName, kube.RadixAuxiliaryComponentLabel: anyComponentName, kube.RadixAuxiliaryComponentTypeLabel: auxType},
 		Spec:   appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{}}},
 		Status: appsv1.DeploymentStatus{Replicas: 1},
 	}, metav1.CreateOptions{})
@@ -1122,8 +1116,8 @@ func createRadixDeploymentWithReplicas(tu *commontest.Utils, appName, envName st
 			operatorutils.
 				NewDeployComponentBuilder().
 				WithName(component.name).
-				WithReplicas(pointers.Ptr(component.number)).
-				WithReplicasOverride(pointers.Ptr(component.number)),
+				WithReplicas(new(component.number)).
+				WithReplicasOverride(new(component.number)),
 		)
 	}
 

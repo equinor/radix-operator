@@ -47,7 +47,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_Reader_C
 	appName := "any-app"
 	namespace := utils.GetAppNamespace(appName)
 	appNamespace := test.CreateAppNamespace(s.KubeClient, appName)
-	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{AdGroups: []string{"first-admin"}, ReaderAdGroups: []string{"first-reader-group"}}}
+	rr := &v1.RadixRegistration{Name: appName, Spec: v1.RadixRegistrationSpec{AdGroups: []string{"first-admin"}, ReaderAdGroups: []string{"first-reader-group"}}}
 	rr, err := s.RadixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	if err != nil {
 		s.Require().NoError(err)

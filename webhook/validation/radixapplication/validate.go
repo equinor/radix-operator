@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
+	"github.com/equinor/radix-operator/pkg/apis/utils/domain"
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog/log"
@@ -38,6 +39,7 @@ var (
 
 var (
 	offlineValidators = []validatorFunc{
+		applicationNameValidator,
 		deprecatedPublicUsageValidator,
 		componentJobNameValidator,
 		componentValidator,
@@ -66,11 +68,13 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixApplication] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, reservedDNSAliases []string, reservedDNSAppAliases map[string]string) *Validator {
+func CreateOnlineValidator(client client.Client, cfg config.Config) *Validator {
 	onlineValidators := []validatorFunc{
 		createRRExistValidator(client),
-		createDNSAliasAvailableValidator(client, reservedDNSAliases, reservedDNSAppAliases),
+		createDNSAliasAvailableValidator(client, cfg.Webhook.ReservedDNSAliases, cfg.Webhook.ReservedDNSAppAliases),
+		createCertificateAutomationValidator(cfg.Common.CertificateAutomation),
 		createNamespaceUsableValidator(client),
+		createComponentAuthenticationValidator(cfg),
 	}
 
 	return &Validator{
@@ -161,6 +165,15 @@ func branchNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]s
 	return nil, nil
 }
 
+func applicationNameValidator(_ context.Context, ra *radixv1.RadixApplication) ([]string, []error) {
+	const maxApplicationNameLength = 40
+	if len(ra.Name) > maxApplicationNameLength {
+		return nil, []error{ErrApplicationNameTooLong}
+	}
+
+	return nil, nil
+}
+
 func jobValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var wrns []string
 	var errs []error
@@ -194,6 +207,10 @@ func jobValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string,
 		}
 
 		if err := validateFailurePolicy(job.FailurePolicy); err != nil {
+			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
+		}
+
+		for _, err := range validateJobSchedulerConfig(app, job) {
 			errs = append(errs, fmt.Errorf("job %s: %w", job.Name, err))
 		}
 
@@ -244,6 +261,37 @@ func validateJobComponentEnvironment(app *radixv1.RadixApplication, job radixv1.
 	return wrns, errors.Join(errs...)
 }
 
+// validateJobSchedulerConfig ensures a job can be triggered in every environment it is
+// enabled for. A schedulerPort or a job-level cron schedule applies to all environments.
+// Otherwise, each enabled environment must define its own cron schedule.
+func validateJobSchedulerConfig(app *radixv1.RadixApplication, job radixv1.RadixJobComponent) []error {
+	if job.SchedulerPort != nil || job.Cron != nil {
+		return nil
+	}
+
+	// The job has neither Scheduler Port or Cron Job,
+	// we must ensure that every enabled environment has a cron schedule defined
+	var errs []error
+	enabledInAnyEnvironment := false
+	for _, env := range app.Spec.Environments {
+		if !job.GetEnabledForEnvironment(env.Name) {
+			continue
+		}
+		enabledInAnyEnvironment = true
+
+		hasCron := slice.Any(job.EnvironmentConfig, func(c radixv1.RadixJobComponentEnvironmentConfig) bool {
+			return c.Environment == env.Name && c.Cron != nil
+		})
+		if !hasCron {
+			errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, ErrSchedulerPortOrCronRequiredForJob))
+		}
+	}
+	if !enabledInAnyEnvironment {
+		errs = append(errs, ErrSchedulerPortOrCronRequiredForJob)
+	}
+	return errs
+}
+
 func componentValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var wrns []string
 	var errs []error
@@ -275,8 +323,6 @@ func componentValidator(ctx context.Context, app *radixv1.RadixApplication) ([]s
 		if err := validateMonitoring(&component); err != nil {
 			errs = append(errs, err)
 		}
-
-		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
 		if err := validateRuntime(component.GetRuntime()); err != nil {
 			errs = append(errs, err)
@@ -346,6 +392,17 @@ func envNameValidator(ctx context.Context, ra *radixv1.RadixApplication) ([]stri
 		if len(ra.Name)+len(env.Name) > 62 {
 			return nil, []error{fmt.Errorf("environment %s: %w", env.Name, ErrInvalidEnvironmentNameLength)}
 		}
+		for _, component := range ra.Spec.Components {
+			//nolint:staticcheck // Public is supported for backwards compatibility.
+			if len(component.PublicPort) == 0 && !component.Public {
+				continue
+			}
+			namespace := utils.GetEnvironmentNamespace(ra.Name, env.Name)
+			if len(domain.GetComponentHostname(component.Name, namespace)) > 63 {
+				return nil, []error{fmt.Errorf("component %s in environment %s: %w", component.Name, env.Name, ErrInvalidHostnameLength)}
+			}
+		}
+
 	}
 	return nil, nil
 }
@@ -502,36 +559,6 @@ func validateMonitoring(component radixv1.RadixCommonComponent) error {
 	}
 
 	return fmt.Errorf("component %s: %w", component.GetName(), ErrMonitoringNamedPortNotFound)
-}
-
-func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
-	componentAuth := component.Authentication
-	envAuthConfigGetter := func(name string) *radixv1.Authentication {
-		for _, envConfig := range component.EnvironmentConfig {
-			if envConfig.Environment == name {
-				return envConfig.Authentication
-			}
-		}
-		return nil
-	}
-
-	var errs []error
-	for _, environment := range environments {
-		environmentAuth := envAuthConfigGetter(environment.Name)
-		if componentAuth == nil && environmentAuth == nil {
-			continue
-		}
-		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if combinedAuth == nil {
-			continue
-		}
-
-		errs = append(errs, validateOAuth(combinedAuth.OAuth2, component, environment.Name)...)
-	}
-	return errs
 }
 
 func componentHasPublicPort(component *radixv1.RadixComponent) bool {

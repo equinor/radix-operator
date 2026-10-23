@@ -204,7 +204,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		VolumeMounts:       ceb.volumeMounts,
 		Monitoring:         ceb.monitoring,
 		ImageTagName:       ceb.imageTagName,
-		Node:               ceb.node,
+		Node:               ceb.node, //nolint:staticcheck
 		SecretRefs:         ceb.secretRefs,
 		TimeLimitSeconds:   ceb.timeLimitSeconds,
 		BackoffLimit:       ceb.backoffLimit,

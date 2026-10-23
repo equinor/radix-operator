@@ -1,69 +1,26 @@
 ENVIRONMENT ?= dev
-VERSION 	?= latest
-
-DNS_ZONE = dev.radix.equinor.com
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD | sed 's|/|-|g')
-
+VERSION 	?= dev
 CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
 JSON_SCHEMA_DIR := ./json-schema/
-
-# If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
-
-ifeq ($(ENVIRONMENT),prod)
-	IS_PROD = yes
-else
-	IS_DEV = yes
-endif
-
-ifeq ($(BRANCH),release)
-	IS_PROD_BRANCH = yes
-endif
-
-ifeq ($(BRANCH),master)
-	IS_DEV_BRANCH = yes
-endif
-
-ifdef IS_PROD
-ifdef IS_PROD_BRANCH
-	CAN_DEPLOY_OPERATOR = yes
-endif
-endif
-
-ifdef IS_DEV
-ifdef IS_DEV_BRANCH
-	CAN_DEPLOY_OPERATOR = yes
-else
-	VERSION = dev
-endif
-endif
-
-ifdef IS_PROD
-	DNS_ZONE = radix.equinor.com
-endif
-
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
-APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
-
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD | sed 's|/|-|g')
 HASH := $(shell git rev-parse HEAD)
-
 TAG := $(BRANCH)-$(HASH)
 
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
-	@echo "DNS_ZONE : " $(DNS_ZONE)
 	@echo "CONTAINER_REPO : " $(CONTAINER_REPO)
 	@echo "DOCKER_REGISTRY : " $(DOCKER_REGISTRY)
 	@echo "BRANCH : " $(BRANCH)
-	@echo "APP_ALIAS_BASE_URL : " $(APP_ALIAS_BASE_URL)
-	@echo "IS_PROD : " $(IS_PROD)
-	@echo "IS_DEV : " $(IS_DEV)
-	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
-	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
-	@echo "CAN_DEPLOY_OPERATOR : " $(CAN_DEPLOY_OPERATOR)
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
+	@echo ""
+	@echo "pipeline-runner : " $(DOCKER_REGISTRY)/radix-pipeline:$(TAG)
+	@echo "radix-operator : " $(DOCKER_REGISTRY)/radix-operator:$(TAG)
+	@echo "radix-webhook : " $(DOCKER_REGISTRY)/radix-webhook:$(TAG)
+	@echo "radix-api-server : " $(DOCKER_REGISTRY)/radix-api-server:$(TAG)
 
 .PHONY: test
 test:
@@ -71,12 +28,11 @@ test:
 
 .PHONY: test-e2e
 test-e2e: generate
-	cd e2e && go test -v -p 1 -timeout 30m ./...
+	cd e2e && go test -count=1 -v -p 1 -timeout 30m ./...
 	# Note: -p 1 is used to run tests sequentially to allow printing logs sequentially
 
 .PHONY: mocks
 mocks: bootstrap
-	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
@@ -239,12 +195,41 @@ delete-temp-resources:
 	rm -rf $(CRD_TEMP_DIR)
 
 .PHONY: lint
-lint: bootstrap
+lint: lint-fmt lint-golangci lint-helm
+
+lint-fmt: bootstrap
 	go fmt ./...
+
+lint-golangci: bootstrap
 	golangci-lint run
 
+HELM-ARGS:= \
+	--set rbac.createApp.groups[0]=platform-users \
+	--set config.common.appAliasBaseURL=app.radix.example.com \
+	--set config.common.dnsZone=radix.example.com \
+	--set config.common.clusterName=mycluster \
+	--set config.common.clusterType=dev \
+	--set-string config.operator.azureKeyVaultTenantID=1234 \
+	--set config.common.certificateAutomation.defaultIssuer=digicert \
+	--set config.common.certificateAutomation.issuers.digicert.clusterIssuerName=digicert-http01-gateway \
+	--set config.common.certificateAutomation.issuers.digicert.duration=2160h \
+	--set config.common.certificateAutomation.issuers.digicert.renewBefore=768h \
+	--set config.operator.gateway.name=radix \
+	--set config.operator.gateway.namespace=istio \
+	--set config.pipelineRunner.cacheContainerRegistry=cache.example.com \
+	--set config.pipelineRunner.containerRegistry=build.example.com \
+	--set config.apiServer.prometheusUrl=http://prometheus.svc \
+	--set config.apiServer.authenticators.azure.issuer=https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/ \
+	--set config.apiServer.authenticators.azure.audience=6dae42f8-4368-4678-94ff-3960e28e3630
+
+lint-helm: bootstrap
+	helm lint ./charts/radix-operator $(HELM-ARGS)
+		
+helm-render:
+	helm template ./charts/radix-operator $(HELM-ARGS)
+
 .PHONY: generate
-generate: bootstrap code-gen helmresources mocks swagger
+generate: bootstrap bootstrap-e2e code-gen helmresources mocks swagger
 
 .PHONY: verify-generate
 verify-generate: bootstrap tidy generate
@@ -259,7 +244,7 @@ HAS_SWAGGER        := $(shell command -v swagger;)
 .PHONY: bootstrap
 bootstrap: 
 ifndef HAS_GOLANGCI_LINT
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 endif
 ifndef HAS_MOCKGEN
 	go install go.uber.org/mock/mockgen@v0.6.0
@@ -271,5 +256,18 @@ ifndef HAS_YQ
 	go install github.com/mikefarah/yq/v4@latest
 endif
 ifndef HAS_SWAGGER
-	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.36.6
 endif
+
+E2E_ASSETS_DIR             := ./e2e/internal/manifests
+E2E_CERT_MANAGER_VERSION   := v1.15.4
+E2E_KEDA_VERSION           := 2.20.1
+E2E_PROMETHEUS_OP_VERSION  := v0.82.0
+E2E_GATEWAY_API_VERSION    := v1.5.1
+
+.PHONY: bootstrap-e2e
+bootstrap-e2e:
+	curl -fsSL -o $(E2E_ASSETS_DIR)/cert-manager-crds.yaml https://github.com/cert-manager/cert-manager/releases/download/$(E2E_CERT_MANAGER_VERSION)/cert-manager.crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/keda-crds.yaml https://github.com/kedacore/keda/releases/download/v$(E2E_KEDA_VERSION)/keda-$(E2E_KEDA_VERSION)-crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/prometheus-operator-stripped-down-crds.yaml https://github.com/prometheus-operator/prometheus-operator/releases/download/$(E2E_PROMETHEUS_OP_VERSION)/stripped-down-crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/gateway-api-standard-install.yaml https://github.com/kubernetes-sigs/gateway-api/releases/download/$(E2E_GATEWAY_API_VERSION)/standard-install.yaml

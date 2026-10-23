@@ -6,5 +6,5 @@ import (
 
 // IsRadixEnvVar Indicates if environment-variable is created by Radix
 func IsRadixEnvVar(envVarName string) bool {
-	return strings.HasPrefix(envVarName, "RADIX_") || strings.HasPrefix(envVarName, "RADIXOPERATOR_")
+	return strings.HasPrefix(envVarName, "RADIX_")
 }

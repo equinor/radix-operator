@@ -3,7 +3,6 @@ package utils
 import (
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplicationBuilder Handles construction of RA
@@ -12,7 +11,6 @@ type ApplicationBuilder interface {
 	WithAppName(appName string) ApplicationBuilder
 	WithBuildSecrets(buildSecrets ...string) ApplicationBuilder
 	WithBuildVariables(buildVariables radixv1.EnvVarsMap) ApplicationBuilder
-	WithBuildKit(useBuildKit *bool) ApplicationBuilder
 	WithBuildCache(*bool) ApplicationBuilder
 	WithEnvironment(environment, buildFrom string) ApplicationBuilder
 	WithEnvironmentByBuild(environment string, build radixv1.EnvBuild) ApplicationBuilder
@@ -36,7 +34,6 @@ type ApplicationBuilderStruct struct {
 	registrationBuilder            RegistrationBuilder
 	appName                        string
 	buildSecrets                   []string
-	useBuildKit                    *bool
 	useBuildCache                  *bool
 	environments                   []radixv1.Environment
 	components                     []RadixApplicationComponentBuilder
@@ -50,10 +47,6 @@ type ApplicationBuilderStruct struct {
 	buildVariables                 radixv1.EnvVarsMap
 }
 
-func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationBuilder {
-	ap.useBuildKit = useBuildKit
-	return ap
-}
 func (ap *ApplicationBuilderStruct) WithBuildCache(useBuildCache *bool) ApplicationBuilder {
 	ap.useBuildCache = useBuildCache
 	return ap
@@ -216,14 +209,10 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 	}
 
 	radixApplication := &radixv1.RadixApplication{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: radixv1.SchemeGroupVersion.Identifier(),
-			Kind:       radixv1.KindRadixApplication,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ap.appName,
-			Namespace: GetAppNamespace(ap.appName),
-		},
+		APIVersion: radixv1.SchemeGroupVersion.Identifier(),
+		Kind:       radixv1.KindRadixApplication,
+		Name:       ap.appName,
+		Namespace:  GetAppNamespace(ap.appName),
 		Spec: radixv1.RadixApplicationSpec{
 			Components:       components,
 			Jobs:             jobComponents,
@@ -234,11 +223,10 @@ func (ap *ApplicationBuilderStruct) BuildRA() *radixv1.RadixApplication {
 			PrivateImageHubs: ap.privateImageHubs,
 		},
 	}
-	if ap.useBuildKit != nil || ap.buildSecrets != nil || len(ap.buildSecrets) > 0 || len(ap.buildVariables) > 0 || ap.subPipelineBuilder != nil {
+	if ap.useBuildCache != nil || ap.buildSecrets != nil || len(ap.buildSecrets) > 0 || len(ap.buildVariables) > 0 || ap.subPipelineBuilder != nil {
 		radixApplication.Spec.Build = &radixv1.BuildSpec{
 			Secrets:       ap.buildSecrets,
 			Variables:     ap.buildVariables,
-			UseBuildKit:   ap.useBuildKit,
 			UseBuildCache: ap.useBuildCache,
 		}
 		if ap.subPipelineBuilder != nil {
@@ -267,7 +255,7 @@ func ARadixApplication() ApplicationBuilder {
 		WithComponent(AnApplicationComponent().WithPort("http", 8080).WithPublicPort("http")).
 		WithJobComponent(
 			AnApplicationJobComponent().
-				WithSchedulerPort(8888),
+				WithSchedulerPort(new(int32(8888))),
 		)
 
 	return builder

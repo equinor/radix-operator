@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -33,14 +32,14 @@ func GetNodeGPUCount(gpuCount string) (*int, error) {
 	if err != nil || gpuCountValue <= 0 {
 		return nil, fmt.Errorf("invalid node GPU count: %s", gpuCount)
 	}
-	return pointers.Ptr(gpuCountValue), nil
+	return new(gpuCountValue), nil
 }
 
 // GetNodeGPULists Get including and excluding GPU names for the node
 func GetNodeGPULists(gpu string) ([]string, []string) {
 	includingGpus := make([]string, 0)
 	excludingGpus := make([]string, 0)
-	for _, gpuItem := range strings.Split(strings.TrimSpace(gpu), ",") {
+	for gpuItem := range strings.SplitSeq(strings.TrimSpace(gpu), ",") {
 		gpuItem = strings.ToLower(strings.TrimSpace(gpuItem))
 		if len(gpuItem) == 0 {
 			continue

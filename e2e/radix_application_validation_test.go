@@ -9,18 +9,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // createNamespaceForTest creates a namespace for testing and returns a cleanup function
 func createNamespaceForTest(t *testing.T, c client.Client, appName string) func() {
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: appName + "-app",
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
+		Name: appName + "-app",
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
 		},
 	}
 	err := c.Create(context.Background(), ns)
@@ -34,15 +31,13 @@ func createNamespaceForTest(t *testing.T, c client.Client, appName string) func(
 // createRadixRegistrationAndNamespaceForTest creates a RadixRegistration and its namespace for testing
 // appName: the name of the application (used for RadixRegistration name and as base for namespace)
 // Returns cleanup function and the app namespace name
-func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, appName string) (cleanup func(), appNamespace string) {
+func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, appName string) (appNamespace string) {
 	appNamespace = appName + "-app"
-	nsCleanup := createNamespaceForTest(t, c, appName) // Reuse the cleanup function for namespace
+	createNamespaceForTest(t, c, appName) // Reuse the cleanup function for namespace
 
 	// Create RadixRegistration
 	rr := &v1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: appName,
-		},
+		Name: appName,
 		Spec: v1.RadixRegistrationSpec{
 			CloneURL:          "git@github.com:equinor/" + appName + ".git",
 			AdGroups:          []string{"test-group"},
@@ -53,22 +48,19 @@ func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, a
 	err := c.Create(t.Context(), rr)
 	require.NoError(t, err)
 
-	return func() {
-		_ = c.Delete(t.Context(), rr)
-		nsCleanup()
-	}, appNamespace
+	return appNamespace
 }
 
 // TestRadixApplicationWebhookSmokeTest tests that the webhook is working by verifying createRRExistValidator
 func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	t.Run("rejects RadixApplication when RadixRegistration does not exist", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "nonexistent-app",
-				Namespace: "nonexistent-app",
-			},
+			Name:      "nonexistent-app",
+			Namespace: "nonexistent-app",
 			Spec: v1.RadixApplicationSpec{
 				Environments: []v1.Environment{
 					{Name: "dev"},
@@ -84,16 +76,15 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 	})
 
 	t.Run("accepts RadixApplication when RadixRegistration exists", func(t *testing.T) {
+		t.Parallel()
 		appName := "test-webhook-app"
 		appNamespace := appName + "-app"
 
 		// Create namespace first
 		ns := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: appNamespace,
-				Labels: map[string]string{
-					kube.RadixAppLabel: appName,
-				},
+			Name: appNamespace,
+			Labels: map[string]string{
+				kube.RadixAppLabel: appName,
 			},
 		}
 		err := c.Create(t.Context(), ns)
@@ -102,9 +93,7 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 
 		// Create the RadixRegistration
 		rr := &v1.RadixRegistration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: appName,
-			},
+			Name: appName,
 			Spec: v1.RadixRegistrationSpec{
 				CloneURL:          "git@github.com:equinor/" + appName + ".git",
 				AdGroups:          []string{"test-group"},
@@ -118,10 +107,8 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 
 		// Now create RadixApplication with matching name
 		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
+			Name:      appName,
+			Namespace: appNamespace,
 			Spec: v1.RadixApplicationSpec{
 				Environments: []v1.Environment{
 					{Name: "dev"},
@@ -136,10 +123,10 @@ func TestRadixApplicationWebhookSmokeTest(t *testing.T) {
 
 // TestRadixApplicationEnvironmentsValidation tests Environments field validation (MinItems=1)
 func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-env-validation"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name         string
@@ -170,11 +157,10 @@ func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: tc.environments,
 				},
@@ -193,10 +179,10 @@ func TestRadixApplicationEnvironmentsValidation(t *testing.T) {
 
 // TestRadixApplicationEnvironmentNameValidation tests Environment.Name validation (MinLength=1, MaxLength=63, Pattern)
 func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-env-name"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -247,11 +233,10 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{
 						{Name: tc.envName},
@@ -272,10 +257,10 @@ func TestRadixApplicationEnvironmentNameValidation(t *testing.T) {
 
 // TestRadixApplicationEnvBuildFromValidation tests EnvBuild.From field validation (MinLength=1, MaxLength=255)
 func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-envbuild-from"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -306,11 +291,10 @@ func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{
 						{
@@ -336,10 +320,10 @@ func TestRadixApplicationEnvBuildFromValidation(t *testing.T) {
 
 // TestRadixApplicationEnvBuildFromTypeValidation tests EnvBuild.FromType enum validation
 func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-envbuild-fromtype"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -370,11 +354,10 @@ func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{
 						{
@@ -400,17 +383,16 @@ func TestRadixApplicationEnvBuildFromTypeValidation(t *testing.T) {
 
 // TestRadixApplicationComponentJobNameUniqueness tests CEL validation for unique component and job names
 func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-name-uniqueness"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	t.Run("valid - unique component and job names", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
+			Name:      appName,
+			Namespace: appNamespace,
 			Spec: v1.RadixApplicationSpec{
 				Environments: []v1.Environment{{Name: "dev"}},
 				Components: []v1.RadixComponent{
@@ -418,8 +400,8 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 					{Name: "backend"},
 				},
 				Jobs: []v1.RadixJobComponent{
-					{Name: "batch-job", SchedulerPort: int32(8000)},
-					{Name: "import-job", SchedulerPort: int32(8001)},
+					{Name: "batch-job", SchedulerPort: new(int32(8000))},
+					{Name: "import-job", SchedulerPort: new(int32(8001))},
 				},
 			},
 		}
@@ -429,11 +411,10 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 	})
 
 	t.Run("invalid - duplicate name in components and jobs", func(t *testing.T) {
+		t.Parallel()
 		ra := &v1.RadixApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      appName,
-				Namespace: appNamespace,
-			},
+			Name:      appName,
+			Namespace: appNamespace,
 			Spec: v1.RadixApplicationSpec{
 				Environments: []v1.Environment{{Name: "dev"}},
 				Components: []v1.RadixComponent{
@@ -441,7 +422,7 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 					{Name: "api"},
 				},
 				Jobs: []v1.RadixJobComponent{
-					{Name: "worker", SchedulerPort: int32(8000)}, // Duplicate with component
+					{Name: "worker", SchedulerPort: new(int32(8000))}, // Duplicate with component
 				},
 			},
 		}
@@ -453,10 +434,10 @@ func TestRadixApplicationComponentJobNameUniqueness(t *testing.T) {
 
 // TestRadixApplicationComponentNameValidation tests RadixComponent.Name validation (MinLength=1, MaxLength=50, Pattern)
 func TestRadixApplicationComponentNameValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-component-name"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name          string
@@ -492,11 +473,10 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{{Name: "dev"}},
 					Components: []v1.RadixComponent{
@@ -518,10 +498,10 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 
 // TestRadixApplicationComponentPortValidation tests ComponentPort validation
 func TestRadixApplicationComponentPortValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-port-validation"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -572,11 +552,10 @@ func TestRadixApplicationComponentPortValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{{Name: "dev"}},
 					Components: []v1.RadixComponent{
@@ -601,10 +580,10 @@ func TestRadixApplicationComponentPortValidation(t *testing.T) {
 
 // TestRadixApplicationEgressRuleValidation tests EgressRule validation (MinItems for destinations and ports)
 func TestRadixApplicationEgressRuleValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-egress-validation"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -693,11 +672,10 @@ func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{
 						{
@@ -723,10 +701,10 @@ func TestRadixApplicationEgressRuleValidation(t *testing.T) {
 
 // TestRadixApplicationComponentReplicasValidation tests Component.Replicas validation (Minimum=0)
 func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 	appName := "test-replicas"
-	cleanup, appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
-	defer cleanup()
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 
 	testCases := []struct {
 		name        string
@@ -740,28 +718,27 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 		},
 		{
 			name:        "valid - zero replicas",
-			replicas:    intPtr(0),
+			replicas:    new(0),
 			shouldError: false,
 		},
 		{
 			name:        "valid - multiple replicas",
-			replicas:    intPtr(5),
+			replicas:    new(5),
 			shouldError: false,
 		},
 		{
 			name:        "invalid - negative replicas",
-			replicas:    intPtr(-1),
+			replicas:    new(-1),
 			shouldError: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{{Name: "dev"}},
 					Components: []v1.RadixComponent{
@@ -784,7 +761,115 @@ func TestRadixApplicationComponentReplicasValidation(t *testing.T) {
 	}
 }
 
-// Helper function to create int pointer
-func intPtr(i int) *int {
-	return &i
+// TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation tests that a component with an Azure Key Vault
+// using useAzureIdentity requires identity.azure.clientId in the common or the relevant environment config.
+func TestRadixApplicationAzureKeyVaultUseAzureIdentityValidation(t *testing.T) {
+	t.Parallel()
+	c := getClient(t)
+	appName := "test-akv-identity"
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
+
+	clientId := "11111111-2222-3333-4444-555555555555"
+	azureIdentity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}
+	azureKeyVaults := func(useAzureIdentity *bool) v1.RadixSecretRefs {
+		return v1.RadixSecretRefs{
+			AzureKeyVaults: []v1.RadixAzureKeyVault{
+				{
+					Name:             "my-key-vault",
+					UseAzureIdentity: useAzureIdentity,
+					Items:            []v1.RadixAzureKeyVaultItem{{Name: "my-secret"}},
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		name        string
+		component   v1.RadixComponent
+		shouldError bool
+	}{
+		{
+			name: "invalid - useAzureIdentity without any identity",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod"},
+				},
+			},
+			shouldError: true,
+		},
+		{
+			name: "invalid - useAzureIdentity with identity only in one environment",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod", Identity: azureIdentity},
+				},
+			},
+			shouldError: true,
+		},
+		{
+			name: "valid - useAzureIdentity with common identity",
+			component: v1.RadixComponent{
+				Name:       "app",
+				Identity:   azureIdentity,
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod"},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid - useAzureIdentity with identity in all environments",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(true)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev", Identity: azureIdentity},
+					{Environment: "prod", Identity: azureIdentity},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid - useAzureIdentity disabled without identity",
+			component: v1.RadixComponent{
+				Name:       "app",
+				SecretRefs: azureKeyVaults(new(false)),
+				EnvironmentConfig: []v1.RadixEnvironmentConfig{
+					{Environment: "dev"},
+					{Environment: "prod"},
+				},
+			},
+			shouldError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ra := &v1.RadixApplication{
+				Name:      appName,
+				Namespace: appNamespace,
+				Spec: v1.RadixApplicationSpec{
+					Environments: []v1.Environment{{Name: "dev"}, {Name: "prod"}},
+					Components:   []v1.RadixComponent{tc.component},
+				},
+			}
+
+			err := c.Create(t.Context(), ra, client.DryRunAll)
+
+			if tc.shouldError {
+				assert.ErrorContains(t, err, "missing Azure identity for Azure Key vault with useAzureIdentity enabled")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

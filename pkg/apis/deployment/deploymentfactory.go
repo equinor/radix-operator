@@ -21,7 +21,7 @@ type DeploymentSyncerFactoryFunc func(
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
 	auxResourceManagers []AuxiliaryResourceManager,
-	config *config.Config,
+	config config.Config,
 ) DeploymentSyncer
 
 func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
@@ -33,7 +33,7 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
 	auxResourceManagers []AuxiliaryResourceManager,
-	config *config.Config,
+	config config.Config,
 ) DeploymentSyncer {
 	return f(kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, auxResourceManagers, config)
 }
@@ -49,6 +49,6 @@ type DeploymentSyncerFactory interface {
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
 		auxResourceManagers []AuxiliaryResourceManager,
-		config *config.Config,
+		config config.Config,
 	) DeploymentSyncer
 }

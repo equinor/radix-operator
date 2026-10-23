@@ -2,17 +2,16 @@ package application
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -77,11 +76,9 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 			return nil, nil, "", err
 		}
 		desired = &corev1.Secret{
-			Type: "Opaque",
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.GitPrivateKeySecretName,
-				Namespace: namespace,
-			},
+			Type:      "Opaque",
+			Name:      defaults.GitPrivateKeySecretName,
+			Namespace: namespace,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -93,7 +90,7 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 		return nil, nil, "", fmt.Errorf("failed to get known hosts secret: %w", err)
 	}
 
-	deployKey, err := getExistingOrGenerateNewDeployKey(current, app.registration)
+	deployKey, err := getExistingOrGenerateNewDeployKey(current)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("failed to get deploy key: %w", err)
 	}
@@ -107,22 +104,21 @@ func (app *Application) getCurrentAndDesiredGitPrivateDeployKeySecret(ctx contex
 	return current, desired, deployKey.PublicKey, nil
 }
 
-func getExistingOrGenerateNewDeployKey(fromSecret *corev1.Secret, fromRadixRegistration *v1.RadixRegistration) (*utils.DeployKey, error) {
-	switch {
-	case fromSecret != nil && secretHasGitPrivateDeployKey(fromSecret):
-		privateKey := fromSecret.Data[defaults.GitPrivateKeySecretKey]
+func getExistingOrGenerateNewDeployKey(secret *corev1.Secret) (*utils.DeployKey, error) {
+	if secretHasGitPrivateDeployKey(secret) {
+		privateKey := secret.Data[defaults.GitPrivateKeySecretKey]
 		keypair, err := utils.DeriveDeployKeyFromPrivateKey(string(privateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse deploy key from existing secret: %w", err)
 		}
 		return keypair, nil
-	default:
-		keypair, err := utils.GenerateDeployKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate new git deploy key: %w", err)
-		}
-		return keypair, nil
 	}
+
+	keypair, err := utils.GenerateDeployKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new git deploy key: %w", err)
+	}
+	return keypair, nil
 }
 
 func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx context.Context, publicKey string) (current, desired *corev1.ConfigMap, err error) {
@@ -134,10 +130,8 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 			return nil, nil, err
 		}
 		desired = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.GitPublicKeyConfigMapName,
-				Namespace: namespace,
-			},
+			Name:      defaults.GitPublicKeyConfigMapName,
+			Namespace: namespace,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -151,10 +145,59 @@ func (app *Application) getCurrentAndDesiredGitPublicDeployKeyConfigMap(ctx cont
 	return current, desired, nil
 }
 
+// applyWebhookSharedSecret ensures a Kubernetes secret holding the GitHub webhook shared secret exists in the app namespace.
+func (app *Application) applyWebhookSharedSecret(ctx context.Context) error {
+	namespace := utils.GetAppNamespace(app.registration.Name)
+
+	// Cannot assign `current` directly from GetSecret since kube client returns a non-nil value even when an error is returned
+	current, err := app.kubeutil.GetSecret(ctx, namespace, defaults.WebhookSharedSecretName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+		current = nil
+	}
+
+	if current != nil {
+		desired := current.DeepCopy()
+		desired.ObjectMeta.Labels = labels.Merge(
+			desired.ObjectMeta.Labels,
+			labels.ForApplicationName(app.registration.Name),
+		)
+
+		if desired.Data == nil {
+			desired.Data = map[string][]byte{}
+		}
+		sharedSecret, valid := desired.Data[defaults.WebhookSharedSecretKey]
+		// If the secret already exists and is valid, we do not overwrite it.
+		if valid && len(strings.TrimSpace(string(sharedSecret))) > 0 {
+			return nil
+		}
+
+		log.Info().Msgf("Webhook shared secret for app %s is missing or invalid, generating a new one", app.registration.Name)
+		desired.Data[defaults.WebhookSharedSecretKey] = []byte(rand.Text())
+		_, err := app.kubeutil.UpdateSecret(ctx, current, desired)
+		return err
+	}
+
+	desired := &corev1.Secret{
+		Type:      corev1.SecretTypeOpaque,
+		Name:      defaults.WebhookSharedSecretName,
+		Namespace: namespace,
+		Labels:    labels.ForApplicationName(app.registration.Name),
+		Data: map[string][]byte{
+			defaults.WebhookSharedSecretKey: []byte(rand.Text()),
+		},
+	}
+
+	_, err = app.kubeutil.CreateSecret(ctx, namespace, desired)
+	return err
+}
+
 func (app *Application) applyContainerRegistryCredentialSecretsToAppNamespace(ctx context.Context) error {
 	appNamespace := utils.GetAppNamespace(app.registration.Name)
 
-	for _, secretName := range []string{defaults.AzureACRServicePrincipleSecretName, defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName} {
+	for _, secretName := range []string{defaults.AzureACRServicePrincipleBuildahSecretName, defaults.AzureACRTokenPasswordAppRegistrySecretName} {
 		err := app.copySecretData(ctx, corev1.NamespaceDefault, appNamespace, secretName)
 		if err != nil {
 			return fmt.Errorf("failed to sync secret %s: %w", secretName, err)
@@ -177,11 +220,9 @@ func (app *Application) copySecretData(ctx context.Context, sourceNamespace, tar
 			return fmt.Errorf("failed to get current target secret: %w", err)
 		}
 		desiredSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: targetNamespace,
-			},
-			Type: sourceSecret.Type,
+			Name:      secretName,
+			Namespace: targetNamespace,
+			Type:      sourceSecret.Type,
 		}
 		currentSecret = nil
 	} else {

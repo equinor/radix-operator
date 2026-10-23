@@ -2,10 +2,11 @@ package deployment
 
 import (
 	"context"
+	"strings"
 
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +22,33 @@ func (deploy *Deployment) createOrUpdateService(ctx context.Context, deployCompo
 	return deploy.kubeutil.ApplyService(ctx, namespace, service)
 }
 
+func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
+	ownerReference := []metav1.OwnerReference{
+		getOwnerReferenceOfDeployment(radixDeployment),
+	}
+
+	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
+	if internal.IsDeployComponentJobSchedulerDeployment(component) {
+		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
+	}
+
+	service := &corev1.Service{
+		Name: component.GetName(),
+		Labels: map[string]string{
+			kube.RadixAppLabel:       radixDeployment.Spec.AppName, //nolint:staticcheck
+			kube.RadixComponentLabel: component.GetName(),
+		},
+		OwnerReferences: ownerReference,
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: selector,
+			Ports:    utils.GetServicePorts(componentPorts),
+		},
+	}
+
+	return service
+}
+
 func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Context) error {
 	services, err := deploy.kubeutil.ListServices(ctx, deploy.radixDeployment.GetNamespace())
 	if err != nil {
@@ -31,6 +59,11 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec(ctx context.Conte
 		componentName, ok := RadixComponentNameFromComponentLabel(service)
 		if !ok {
 			continue
+		}
+		// TODO: Add labels for job-scheduler service that describe it, then check that labels exists,
+		// instead of checking it is a external service. Eg check it is a JobScheduler service, isntead of checking if its a bacthjob service
+		if _, isBatchService := service.Labels[kube.RadixBatchNameLabel]; isBatchService {
+			continue // Batch job services are owned and garbage-collected by their RadixBatch resource
 		}
 		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
 			if err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(ctx, service.Name, metav1.DeleteOptions{}); err != nil {
@@ -51,34 +84,18 @@ func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service
 		return true // Garbage collect service if not defined in RD components or jobs
 	}
 
-	return !componentName.CommonDeployComponentHasPorts(deploy.radixDeployment)
+	return !componentOrJobSchedulerHasPort(deploy.radixDeployment, componentName)
 }
 
-func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
-	ownerReference := []metav1.OwnerReference{
-		getOwnerReferenceOfDeployment(radixDeployment),
+// componentOrJobSchedulerHasPort Checks id the deploy component has regular or schedule ports
+func componentOrJobSchedulerHasPort(rd *v1.RadixDeployment, t RadixComponentName) bool {
+	if comp := t.findInDeploymentSpecComponentList(rd); comp != nil {
+		return len(comp.GetPorts()) > 0
 	}
-
-	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
-	if internal.IsDeployComponentJobSchedulerDeployment(component) {
-		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
+	for _, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, string(t)) {
+			return job.SchedulerPort != nil && *job.SchedulerPort != 0
+		}
 	}
-
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: component.GetName(),
-			Labels: map[string]string{
-				kube.RadixAppLabel:       radixDeployment.Spec.AppName, //nolint:staticcheck
-				kube.RadixComponentLabel: component.GetName(),
-			},
-			OwnerReferences: ownerReference,
-		},
-		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
-			Selector: selector,
-			Ports:    utils.GetServicePorts(componentPorts),
-		},
-	}
-
-	return service
+	return false
 }

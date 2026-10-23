@@ -3,7 +3,6 @@ package internal_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
@@ -69,11 +68,11 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 				Architecture: v1.RuntimeArchitectureAmd64,
 			},
 			env: []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{
-				NodeType: pointers.Ptr("gpu-nodes"),
+				NodeType: new("gpu-nodes"),
 			}}},
 			getEnv: "dev",
 			expected: &v1.Runtime{
-				NodeType: pointers.Ptr("gpu-nodes"),
+				NodeType: new("gpu-nodes"),
 				// Architecture should be cleared
 			},
 		},
@@ -133,17 +132,17 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 				Architecture: v1.RuntimeArchitectureAmd64,
 			},
 			env: []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{
-				NodeType: pointers.Ptr("edge-nodes"),
+				NodeType: new("edge-nodes"),
 			}}},
 			getEnv: "dev",
 			expected: &v1.Runtime{
-				NodeType: pointers.Ptr("edge-nodes"),
+				NodeType: new("edge-nodes"),
 				// Architecture must be cleared
 			},
 		},
 		"overrides nodeType with architecture from environmentConfig": {
 			runtime: &v1.Runtime{
-				NodeType: pointers.Ptr("edge-nodes"),
+				NodeType: new("edge-nodes"),
 			},
 			env: []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{
 				Architecture: v1.RuntimeArchitectureArm64,
@@ -155,7 +154,7 @@ func Test_GetRuntimeForEnvironment(t *testing.T) {
 		},
 		"removed nodeType when environmentConfig has empty Runtime": {
 			runtime: &v1.Runtime{
-				NodeType: pointers.Ptr("edge-nodes"),
+				NodeType: new("edge-nodes"),
 			},
 			env:      []v1.RadixEnvironmentConfig{{Environment: "dev", Runtime: &v1.Runtime{}}},
 			getEnv:   "dev",

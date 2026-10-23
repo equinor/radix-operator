@@ -1,3 +1,4 @@
+//nolint:staticcheck // PipelineArguments.Branch is deprecated but still used by these tests
 package preparepipeline_test
 
 import (
@@ -16,8 +17,6 @@ import (
 	"go.uber.org/mock/gomock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
@@ -26,6 +25,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -215,7 +215,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 	)
 	var (
 		targetNs string                  = utils.GetEnvironmentNamespace(appName, targetEnv)
-		activeRd radixv1.RadixDeployment = radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "rd3", Namespace: targetNs}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
+		activeRd radixv1.RadixDeployment = radixv1.RadixDeployment{Name: "rd3", Namespace: targetNs, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
 	)
 
 	tests := map[string]struct {
@@ -228,16 +228,16 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 		},
 		"no active deployment exist in env namespace": {
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd1", Namespace: targetNs}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd2", Namespace: targetNs}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd3", Namespace: "otherns"}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}},
+				{Name: "rd1", Namespace: targetNs},
+				{Name: "rd2", Namespace: targetNs, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "rd3", Namespace: "otherns", Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}},
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: targetEnv}},
 		},
 		" active deployment exist in env namespace": {
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd1", Namespace: targetNs}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "rd2", Namespace: targetNs}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "rd1", Namespace: targetNs},
+				{Name: "rd2", Namespace: targetNs, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 				activeRd,
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: targetEnv, ActiveRadixDeployment: &activeRd}},
@@ -260,6 +260,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("", nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockContextBuilder.EXPECT().GetBuildContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
@@ -294,8 +295,8 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 	var (
 		env1Ns       string                  = utils.GetEnvironmentNamespace(appName, env1Name)
 		env2Ns       string                  = utils.GetEnvironmentNamespace(appName, env2Name)
-		activeRdEnv1 radixv1.RadixDeployment = radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "env1-active", Namespace: env1Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
-		activeRdEnv2 radixv1.RadixDeployment = radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "env2-active", Namespace: env2Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
+		activeRdEnv1 radixv1.RadixDeployment = radixv1.RadixDeployment{Name: "env1-active", Namespace: env1Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
+		activeRdEnv2 radixv1.RadixDeployment = radixv1.RadixDeployment{Name: "env2-active", Namespace: env2Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentActive}}
 	)
 
 	tests := map[string]struct {
@@ -319,8 +320,8 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 				{Name: "otherenv", Build: radixv1.EnvBuild{From: "other"}},
 			},
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "env1-inactive", Namespace: env1Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "env2-inactive", Namespace: env2Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env1-inactive", Namespace: env1Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env2-inactive", Namespace: env2Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: env1Name}, {Environment: env2Name}},
 		},
@@ -331,9 +332,9 @@ func (s *stepTestSuite) Test_TargetEnvironments_BuildDeploy() {
 				{Name: "otherenv", Build: radixv1.EnvBuild{From: "other"}},
 			},
 			existingRDs: []radixv1.RadixDeployment{
-				{ObjectMeta: metav1.ObjectMeta{Name: "env1-inactive", Namespace: env1Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env1-inactive", Namespace: env1Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 				activeRdEnv1,
-				{ObjectMeta: metav1.ObjectMeta{Name: "env2-inactive", Namespace: env2Ns}, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
+				{Name: "env2-inactive", Namespace: env2Ns, Status: radixv1.RadixDeployStatus{Condition: radixv1.DeploymentInactive}},
 				activeRdEnv2,
 			},
 			expectedTargetEnvironments: []model.TargetEnvironment{{Environment: env1Name, ActiveRadixDeployment: &activeRdEnv1}, {Environment: env2Name, ActiveRadixDeployment: &activeRdEnv2}},
@@ -674,14 +675,14 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 								Name: "step1",
 								SecurityContext: &corev1.SecurityContext{
 									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
-									Privileged:               commonUtils.BoolPtr(true),
+									Privileged:               new(true),
 									SELinuxOptions:           &corev1.SELinuxOptions{},
 									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-									RunAsUser:                pointers.Ptr(int64(0)),
-									RunAsGroup:               pointers.Ptr(int64(0)),
-									RunAsNonRoot:             commonUtils.BoolPtr(false),
-									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
-									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+									RunAsUser:                new(int64(0)),
+									RunAsGroup:               new(int64(0)),
+									RunAsNonRoot:             new(false),
+									AllowPrivilegeEscalation: new(true),
+									ProcMount:                new(corev1.ProcMountType("Default")),
 									SeccompProfile:           &corev1.SeccompProfile{},
 								},
 							},
@@ -700,9 +701,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				require.Len(t, task.Spec.Steps, 1)
 				taskStep := task.Spec.Steps[0]
 				assert.NotNil(t, taskStep.SecurityContext)
-				assert.Equal(t, commonUtils.BoolPtr(true), taskStep.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, commonUtils.BoolPtr(false), taskStep.SecurityContext.Privileged)
-				assert.Equal(t, commonUtils.BoolPtr(false), taskStep.SecurityContext.AllowPrivilegeEscalation)
+				assert.Equal(t, new(true), taskStep.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, new(false), taskStep.SecurityContext.Privileged)
+				assert.Equal(t, new(false), taskStep.SecurityContext.AllowPrivilegeEscalation)
 				assert.Nil(t, taskStep.SecurityContext.RunAsUser)
 				assert.Nil(t, taskStep.SecurityContext.RunAsGroup)
 				assert.Nil(t, taskStep.SecurityContext.WindowsOptions)
@@ -728,14 +729,14 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 							{
 								SecurityContext: &corev1.SecurityContext{
 									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
-									Privileged:               commonUtils.BoolPtr(true),
+									Privileged:               new(true),
 									SELinuxOptions:           &corev1.SELinuxOptions{},
 									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-									RunAsUser:                pointers.Ptr(int64(0)),
-									RunAsGroup:               pointers.Ptr(int64(0)),
-									RunAsNonRoot:             commonUtils.BoolPtr(false),
-									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
-									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+									RunAsUser:                new(int64(0)),
+									RunAsGroup:               new(int64(0)),
+									RunAsNonRoot:             new(false),
+									AllowPrivilegeEscalation: new(true),
+									ProcMount:                new(corev1.ProcMountType("Default")),
 									SeccompProfile:           &corev1.SeccompProfile{},
 								},
 							},
@@ -758,9 +759,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				require.Len(t, task.Spec.Sidecars, 1)
 				sidecar := task.Spec.Sidecars[0]
 				assert.NotNil(t, sidecar.SecurityContext)
-				assert.Equal(t, commonUtils.BoolPtr(true), sidecar.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.Privileged)
-				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.AllowPrivilegeEscalation)
+				assert.Equal(t, new(true), sidecar.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, new(false), sidecar.SecurityContext.Privileged)
+				assert.Equal(t, new(false), sidecar.SecurityContext.AllowPrivilegeEscalation)
 				assert.Nil(t, sidecar.SecurityContext.RunAsUser)
 				assert.Nil(t, sidecar.SecurityContext.RunAsGroup)
 				assert.Nil(t, sidecar.SecurityContext.WindowsOptions)
@@ -785,14 +786,14 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 						StepTemplate: &pipelinev1.StepTemplate{
 							SecurityContext: &corev1.SecurityContext{
 								Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
-								Privileged:               commonUtils.BoolPtr(true),
+								Privileged:               new(true),
 								SELinuxOptions:           &corev1.SELinuxOptions{},
 								WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-								RunAsUser:                pointers.Ptr(int64(0)),
-								RunAsGroup:               pointers.Ptr(int64(0)),
-								RunAsNonRoot:             commonUtils.BoolPtr(false),
-								AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
-								ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+								RunAsUser:                new(int64(0)),
+								RunAsGroup:               new(int64(0)),
+								RunAsNonRoot:             new(false),
+								AllowPrivilegeEscalation: new(true),
+								ProcMount:                new(corev1.ProcMountType("Default")),
 								SeccompProfile:           &corev1.SeccompProfile{},
 							},
 						},
@@ -812,9 +813,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 				stepTemplate := task.Spec.StepTemplate
 				assert.NotNil(t, stepTemplate)
 				assert.NotNil(t, stepTemplate.SecurityContext)
-				assert.Equal(t, commonUtils.BoolPtr(true), stepTemplate.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.Privileged)
-				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.AllowPrivilegeEscalation)
+				assert.Equal(t, new(true), stepTemplate.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, new(false), stepTemplate.SecurityContext.Privileged)
+				assert.Equal(t, new(false), stepTemplate.SecurityContext.AllowPrivilegeEscalation)
 				assert.Nil(t, stepTemplate.SecurityContext.RunAsUser)
 				assert.Nil(t, stepTemplate.SecurityContext.RunAsGroup)
 				assert.Nil(t, stepTemplate.SecurityContext.WindowsOptions)
@@ -839,8 +840,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 							{
 								Name: "step1",
 								SecurityContext: &corev1.SecurityContext{
-									RunAsUser:  pointers.Ptr(int64(10)),
-									RunAsGroup: pointers.Ptr(int64(20)),
+									RunAsUser:  new(int64(10)),
+									RunAsGroup: new(int64(20)),
 								},
 							},
 						},
@@ -880,8 +881,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 						Sidecars: []pipelinev1.Sidecar{
 							{
 								SecurityContext: &corev1.SecurityContext{
-									RunAsUser:  pointers.Ptr(int64(10)),
-									RunAsGroup: pointers.Ptr(int64(20)),
+									RunAsUser:  new(int64(10)),
+									RunAsGroup: new(int64(20)),
 								},
 							},
 						},
@@ -921,8 +922,8 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 						Steps: []pipelinev1.Step{{Name: "step1"}},
 						StepTemplate: &pipelinev1.StepTemplate{
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:  pointers.Ptr(int64(10)),
-								RunAsGroup: pointers.Ptr(int64(20)),
+								RunAsUser:  new(int64(10)),
+								RunAsGroup: new(int64(20)),
 							},
 						},
 					}
@@ -951,11 +952,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
 				}),
 				tasks: []pipelinev1.Task{{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "task1",
-						Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id"},
-						Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
-					},
+					Name:        "task1",
+					Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id"},
+					Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
 					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{
 						{Name: "get-secret"}, {Name: "skip-id"}},
 					}},
@@ -986,11 +985,9 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
 				}),
 				tasks: []pipelinev1.Task{{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "task1",
-						Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id;unknown-step"},
-						Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
-					},
+					Name:        "task1",
+					Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id;unknown-step"},
+					Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
 					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{
 						{Name: "get-secret"}, {Name: "skip-id"}},
 					}},
@@ -1021,13 +1018,60 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 			},
 			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {},
 		},
+		"finally task gets a generated taskRef, reserved params and a hardened security context": {
+			args: args{
+				envName: envName,
+				pipeline: getTestPipeline(func(p *pipelinev1.Pipeline) {
+					p.ObjectMeta.Name = "pipeline1"
+					p.Spec.Tasks = []pipelinev1.PipelineTask{{Name: "task1", TaskRef: &pipelinev1.TaskRef{Name: "task1"}}}
+					p.Spec.Finally = []pipelinev1.PipelineTask{{Name: "finally1", TaskRef: &pipelinev1.TaskRef{Name: "finallytask1"}}}
+				}),
+				tasks: []pipelinev1.Task{
+					*getTestTask(nil),
+					{
+						Name: "finallytask1",
+						Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{{
+							Name:            "cleanup",
+							SecurityContext: &corev1.SecurityContext{RunAsUser: new(int64(0)), Privileged: new(true)},
+						}}},
+					},
+				},
+				timestamp: "2020-01-01T00:00:00Z",
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, step model.Step, pipelineName string) {
+				tknPipeline, err := step.GetTektonClient().TektonV1().Pipelines(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, tknPipeline.Spec.Finally, 1)
+
+				finallyTaskRefName := tknPipeline.Spec.Finally[0].TaskRef.Name
+				assert.NotEqual(t, "finallytask1", finallyTaskRefName, "the finally taskRef is rewritten to the generated task name")
+
+				// the reserved params must be forwarded to the finally task, otherwise Tekton rejects the PipelineRun
+				requireParamByName(t, tknPipeline.Spec.Finally[0].Params, "radix")
+
+				task, err := step.GetTektonClient().TektonV1().Tasks(utils.GetAppNamespace(step.GetAppName())).Get(context.Background(), finallyTaskRefName, metav1.GetOptions{})
+				require.NoError(t, err)
+				requireParamSpecByName(t, task.Spec.Params, "radix")
+
+				securityContext := task.Spec.Steps[0].SecurityContext
+				require.NotNil(t, securityContext)
+				assert.True(t, *securityContext.RunAsNonRoot)
+				assert.False(t, *securityContext.Privileged)
+				assert.False(t, *securityContext.AllowPrivilegeEscalation)
+				assert.Nil(t, securityContext.RunAsUser, "root user is cleared")
+				assert.Equal(t, []corev1.Capability{"ALL"}, securityContext.Capabilities.Drop)
+			},
+		},
 		"radix-image param spec added to pipeline, task params and task reference when components exist": {
 			fields: fields{
 				radixApplicationBuilder: utils.NewRadixApplicationBuilder().
 					WithAppName(appName).
 					WithEnvironment(internalTest.Env1, branchName).
 					WithComponent(utils.NewApplicationComponentBuilder().WithName("frontend")).
-					WithJobComponent(utils.NewApplicationJobComponentBuilder().WithName("compute").WithSchedulerPort(8888)),
+					WithJobComponent(utils.NewApplicationJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8888)))),
 			},
 			args: args{
 				envName: envName,
@@ -1162,7 +1206,7 @@ func (s *stepTestSuite) Test_PipelineContext_CreatePipeline() {
 	}
 }
 
-func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams() {
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_BuildDeploy() {
 	const (
 		appName    = "anyapp"
 		envName1   = internalTest.Env1
@@ -1271,6 +1315,285 @@ func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams() 
 	}, pipelineInfo.EnvironmentSubPipelineParams[envName2])
 }
 
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Promote() {
+	const (
+		appName         = "anyapp"
+		fromEnvironment = "dev"
+		toEnvironment   = "prod"
+		deploymentName  = "rd-dev"
+		gitRef          = "release-1"
+		gitRefType      = string(radixv1.GitRefTag)
+		gitCommit       = "sourcecommit"
+		gitTags         = "v1 v2"
+		cloneURL        = "git@github.com:equinor/radix-operator.git"
+		configBranch    = "configbranch"
+	)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithCloneURL(cloneURL).WithConfigBranch(configBranch).BuildRR()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	s.applyRadixDeployments([]radixv1.RadixDeployment{*utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(fromEnvironment).
+		WithDeploymentName(deploymentName).
+		WithAnnotations(map[string]string{
+			kube.RadixGitRefAnnotation:     gitRef,
+			kube.RadixGitRefTypeAnnotation: gitRefType,
+			kube.RadixCommitAnnotation:     gitCommit,
+			kube.RadixGitTagsAnnotation:    gitTags,
+		}).BuildRD()})
+
+	pipelineInfo := &model.PipelineInfo{
+		Definition: &pipeline.Definition{},
+		PipelineArguments: model.PipelineArguments{
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnvironment,
+			ToEnvironment:          toEnvironment,
+			PromoteDeploymentName:  deploymentName,
+		},
+	}
+
+	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentNoBranch(toEnvironment).BuildRA(), nil).Times(1)
+	mockGitRepo := git.NewMockRepository(s.ctrl)
+	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+	mockGitRepo.EXPECT().Checkout(gitCommit).Times(1).Return(nil)
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+	mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, toEnvironment).Return(false, "", nil, nil, nil).Times(1)
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+	step := preparepipeline.NewPreparePipelinesStep(
+		preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+		preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+		preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+		preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+	)
+
+	ctx := context.Background()
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	s.Equal(map[string]model.SubPipelineParams{
+		toEnvironment: {
+			PipelineType: string(radixv1.Promote),
+			Environment:  toEnvironment,
+			GitSSHUrl:    cloneURL,
+			GitRef:       gitRef,
+			GitRefType:   gitRefType,
+			GitCommit:    gitCommit,
+			GitTags:      gitTags,
+		},
+	}, pipelineInfo.EnvironmentSubPipelineParams)
+}
+
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Promote_ResolveGitInfoFromGitRef() {
+	const (
+		appName         = "anyapp"
+		fromEnvironment = "dev"
+		toEnvironment   = "prod"
+		deploymentName  = "rd-dev"
+		gitRef          = "main"
+		gitCommit       = "resolvedcommit"
+		cloneURL        = "git@github.com:equinor/radix-operator.git"
+		configBranch    = "configbranch"
+	)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithCloneURL(cloneURL).WithConfigBranch(configBranch).BuildRR()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	s.applyRadixDeployments([]radixv1.RadixDeployment{*utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(fromEnvironment).
+		WithDeploymentName(deploymentName).
+		WithAnnotations(map[string]string{
+			kube.RadixGitRefAnnotation: gitRef,
+		}).BuildRD()})
+
+	pipelineInfo := &model.PipelineInfo{
+		Definition: &pipeline.Definition{},
+		PipelineArguments: model.PipelineArguments{
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnvironment,
+			ToEnvironment:          toEnvironment,
+			PromoteDeploymentName:  deploymentName,
+		},
+	}
+
+	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentNoBranch(toEnvironment).BuildRA(), nil).Times(1)
+	mockGitRepo := git.NewMockRepository(s.ctrl)
+	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+	mockGitRepo.EXPECT().ResolveCommitForReference(gitRef).Times(1).Return(gitCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(gitCommit).Times(1).Return([]string{"v1", "v2"}, nil)
+	mockGitRepo.EXPECT().Checkout(gitCommit).Times(1).Return(nil)
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+	mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, toEnvironment).Return(false, "", nil, nil, nil).Times(1)
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+	step := preparepipeline.NewPreparePipelinesStep(
+		preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+		preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+		preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+		preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+	)
+
+	ctx := context.Background()
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	s.Equal(map[string]model.SubPipelineParams{
+		toEnvironment: {
+			PipelineType: string(radixv1.Promote),
+			Environment:  toEnvironment,
+			GitSSHUrl:    cloneURL,
+			GitRef:       gitRef,
+			GitRefType:   string(radixv1.GitRefBranch),
+			GitCommit:    gitCommit,
+			GitTags:      "v1 v2",
+		},
+	}, pipelineInfo.EnvironmentSubPipelineParams)
+}
+
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_Deploy() {
+	const (
+		appName       = "anyapp"
+		toEnvironment = "dev"
+		cloneURL      = "git@github.com:equinor/radix-operator.git"
+		configBranch  = "configbranch"
+	)
+
+	tests := map[string]struct {
+		ra              *radixv1.RadixApplication
+		expectedGitRef  string
+		expectedRefType string
+		expectedCommit  string
+		expectedGitTags string
+	}{
+		"environment without build from uses config branch": {
+			ra:              utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentNoBranch(toEnvironment).BuildRA(),
+			expectedGitRef:  configBranch,
+			expectedRefType: string(radixv1.GitRefBranch),
+			expectedCommit:  "configbranchcommit",
+			expectedGitTags: "v1 v2",
+		},
+		"environment build from type is ignored when build from is empty": {
+			ra: utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentByBuild(toEnvironment, radixv1.EnvBuild{
+				FromType: string(radixv1.GitRefTag),
+			}).BuildRA(),
+			expectedGitRef:  configBranch,
+			expectedRefType: string(radixv1.GitRefBranch),
+			expectedCommit:  "configbranchcommit",
+			expectedGitTags: "v1 v2",
+		},
+		"environment build from tag uses environment git ref and type": {
+			ra: utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironmentByBuild(toEnvironment, radixv1.EnvBuild{
+				From:     "v3",
+				FromType: string(radixv1.GitRefTag),
+			}).BuildRA(),
+			expectedGitRef:  "v3",
+			expectedRefType: string(radixv1.GitRefTag),
+			expectedCommit:  "tagcommit",
+			expectedGitTags: "v3",
+		},
+	}
+
+	for testName, testSpec := range tests {
+		s.Run(testName, func() {
+			rr := utils.NewRegistrationBuilder().WithName(appName).WithCloneURL(cloneURL).WithConfigBranch(configBranch).BuildRR()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			pipelineInfo := &model.PipelineInfo{
+				Definition: &pipeline.Definition{},
+				PipelineArguments: model.PipelineArguments{
+					AppName:       appName,
+					PipelineType:  string(radixv1.Deploy),
+					ToEnvironment: toEnvironment,
+				},
+			}
+
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(testSpec.ra, nil).Times(1)
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(testSpec.expectedGitRef).Times(1).Return(testSpec.expectedCommit, nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(testSpec.expectedCommit).Times(1).Return(strings.Fields(testSpec.expectedGitTags), nil)
+			mockGitRepo.EXPECT().Checkout(testSpec.expectedCommit).Times(1).Return(nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(pipelineInfo, toEnvironment).Return(false, "", nil, nil, nil).Times(1)
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+			step := preparepipeline.NewPreparePipelinesStep(
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
+
+			ctx := context.Background()
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+			err = step.Run(ctx, pipelineInfo)
+			s.Require().NoError(err)
+
+			s.Equal(map[string]model.SubPipelineParams{
+				toEnvironment: {
+					PipelineType: string(radixv1.Deploy),
+					Environment:  toEnvironment,
+					GitSSHUrl:    cloneURL,
+					GitRef:       testSpec.expectedGitRef,
+					GitRefType:   testSpec.expectedRefType,
+					GitCommit:    testSpec.expectedCommit,
+					GitTags:      testSpec.expectedGitTags,
+				},
+			}, pipelineInfo.EnvironmentSubPipelineParams)
+		})
+	}
+}
+
+func (s *stepTestSuite) Test_PipelineContext_SetsEnvironmentSubPipelineParams_ApplyConfig() {
+	const (
+		appName      = "anyapp"
+		configBranch = "configbranch"
+	)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithConfigBranch(configBranch).BuildRR()
+	pipelineInfo := &model.PipelineInfo{
+		Definition: &pipeline.Definition{},
+		PipelineArguments: model.PipelineArguments{
+			AppName:      appName,
+			PipelineType: string(radixv1.ApplyConfig),
+		},
+	}
+
+	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(utils.NewRadixApplicationBuilder().WithAppName(appName).BuildRA(), nil).Times(1)
+	mockGitRepo := git.NewMockRepository(s.ctrl)
+	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+	mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+	mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+	step := preparepipeline.NewPreparePipelinesStep(
+		preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+		preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+		preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+		preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+		preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+	)
+
+	ctx := context.Background()
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+	err := step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+	s.Empty(pipelineInfo.EnvironmentSubPipelineParams)
+}
+
 func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_EnvironmentMissingBuildFrom() {
 	const (
 		configBranch       = "cfgbranch"
@@ -1291,6 +1614,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil) // Get radixconfig
 	mockGitRepo.EXPECT().ResolveCommitForReference(configBranch).Times(1).Return(configBranchCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(configBranchCommit).Times(1).Return(nil, nil)
 	mockGitRepo.EXPECT().Checkout(configBranchCommit).Times(1).Return(nil)
 
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -1334,6 +1658,7 @@ func (s *stepTestSuite) Test_SubPipeline_ResolveAndCheckoutCommit_Deploy_Environ
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil) // Get radixconfig
 	mockGitRepo.EXPECT().ResolveCommitForReference(envBranch).Times(1).Return(envBranchCommit, nil)
+	mockGitRepo.EXPECT().ResolveTagsForCommit(envBranchCommit).Times(1).Return(nil, nil)
 	mockGitRepo.EXPECT().Checkout(envBranchCommit).Times(1).Return(nil)
 
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -1383,7 +1708,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(true),
+					WebhookEnabled: new(true),
 				},
 			}},
 			triggeredFromWebhook: false,
@@ -1394,7 +1719,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 			},
@@ -1406,7 +1731,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 			},
@@ -1436,7 +1761,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(true),
+					WebhookEnabled: new(true),
 				},
 			},
 				{
@@ -1454,7 +1779,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 				{
@@ -1473,7 +1798,7 @@ func (s *stepTestSuite) Test_Prepare_WebhookEnabled() {
 				Name: internalTest.Env1,
 				Build: radixv1.EnvBuild{
 					From:           branchName,
-					WebhookEnabled: pointers.Ptr(false),
+					WebhookEnabled: new(false),
 				},
 			},
 				{
@@ -1641,6 +1966,7 @@ func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("somecommit", nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return([]string{"v1", "v2"}, nil)
 			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
 			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
 			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(gomock.Any(), gomock.Any()).Return(false, "", nil, nil, nil).AnyTimes()
@@ -1665,7 +1991,7 @@ func (s *stepTestSuite) Test_EnvironmentSubPipelineComponentNames() {
 
 func (s *stepTestSuite) applyRadixDeployments(rdList []radixv1.RadixDeployment) {
 	for _, rd := range rdList {
-		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: rd.GetNamespace()}}, metav1.CreateOptions{})
+		_, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: rd.GetNamespace()}, metav1.CreateOptions{})
 		if err != nil {
 			s.True(k8errs.IsAlreadyExists(err))
 		}
@@ -1677,7 +2003,7 @@ func (s *stepTestSuite) applyRadixDeployments(rdList []radixv1.RadixDeployment) 
 
 func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pipeline {
 	pl := &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{Name: "pipeline1"},
+		Name: "pipeline1",
 		Spec: pipelinev1.PipelineSpec{
 			Tasks: []pipelinev1.PipelineTask{},
 		},
@@ -1700,7 +2026,7 @@ func getComponentBuilder() utils.RadixApplicationComponentBuilder {
 
 func getTestTask(modify func(task *pipelinev1.Task)) *pipelinev1.Task {
 	task := &pipelinev1.Task{
-		ObjectMeta: metav1.ObjectMeta{Name: "task1"},
+		Name: "task1",
 		Spec: pipelinev1.TaskSpec{
 			Steps: []pipelinev1.Step{{Name: "step1"}},
 		},

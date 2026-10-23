@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/job-scheduler/internal/test"
 	"github.com/equinor/radix-operator/job-scheduler/models"
 	"github.com/equinor/radix-operator/job-scheduler/models/common"
@@ -126,28 +125,22 @@ func Test_CreateBatch(t *testing.T) {
 			batchDescription: common.BatchScheduleDescription{
 				JobScheduleDescriptions: []common.JobScheduleDescription{
 					{
-						JobId: "job1",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							Command: pointers.Ptr([]string{"some-command", "arg0"}),
-						},
+						JobId:   "job1",
+						Command: new([]string{"some-command", "arg0"}),
 					},
 					{
 						JobId: "job2",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							Args: pointers.Ptr([]string{"job-arg1", "job-arg2"}),
-						},
+						Args:  new([]string{"job-arg1", "job-arg2"}),
 					},
 					{
-						JobId: "job3",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							Command: pointers.Ptr([]string{}),
-							Args:    pointers.Ptr([]string{}),
-						},
+						JobId:   "job3",
+						Command: new([]string{}),
+						Args:    new([]string{}),
 					},
 				},
 				DefaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"some-command", "def-arg0"}),
-					Args:    pointers.Ptr([]string{"def-arg1", "def-arg2"}),
+					Command: new([]string{"some-command", "def-arg0"}),
+					Args:    new([]string{"def-arg1", "def-arg2"}),
 				},
 			},
 			expectedBatchType: kube.RadixBatchTypeBatch,
@@ -156,18 +149,18 @@ func Test_CreateBatch(t *testing.T) {
 				Jobs: []radixv1.RadixBatchJob{
 					{
 						JobId:   "job1",
-						Command: pointers.Ptr([]string{"some-command", "arg0"}),
-						Args:    pointers.Ptr([]string{"def-arg1", "def-arg2"}),
+						Command: new([]string{"some-command", "arg0"}),
+						Args:    new([]string{"def-arg1", "def-arg2"}),
 					},
 					{
 						JobId:   "job2",
-						Command: pointers.Ptr([]string{"some-command", "def-arg0"}),
-						Args:    pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+						Command: new([]string{"some-command", "def-arg0"}),
+						Args:    new([]string{"job-arg1", "job-arg2"}),
 					},
 					{
 						JobId:   "job3",
-						Command: pointers.Ptr([]string{}),
-						Args:    pointers.Ptr([]string{}),
+						Command: new([]string{}),
+						Args:    new([]string{}),
 					},
 				},
 			},
@@ -177,16 +170,12 @@ func Test_CreateBatch(t *testing.T) {
 			batchDescription: common.BatchScheduleDescription{
 				JobScheduleDescriptions: []common.JobScheduleDescription{
 					{
-						JobId: "job1",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							RunAsUser: pointers.Ptr(int64(1001)),
-						},
+						JobId:     "job1",
+						RunAsUser: new(int64(1001)),
 					},
 					{
-						JobId: "job2",
-						RadixJobComponentConfig: common.RadixJobComponentConfig{
-							RunAsUser: pointers.Ptr(int64(1002)),
-						},
+						JobId:     "job2",
+						RunAsUser: new(int64(1002)),
 					},
 					{
 						JobId:                   "job3",
@@ -198,7 +187,7 @@ func Test_CreateBatch(t *testing.T) {
 					},
 				},
 				DefaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-					RunAsUser: pointers.Ptr(int64(1000)),
+					RunAsUser: new(int64(1000)),
 				},
 			},
 			expectedBatchType: kube.RadixBatchTypeBatch,
@@ -207,19 +196,19 @@ func Test_CreateBatch(t *testing.T) {
 				Jobs: []radixv1.RadixBatchJob{
 					{
 						JobId:     "job1",
-						RunAsUser: pointers.Ptr(int64(1001)),
+						RunAsUser: new(int64(1001)),
 					},
 					{
 						JobId:     "job2",
-						RunAsUser: pointers.Ptr(int64(1002)),
+						RunAsUser: new(int64(1002)),
 					},
 					{
 						JobId:     "job3",
-						RunAsUser: pointers.Ptr(int64(1000)),
+						RunAsUser: new(int64(1000)),
 					},
 					{
 						JobId:     "job4",
-						RunAsUser: pointers.Ptr(int64(1000)),
+						RunAsUser: new(int64(1000)),
 					},
 				},
 			},
@@ -252,7 +241,7 @@ func Test_CreateBatch(t *testing.T) {
 				if len(ts.batchDescription.JobScheduleDescriptions) > 0 {
 					jobScheduleDescription = &ts.batchDescription.JobScheduleDescriptions[0]
 				}
-				createdRadixBatch, err = h.CreateRadixBatchSingleJob(context.TODO(), jobScheduleDescription, false)
+				createdRadixBatch, err = h.CreateRadixBatchSingleJob(context.TODO(), jobScheduleDescription, "")
 			}
 			if ts.expectedError {
 				assert.NotNil(t, err)
@@ -327,15 +316,13 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				},
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Resources: &common.Resources{
-						Limits: common.ResourceList{
-							"memory": "21M",
-						},
-						Requests: common.ResourceList{
-							"memory": "10M",
-							"cpu":    "11m",
-						},
+				Resources: &common.Resources{
+					Limits: common.ResourceList{
+						"memory": "21M",
+					},
+					Requests: common.ResourceList{
+						"memory": "10M",
+						"cpu":    "11m",
 					},
 				},
 			},
@@ -355,14 +342,12 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"Resources from job spec only": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Resources: &common.Resources{
-						Limits: common.ResourceList{
-							"memory": "20M",
-						},
-						Requests: common.ResourceList{
-							"memory": "10M",
-						},
+				Resources: &common.Resources{
+					Limits: common.ResourceList{
+						"memory": "20M",
+					},
+					Requests: common.ResourceList{
+						"memory": "10M",
 					},
 				},
 			},
@@ -404,50 +389,46 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		},
 		"BackoffLimit from job spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				BackoffLimit: pointers.Ptr[int32](2000),
+				BackoffLimit: new(int32(2000)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					BackoffLimit: pointers.Ptr[int32](1000),
-				},
+				BackoffLimit: new(int32(1000)),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				BackoffLimit: pointers.Ptr[int32](1000),
+				BackoffLimit: new(int32(1000)),
 			},
 		},
 		"BackoffLimit from default spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				BackoffLimit: pointers.Ptr[int32](2000),
+				BackoffLimit: new(int32(2000)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
 				RadixJobComponentConfig: common.RadixJobComponentConfig{},
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				BackoffLimit: pointers.Ptr[int32](2000),
+				BackoffLimit: new(int32(2000)),
 			},
 		},
 		"TimeLimitSeconds from job spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				TimeLimitSeconds: pointers.Ptr[int64](2000),
+				TimeLimitSeconds: new(int64(2000)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					TimeLimitSeconds: pointers.Ptr[int64](1000),
-				},
+				TimeLimitSeconds: new(int64(1000)),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				TimeLimitSeconds: pointers.Ptr[int64](1000),
+				TimeLimitSeconds: new(int64(1000)),
 			},
 		},
 		"TimeLimitSeconds from default spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				TimeLimitSeconds: pointers.Ptr[int64](2000),
+				TimeLimitSeconds: new(int64(2000)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
 				RadixJobComponentConfig: common.RadixJobComponentConfig{},
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				TimeLimitSeconds: pointers.Ptr[int64](2000),
+				TimeLimitSeconds: new(int64(2000)),
 			},
 		},
 		"FailurePolicy from job spec only": {
@@ -465,15 +446,13 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				},
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					FailurePolicy: &common.FailurePolicy{
-						Rules: []common.FailurePolicyRule{
-							{
-								Action: common.FailurePolicyRuleActionFailJob,
-								OnExitCodes: common.FailurePolicyRuleOnExitCodes{
-									Operator: common.FailurePolicyRuleOnExitCodesOpNotIn,
-									Values:   []int32{0, 1},
-								},
+				FailurePolicy: &common.FailurePolicy{
+					Rules: []common.FailurePolicyRule{
+						{
+							Action: common.FailurePolicyRuleActionFailJob,
+							OnExitCodes: common.FailurePolicyRuleOnExitCodes{
+								Operator: common.FailurePolicyRuleOnExitCodesOpNotIn,
+								Values:   []int32{0, 1},
 							},
 						},
 					},
@@ -529,9 +508,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 				Image: "my-default-image:latest",
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Image: "my-job-image:latest",
-				},
+				Image: "my-job-image:latest",
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Image: "my-job-image:latest",
@@ -540,9 +517,7 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"No default image, image from job spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Image: "my-job-image:latest",
-				},
+				Image: "my-job-image:latest",
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
 				Image: "my-job-image:latest",
@@ -562,27 +537,25 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"Command and Args from job spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"sh", "-c"}),
-					Args:    pointers.Ptr([]string{"echo hello"}),
-				},
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"sh", "-c"}),
-				Args:    pointers.Ptr([]string{"echo hello"}),
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 		},
 		"Command and Args from default spec": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"sh", "-c"}),
-				Args:    pointers.Ptr([]string{"echo hello"}),
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
 				RadixJobComponentConfig: common.RadixJobComponentConfig{},
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"sh", "-c"}),
-				Args:    pointers.Ptr([]string{"echo hello"}),
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 		},
 		"job command and args are not set": {
@@ -595,202 +568,174 @@ func Test_MergeJobDescriptionWithDefaultJobDescription(t *testing.T) {
 		"job single command is set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"bash"}),
-				},
+				Command: new([]string{"bash"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"bash"}),
+				Command: new([]string{"bash"}),
 			},
 		},
 		"job command with arguments is set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"sh", "-c", "echo hello"}),
-				},
+				Command: new([]string{"sh", "-c", "echo hello"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"sh", "-c", "echo hello"}),
+				Command: new([]string{"sh", "-c", "echo hello"}),
 			},
 		},
 		"job command is set and args are set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"sh", "-c"}),
-					Args:    pointers.Ptr([]string{"echo hello"}),
-				},
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"sh", "-c"}),
-				Args:    pointers.Ptr([]string{"echo hello"}),
+				Command: new([]string{"sh", "-c"}),
+				Args:    new([]string{"echo hello"}),
 			},
 		},
 		"job only args are set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: pointers.Ptr([]string{"--verbose", "--output=json"}),
-				},
+				Args: new([]string{"--verbose", "--output=json"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Args: pointers.Ptr([]string{"--verbose", "--output=json"}),
+				Args: new([]string{"--verbose", "--output=json"}),
 			},
 		},
 		"job and component command and args are set, job takes precedence": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"job-cmd"}),
-					Args:    pointers.Ptr([]string{"job-arg1", "job-arg2"}),
-				},
+				Command: new([]string{"job-cmd"}),
+				Args:    new([]string{"job-arg1", "job-arg2"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"job-cmd"}),
-				Args:    pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+				Command: new([]string{"job-cmd"}),
+				Args:    new([]string{"job-arg1", "job-arg2"}),
 			},
 		},
 		"job command set, component args set, job command takes precedence, args from component": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Args: pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Args: new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"job-cmd"}),
-				},
+				Command: new([]string{"job-cmd"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"job-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"job-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 		},
 		"job args set, component command set, job args take precedence, command from component": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
+				Command: new([]string{"comp-cmd"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: pointers.Ptr([]string{"job-arg1", "job-arg2"}),
-				},
+				Args: new([]string{"job-arg1", "job-arg2"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"job-arg1", "job-arg2"}),
 			},
 		},
 		"only component command and args set": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
 				RadixJobComponentConfig: common.RadixJobComponentConfig{},
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 		},
 		"job command set, component command and args set, job command takes precedence, args from component": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{"job-cmd"}),
-				},
+				Command: new([]string{"job-cmd"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"job-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"job-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 		},
 		"job args set, component command and args set, job args take precedence, command from component": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"comp-arg1", "comp-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"comp-arg1", "comp-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: pointers.Ptr([]string{"job-arg1", "job-arg2"}),
-				},
+				Args: new([]string{"job-arg1", "job-arg2"}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"comp-cmd"}),
-				Args:    pointers.Ptr([]string{"job-arg1", "job-arg2"}),
+				Command: new([]string{"comp-cmd"}),
+				Args:    new([]string{"job-arg1", "job-arg2"}),
 			},
 		},
 		"job command is empty array, default is set and should be empty": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"default-cmd"}),
+				Command: new([]string{"default-cmd"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{}),
-				},
+				Command: new([]string{}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{}),
+				Command: new([]string{}),
 			},
 		},
 		"job args is empty array, default is set and should be empty": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Args: pointers.Ptr([]string{"default-arg1", "default-arg2"}),
+				Args: new([]string{"default-arg1", "default-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Args: pointers.Ptr([]string{}),
-				},
+				Args: new([]string{}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Args: pointers.Ptr([]string{}),
+				Args: new([]string{}),
 			},
 		},
 		"job command and args are empty arrays, default is set and should be empty": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{"default-cmd"}),
-				Args:    pointers.Ptr([]string{"default-arg1", "default-arg2"}),
+				Command: new([]string{"default-cmd"}),
+				Args:    new([]string{"default-arg1", "default-arg2"}),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					Command: pointers.Ptr([]string{}),
-					Args:    pointers.Ptr([]string{}),
-				},
+				Command: new([]string{}),
+				Args:    new([]string{}),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				Command: pointers.Ptr([]string{}),
-				Args:    pointers.Ptr([]string{}),
+				Command: new([]string{}),
+				Args:    new([]string{}),
 			},
 		},
 		"job runAsUser is set, component runAsUser is set, job should take precedence": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				RunAsUser: pointers.Ptr(int64(1002)),
+				RunAsUser: new(int64(1002)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					RunAsUser: pointers.Ptr(int64(1003)),
-				},
+				RunAsUser: new(int64(1003)),
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				RunAsUser: pointers.Ptr(int64(1003)),
+				RunAsUser: new(int64(1003)),
 			},
 		},
 		"job runAsUser is nil, component runAsUser is set, component should be used": {
 			defaultRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				RunAsUser: pointers.Ptr(int64(1002)),
+				RunAsUser: new(int64(1002)),
 			},
 			jobScheduleDescription: &common.JobScheduleDescription{
-				RadixJobComponentConfig: common.RadixJobComponentConfig{
-					RunAsUser: nil,
-				},
+				RunAsUser: nil,
 			},
 			expectedRadixJobComponentConfig: &common.RadixJobComponentConfig{
-				RunAsUser: pointers.Ptr(int64(1002)),
+				RunAsUser: new(int64(1002)),
 			},
 		},
 	}
@@ -815,7 +760,7 @@ func Test_MergeRuntime(t *testing.T) {
 			expectedRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{}},
 		},
 		"clear job NodeType when empty job runtime": {
-			defaultRadixJobComponentConfig:  common.RadixJobComponentConfig{Runtime: &common.Runtime{NodeType: pointers.Ptr("some-node-type")}},
+			defaultRadixJobComponentConfig:  common.RadixJobComponentConfig{Runtime: &common.Runtime{NodeType: new("some-node-type")}},
 			radixJobComponentConfig:         common.RadixJobComponentConfig{Runtime: &common.Runtime{}},
 			expectedRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{}},
 		},
@@ -824,10 +769,10 @@ func Test_MergeRuntime(t *testing.T) {
 				Architecture: string(radixv1.RuntimeArchitectureAmd64),
 			}},
 			radixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("gpu-nodes"),
+				NodeType: new("gpu-nodes"),
 			}},
 			expectedRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("gpu-nodes"),
+				NodeType: new("gpu-nodes"),
 				// Architecture should be cleared
 			}},
 		},
@@ -883,10 +828,10 @@ func Test_MergeRuntime(t *testing.T) {
 				Architecture: string(radixv1.RuntimeArchitectureAmd64),
 			}},
 			radixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("edge-nodes"),
+				NodeType: new("edge-nodes"),
 			}},
 			expectedRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("edge-nodes"),
+				NodeType: new("edge-nodes"),
 				// Architecture must be cleared
 			}},
 		},
@@ -908,11 +853,11 @@ func Test_MergeRuntime(t *testing.T) {
 		},
 		"keeps default NodeType if nil Runtime in job": {
 			defaultRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("some-node-type"),
+				NodeType: new("some-node-type"),
 			}},
 			radixJobComponentConfig: common.RadixJobComponentConfig{Runtime: nil},
 			expectedRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("some-node-type"),
+				NodeType: new("some-node-type"),
 			}},
 		},
 		"keeps job Architecture if nil default Runtime": {
@@ -927,10 +872,10 @@ func Test_MergeRuntime(t *testing.T) {
 		"keeps job NodeType if nil default Runtime": {
 			defaultRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: nil},
 			radixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("some-node-type"),
+				NodeType: new("some-node-type"),
 			}},
 			expectedRadixJobComponentConfig: common.RadixJobComponentConfig{Runtime: &common.Runtime{
-				NodeType: pointers.Ptr("some-node-type"),
+				NodeType: new("some-node-type"),
 			}},
 		},
 		"keeps nil job Runtime if nil default and job Runtime": {

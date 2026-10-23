@@ -54,7 +54,7 @@ func waitForCompletionOfPipelineRuns(pipelineRuns map[string]*pipelinev1.Pipelin
 	}
 	informer := genericInformer.Informer()
 	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			run, success := cur.(*pipelinev1.PipelineRun)
 			if !success {
 				errChan <- errors.New("updatefunc conversion failed")
@@ -88,7 +88,7 @@ func waitForCompletionOfPipelineRuns(pipelineRuns map[string]*pipelinev1.Pipelin
 				log.Debug().Msgf("Ongoing - PipelineRun has not completed yet")
 			}
 		},
-		DeleteFunc: func(old interface{}) {
+		DeleteFunc: func(old any) {
 			run, success := old.(*pipelinev1.PipelineRun)
 			if !success {
 				errChan <- errors.New("deletefunc conversion failed")

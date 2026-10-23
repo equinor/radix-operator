@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"testing"
 
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/gateway"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -37,7 +36,6 @@ type syncerTestSuite struct {
 	testUtils     test.Utils
 	promClient    *prometheusfake.Clientset
 	ctrl          *gomock.Controller
-	oauthConfig   *defaults.MockOAuth2Config
 	config        config.Config
 }
 
@@ -60,15 +58,18 @@ func (s *syncerTestSuite) setupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.testUtils = test.NewTestUtils(s.kubeClient, s.radixClient, nil, nil)
 	s.config = config.Config{
-		DNSZone: "dev.radix.equinor.com",
-		Gateway: config.GatewayConfig{
-			Name:        "any-gateway",
-			Namespace:   "any-namespace",
-			SectionName: "any-section",
+		Common: config.CommonConfig{
+			DNSZone: "dev.radix.equinor.com",
+		},
+		Operator: config.OperatorConfig{
+			Gateway: config.GatewayConfig{
+				Name:        "any-gateway",
+				Namespace:   "any-namespace",
+				SectionName: "any-section",
+			},
 		},
 	}
 	s.ctrl = gomock.NewController(s.T())
-	s.oauthConfig = defaults.NewMockOAuth2Config(s.ctrl)
 }
 
 func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dnsalias.Syncer {
@@ -77,21 +78,20 @@ func (s *syncerTestSuite) createSyncer(radixDNSAlias *radixv1.RadixDNSAlias) dns
 		s.radixClient,
 		s.dynamicClient,
 		s.config,
-		s.oauthConfig,
 	)
 }
 
 func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
-	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
+	rr := &radixv1.RadixRegistration{Name: "app"}
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	rda := &radixv1.RadixDNSAlias{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}, Spec: radixv1.RadixDNSAliasSpec{AppName: "app"}}
+	rda := &radixv1.RadixDNSAlias{Name: "any-name", Generation: 42, Spec: radixv1.RadixDNSAliasSpec{AppName: "app"}}
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), rda, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
 	// First sync sets status
 	expectedGen := rda.Generation
-	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut := dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -104,7 +104,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	// Second sync with updated generation
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().NoError(err)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -121,7 +121,7 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	})
 	rda.Generation++
 	expectedGen = rda.Generation
-	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, s.config, s.oauthConfig)
+	sut = dnsalias.NewSyncer(rda, s.radixClient, s.dynamicClient, config.Config{})
 	err = sut.OnSync(context.Background())
 	s.Require().ErrorContains(err, errorMsg)
 	rda, err = s.radixClient.RadixV1().RadixDNSAliases().Get(context.Background(), rda.Name, metav1.GetOptions{})
@@ -130,60 +130,6 @@ func (s *syncerTestSuite) Test_OnSync_ReconcileStatus() {
 	s.Contains(rda.Status.Message, errorMsg)
 	s.Equal(expectedGen, rda.Status.ObservedGeneration)
 	s.False(rda.Status.Reconciled.IsZero())
-}
-
-func (s *syncerTestSuite) Test_OnSync_Errors() {
-	const (
-		appName  = "any-app"
-		envName  = "any-env"
-		compName = "any-comp"
-	)
-
-	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-name"},
-		Spec: radixv1.RadixDNSAliasSpec{
-			AppName:     appName,
-			Environment: envName,
-			Component:   compName,
-		},
-	}
-	rr := utils.NewRegistrationBuilder().
-		WithName(appName).
-		BuildRR()
-	rd := utils.NewDeploymentBuilder().
-		WithDeploymentName("any-rd").
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithName(compName).
-			WithPort("http", 8000).
-			WithPublicPort("http")).
-		BuildRD()
-	rdWithOAuth := utils.NewDeploymentBuilder().
-		WithDeploymentName("any-rd").
-		WithAppName(appName).
-		WithEnvironment(envName).
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithName(compName).
-			WithPort("http", 8000).
-			WithPublicPort("http").
-			WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{}})).
-		BuildRD()
-
-	s.Run("oauth2Config.MergeWith returns error", func() {
-		_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rdWithOAuth, metav1.CreateOptions{})
-		s.Require().NoError(err)
-		_, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
-		s.Require().NoError(err)
-
-		sut := s.createSyncer(dnsAlias)
-		expectedError := errors.New("any error")
-		s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(nil, expectedError)
-		err = sut.OnSync(context.Background())
-		s.Require().ErrorIs(err, expectedError)
-	})
 }
 
 func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
@@ -213,7 +159,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -247,7 +193,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	s.True(*route.OwnerReferences[0].BlockOwnerDeletion)
 
 	// Verify hostname
-	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.DNSZone)
+	expectedHostName := fmt.Sprintf("%s.%s", aliasName, s.config.Common.DNSZone)
 	s.Require().Len(route.Spec.Hostnames, 1)
 	s.Equal(gatewayapiv1.Hostname(expectedHostName), route.Spec.Hostnames[0])
 
@@ -256,9 +202,9 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_ForPublicComponent() {
 	parentRef := route.Spec.ParentRefs[0]
 	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *parentRef.Group)
 	s.Equal(gatewayapiv1.Kind("Gateway"), *parentRef.Kind)
-	s.Equal(gatewayapiv1.ObjectName(s.config.Gateway.Name), parentRef.Name)
-	s.Equal(gatewayapiv1.Namespace(s.config.Gateway.Namespace), *parentRef.Namespace)
-	s.Equal(gatewayapiv1.SectionName(s.config.Gateway.SectionName), *parentRef.SectionName)
+	s.Equal(gatewayapiv1.ObjectName(s.config.Operator.Gateway.Name), parentRef.Name)
+	s.Equal(gatewayapiv1.Namespace(s.config.Operator.Gateway.Namespace), *parentRef.Namespace)
+	s.Equal(gatewayapiv1.SectionName(s.config.Operator.Gateway.SectionName), *parentRef.SectionName)
 
 	// Verify backend ref points to the component service
 	expectedBackendRef, err := gateway.BuildBackendRefForComponent(&rd.Spec.Components[0])
@@ -309,7 +255,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_WithOAuth2() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -320,7 +266,6 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Created_WithOAuth2() {
 	s.Require().NoError(err)
 
 	expectedOAuth := &radixv1.OAuth2{ProxyPrefix: "/any/oauth/path"}
-	s.oauthConfig.EXPECT().MergeWith(rd.Spec.Components[0].Authentication.OAuth2).AnyTimes().Return(expectedOAuth, nil)
 
 	sut := s.createSyncer(dnsAlias)
 	s.Require().NoError(sut.OnSync(context.Background()))
@@ -367,7 +312,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_Deleted_WhenComponentNotPublic()
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -435,7 +380,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_ChangeDNSAliasComponent() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,
@@ -537,7 +482,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 			s.Require().NoError(err)
 
 			dnsAlias := &radixv1.RadixDNSAlias{
-				ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+				Name: aliasName,
 				Spec: radixv1.RadixDNSAliasSpec{
 					AppName:     appName,
 					Environment: envName,
@@ -546,8 +491,6 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 			}
 			dnsAlias, err = s.radixClient.RadixV1().RadixDNSAliases().Create(context.Background(), dnsAlias, metav1.CreateOptions{})
 			s.Require().NoError(err)
-
-			s.oauthConfig.EXPECT().MergeWith(gomock.Any()).AnyTimes().Return(&radixv1.OAuth2{ProxyPrefix: "/any"}, nil)
 
 			// Initial sync - creates HTTPRoute
 			sut := s.createSyncer(dnsAlias)
@@ -565,7 +508,7 @@ func (s *syncerTestSuite) Test_OnSync_GarbageCollect_HTTPRoutes() {
 				s.Require().NoError(err)
 				rdBuilder = test.rdBuilderFactory(rdBuilder)
 
-				if !commonutils.IsNil(rdBuilder) {
+				if !pointers.IsNil(rdBuilder) {
 					_, err = s.testUtils.ApplyDeployment(context.Background(), rdBuilder)
 					s.Require().NoError(err)
 				}
@@ -614,7 +557,7 @@ func (s *syncerTestSuite) Test_OnSync_HTTPRoute_MultiplePortsUsesPublicPort() {
 	s.Require().NoError(err)
 
 	dnsAlias := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{Name: aliasName},
+		Name: aliasName,
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: envName,

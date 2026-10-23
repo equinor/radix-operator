@@ -51,8 +51,8 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 		t.Parallel()
 
 		testConfigMap := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Data:       nil,
+			Name: name,
+			Data: nil,
 		}
 
 		configMap, err := kube.GetEnvVarsMetadataFromConfigMap(context.Background(), &testConfigMap)
@@ -65,7 +65,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 		t.Parallel()
 
 		testConfigMap := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Name: name,
 			Data: map[string]string{"metadata": `
 											{
 												"VAR1":{"RadixConfigValue":"val1"},
@@ -91,8 +91,8 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 		t.Parallel()
 
 		testConfigMap := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Data:       map[string]string{"metadata": "invalid-value"},
+			Name: name,
+			Data: map[string]string{"metadata": "invalid-value"},
 		}
 
 		metadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(context.Background(), &testConfigMap)
@@ -108,10 +108,8 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 	componentName := "comp1"
 	createEnvVarConfigMapFunc := func(testEnv EnvironmentVariablesTestEnv) {
 		err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "env-vars-" + componentName,
-				Namespace: namespace,
-			},
+			Name:      "env-vars-" + componentName,
+			Namespace: namespace,
 			Data: map[string]string{
 				"VAR1": "val1changed",
 				"VAR2": "val2",
@@ -126,10 +124,8 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 			testEnv.kubeUtil,
 			namespace,
 			&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "env-vars-metadata-" + componentName,
-					Namespace: namespace,
-				},
+				Name:      "env-vars-metadata-" + componentName,
+				Namespace: namespace,
 				Data: map[string]string{
 					"metadata": `
 							{
@@ -205,10 +201,8 @@ func Test_SetEnvVarsMetadataMapToConfigMap(t *testing.T) {
 	t.Run("Set map", func(t *testing.T) {
 		t.Parallel()
 		currentMetadataConfigMap := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "env-vars-metadata-" + componentName,
-				Namespace: namespace,
-			},
+			Name:      "env-vars-metadata-" + componentName,
+			Namespace: namespace,
 			Data: map[string]string{
 				"metadata": `
 							{
@@ -245,10 +239,8 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 	componentName := "comp1"
 	name := "env-vars-metadata-" + componentName
 	currentMetadataConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Data: map[string]string{
 			"metadata": `
 							{
@@ -268,10 +260,8 @@ func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
 		_, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: namespace,
-			}}, metav1.CreateOptions{})
+			Name:      name,
+			Namespace: namespace}, metav1.CreateOptions{})
 		require.NoError(t, err)
 
 		err = testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(context.Background(), namespace, &currentMetadataConfigMap, metadata)
@@ -309,10 +299,8 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
 		err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "env-vars-" + componentName,
-				Namespace: namespace,
-			},
+			Name:      "env-vars-" + componentName,
+			Namespace: namespace,
 			Data: map[string]string{
 				"VAR1": "val1changed",
 				"VAR2": "val2",
@@ -325,10 +313,8 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 			testEnv.kubeUtil,
 			namespace,
 			&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "env-vars-metadata-" + componentName,
-					Namespace: namespace,
-				},
+				Name:      "env-vars-metadata-" + componentName,
+				Namespace: namespace,
 				Data: map[string]string{
 					"metadata": `
 							{
@@ -387,10 +373,8 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 		t.Parallel()
 		testEnv := getEnvironmentVariablesTestEnv()
 		err := createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "env-vars-" + componentName,
-				Namespace: namespace,
-			},
+			Name:      "env-vars-" + componentName,
+			Namespace: namespace,
 			Data: map[string]string{
 				"VAR1": "val1changed",
 				"VAR2": "val2",
@@ -403,10 +387,8 @@ func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 			testEnv.kubeUtil,
 			namespace,
 			&corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "env-vars-metadata-" + componentName,
-					Namespace: namespace,
-				},
+				Name:      "env-vars-metadata-" + componentName,
+				Namespace: namespace,
 				Data: map[string]string{
 					"metadata": `
 							{

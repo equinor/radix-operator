@@ -21,7 +21,7 @@ type DNSAlias struct {
 	// example: prod
 	EnvironmentName string `json:"environmentName"`
 
-	Status DNSAliasStatus `json:"status,omitempty"`
+	Status DNSAliasStatus `json:"status"`
 }
 
 // DNSAliasStatus Status of the DNSAlias

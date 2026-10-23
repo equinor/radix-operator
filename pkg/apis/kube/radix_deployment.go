@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -47,7 +47,7 @@ func (kubeutil *Kube) ListRadixDeployments(ctx context.Context, namespace string
 		return nil, fmt.Errorf("failed to get all RadixDeployments: %w", err)
 	}
 
-	return slice.PointersOf(rds.Items).([]*v1.RadixDeployment), nil
+	return slice.PointersOf(rds.Items), nil
 
 }
 

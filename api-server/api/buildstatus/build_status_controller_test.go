@@ -23,11 +23,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
-const (
-	clusterName    = "AnyClusterName"
-	subscriptionId = "12347718-c8f8-4995-bfbb-02655ff1f89c"
-)
-
 func setupTest(t *testing.T) (*commontest.Utils, *kubefake.Clientset, *radixfake.Clientset, *kedafake.Clientset, *secretproviderfake.Clientset, *certclientfake.Clientset) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()   //nolint:staticcheck
@@ -38,7 +33,7 @@ func setupTest(t *testing.T) (*commontest.Utils, *kubefake.Clientset, *radixfake
 
 	// commonTestUtils is used for creating CRDs
 	commonTestUtils := commontest.NewTestUtils(kubeclient, radixclient, kedaClient, secretproviderclient)
-	err := commonTestUtils.CreateClusterPrerequisites(clusterName, subscriptionId)
+	err := commonTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return &commonTestUtils, kubeclient, radixclient, kedaClient, secretproviderclient, certClient
 }

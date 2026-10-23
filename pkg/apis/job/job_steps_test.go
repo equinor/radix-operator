@@ -243,7 +243,7 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 	err := s.initScenario(scenario)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixRegistration, scenario.radixJob, nil)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, s.dynamicClient, scenario.radixRegistration, scenario.radixJob, s.cfg)
 	err = job.syncStatus(context.Background(), nil)
 	require.NoError(s.T(), err, "scenario %s", scenario.name)
 
@@ -291,15 +291,13 @@ func (s *RadixJobStepTestSuite) initScenario(scenario *setStatusOfJobTestScenari
 
 func (s *RadixJobStepTestSuite) getPipelineJob(name, appName, imageTag string) *batchv1.Job {
 	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: utils.GetAppNamespace(appName),
-			Labels: map[string]string{
-				kube.RadixJobNameLabel:  name,
-				kube.RadixJobTypeLabel:  kube.RadixJobTypeJob,
-				kube.RadixImageTagLabel: imageTag,
-				kube.RadixAppLabel:      appName,
-			},
+		Name:      name,
+		Namespace: utils.GetAppNamespace(appName),
+		Labels: map[string]string{
+			kube.RadixJobNameLabel:  name,
+			kube.RadixJobTypeLabel:  kube.RadixJobTypeJob,
+			kube.RadixImageTagLabel: imageTag,
+			kube.RadixAppLabel:      appName,
 		},
 	}
 }
@@ -308,29 +306,25 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 	componentImageAnnotation, _ := json.Marshal(&componentImages)
 
 	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: utils.GetAppNamespace(appName),
-			Labels: map[string]string{
-				kube.RadixJobNameLabel:  radixJobName,
-				kube.RadixAppLabel:      appName,
-				kube.RadixImageTagLabel: imageTag,
-				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
-			},
-			Annotations: map[string]string{
-				kube.RadixBuildComponentsAnnotation: string(componentImageAnnotation),
-			},
+		Name:      name,
+		Namespace: utils.GetAppNamespace(appName),
+		Labels: map[string]string{
+			kube.RadixJobNameLabel:  radixJobName,
+			kube.RadixAppLabel:      appName,
+			kube.RadixImageTagLabel: imageTag,
+			kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+		},
+		Annotations: map[string]string{
+			kube.RadixBuildComponentsAnnotation: string(componentImageAnnotation),
 		},
 	}
 }
 
 func (s *RadixJobStepTestSuite) getJobPod(podName, radixJobName, jobName, namespace string) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: namespace,
-			Labels:    map[string]string{kube.RadixJobNameLabel: radixJobName, jobNameLabel: jobName},
-		},
+		Name:      podName,
+		Namespace: namespace,
+		Labels:    map[string]string{kube.RadixJobNameLabel: radixJobName, jobNameLabel: jobName},
 	}
 }
 

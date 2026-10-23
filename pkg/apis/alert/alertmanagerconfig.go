@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -37,19 +38,13 @@ const (
 type alertConfigList []AlertConfig
 
 func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
-	for _, alertConfig := range list {
-		if anyFunc(alertConfig) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(list, anyFunc)
 }
 
 func (syncer *alertSyncer) reconcileAlertManagerConfig(ctx context.Context) error {
 	ns := syncer.radixAlert.Namespace
 
-	config := &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(syncer.radixAlert.Name), Namespace: ns}}
+	config := &v1alpha1.AlertmanagerConfig{Name: getAlertmanagerConfigName(syncer.radixAlert.Name), Namespace: ns}
 	op, err := controllerutil.CreateOrUpdate(ctx, syncer.dynamicClient, config, func() error {
 		receivers := syncer.getAlertmanagerConfigReceivers()
 		routes := syncer.getAlertmanagerConfigRoutes(ctx)
@@ -120,11 +115,11 @@ func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Rec
 			{
 				SendResolved: &resolvable,
 				APIURL: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(syncer.radixAlert.Name)},
-					Key:                  GetSlackConfigSecretKeyName(receiverName),
+					Name: GetAlertSecretName(syncer.radixAlert.Name),
+					Key:  GetSlackConfigSecretKeyName(receiverName),
 				},
-				Text:      syncer.slackMessageTemplate.text,
-				Title:     syncer.slackMessageTemplate.title,
+				Text:      new(syncer.slackMessageTemplate.text),
+				Title:     new(syncer.slackMessageTemplate.title),
 				TitleLink: syncer.slackMessageTemplate.titleLink,
 			},
 		}
@@ -169,9 +164,9 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes(ctx context.Context) []v1
 		routes = append(routes, v1alpha1.Route{
 			Receiver:       getRouteReceiverNameForAlert(alert.Receiver, alertConfig.Resolvable),
 			GroupBy:        alertConfig.GroupBy,
-			GroupWait:      defaultGroupWait,
-			GroupInterval:  defaultGroupInterval,
-			RepeatInterval: getRepeatInterval(alertConfig),
+			GroupWait:      new(monitoringv1.NonEmptyDuration(defaultGroupWait)),
+			GroupInterval:  new(monitoringv1.NonEmptyDuration(defaultGroupInterval)),
+			RepeatInterval: new(monitoringv1.NonEmptyDuration(getRepeatInterval(alertConfig))),
 			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert.Alert, MatchType: v1alpha1.MatchEqual}},
 		})
 	}

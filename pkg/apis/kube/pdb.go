@@ -20,7 +20,7 @@ func (kubeutil *Kube) ListPodDisruptionBudgets(ctx context.Context, namespace st
 	if err != nil {
 		return nil, err
 	}
-	pdbs := slice.PointersOf(list.Items).([]*v1.PodDisruptionBudget)
+	pdbs := slice.PointersOf(list.Items)
 	return pdbs, nil
 }
 

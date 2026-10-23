@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/deploy"
@@ -91,18 +90,18 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
-						WithReplicas(test.IntPtr(4)),
+						WithReplicas(new(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment(envName).
 						WithAuthentication(
 							&radixv1.Authentication{
 								OAuth2: &radixv1.OAuth2{
 									ClientID:               "client-id",
-									SetXAuthRequestHeaders: pointers.Ptr(true),
+									SetXAuthRequestHeaders: new(true),
 								},
 							},
 						).
-						WithReplicas(test.IntPtr(4))),
+						WithReplicas(new(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublicPort("").
@@ -192,7 +191,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 		x0 := &radixv1.Authentication{
 			OAuth2: &radixv1.OAuth2{
 				ClientID:               "client-id",
-				SetXAuthRequestHeaders: pointers.Ptr(true),
+				SetXAuthRequestHeaders: new(true),
 			},
 		}
 
@@ -669,7 +668,7 @@ type radixDeploymentNameMatcher struct {
 	imageTag string
 }
 
-func (m radixDeploymentNameMatcher) Matches(name interface{}) bool {
+func (m radixDeploymentNameMatcher) Matches(name any) bool {
 	rdName, ok := name.(string)
 	return ok && strings.HasPrefix(rdName, m.String())
 }

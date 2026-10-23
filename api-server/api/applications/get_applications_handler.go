@@ -69,7 +69,19 @@ func (ah *ApplicationHandler) GetApplications(ctx context.Context, matcher appli
 		applications = append(
 			applications,
 			&applicationModels.ApplicationSummary{
-				Name:         appName,
+				Name:                appName,
+				AppID:               rr.Spec.AppID.String(),
+				CloneURL:            rr.Spec.CloneURL,
+				AdGroups:            rr.Spec.AdGroups,
+				AdUsers:             rr.Spec.AdUsers,
+				ReaderAdGroups:      rr.Spec.ReaderAdGroups,
+				ReaderAdUsers:       rr.Spec.ReaderAdUsers,
+				Creator:             rr.Spec.Creator,
+				Owner:               rr.Spec.Owner,
+				ConfigBranch:        rr.Spec.ConfigBranch,
+				RadixConfigFullName: rr.Spec.RadixConfigFullName,
+				ConfigurationItem:   rr.Spec.ConfigurationItem,
+
 				LatestJob:    latestApplicationJobs[appName],
 				Environments: appEnvironmentsMap[appName],
 			},

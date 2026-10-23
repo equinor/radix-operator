@@ -8,14 +8,10 @@ import (
 	"testing"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/numbers"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	"github.com/equinor/radix-operator/api-server/api/test"
-	apiUtils "github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -51,32 +47,24 @@ func Test_GetJobs(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batch1Name,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job1"}}},
+			Name:   batch1Name,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job1"}}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batch2Name,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job2"}}},
+			Name:   batch2Name,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job2"}}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "otherjobbatch",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("othercomponent"), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "anyjob"}}},
+			Name:   "otherjobbatch",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("othercomponent"), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "anyjob"}}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "anybatch",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job3"}}},
+			Name:   "anybatch",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
+			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: "job3"}}},
 		},
 	}
 	for _, rb := range testData {
@@ -192,10 +180,8 @@ func Test_GetJobs_Status(t *testing.T) {
 
 			// Insert test data
 			batch := v1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   anyBatchName,
-					Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-				},
+				Name:   anyBatchName,
+				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 				Spec: v1.RadixBatchSpec{
 					Jobs: []v1.RadixBatchJob{{Name: "no1"}}},
 				Status: v1.RadixBatchStatus{},
@@ -243,19 +229,17 @@ func Test_GetBatch_JobsListStatus_StopIsTrue(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   anyBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   anyBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
-					{Name: "no1", Stop: commonUtils.BoolPtr(true)},
-					{Name: "no2", Stop: commonUtils.BoolPtr(true)},
-					{Name: "no3", Stop: commonUtils.BoolPtr(true)},
-					{Name: "no4", Stop: commonUtils.BoolPtr(true)},
-					{Name: "no5", Stop: commonUtils.BoolPtr(true)},
-					{Name: "no6", Stop: commonUtils.BoolPtr(true)},
-					{Name: "no7", Stop: commonUtils.BoolPtr(true)},
+					{Name: "no1", Stop: new(true)},
+					{Name: "no2", Stop: new(true)},
+					{Name: "no3", Stop: new(true)},
+					{Name: "no4", Stop: new(true)},
+					{Name: "no5", Stop: new(true)},
+					{Name: "no6", Stop: new(true)},
+					{Name: "no7", Stop: new(true)},
 				},
 			},
 			Status: v1.RadixBatchStatus{
@@ -292,13 +276,13 @@ func Test_GetBatch_JobsListStatus_StopIsTrue(t *testing.T) {
 		return assertMapped{Name: job.Name, Status: job.Status}
 	})
 	expected := []assertMapped{
-		{Name: anyBatchName + "-no1", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no2", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no3", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no4", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopping)},
-		{Name: anyBatchName + "-no5", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusSucceeded)},
-		{Name: anyBatchName + "-no6", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusFailed)},
-		{Name: anyBatchName + "-no7", Status: apiUtils.GetBatchJobStatusByJobApiStatus(v1.RadixBatchJobApiStatusStopped)},
+		{Name: anyBatchName + "-no1", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no2", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no3", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no4", Status: models.ScheduledBatchJobStatusStopping},
+		{Name: anyBatchName + "-no5", Status: models.ScheduledBatchJobStatusSucceeded},
+		{Name: anyBatchName + "-no6", Status: models.ScheduledBatchJobStatusFailed},
+		{Name: anyBatchName + "-no7", Status: models.ScheduledBatchJobStatusStopped},
 	}
 	assert.ElementsMatch(t, expected, actualMapped)
 }
@@ -374,13 +358,11 @@ func Test_GetSingleJobs_Status_StopIsTrue(t *testing.T) {
 
 			// Insert test data
 			batch := v1.RadixBatch{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   anyBatchName,
-					Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-				},
+				Name:   anyBatchName,
+				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 				Spec: v1.RadixBatchSpec{
 					Jobs: []v1.RadixBatchJob{
-						{Name: "no1", Stop: commonUtils.BoolPtr(true)},
+						{Name: "no1", Stop: new(true)},
 					},
 				},
 				Status: v1.RadixBatchStatus{
@@ -432,37 +414,29 @@ func Test_GetJob(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "job-batch1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}, {Name: "job2"}},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job-batch2",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "job-batch2",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}, {Name: "job2"}},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "other-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "other-batch1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "other-batch2",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "other-batch2",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "job1"}},
 			},
@@ -492,7 +466,6 @@ func Test_GetJob(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario := scenario
 		t.Run(scenario.Name, func(t *testing.T) {
 			responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s/jobcomponents/%s/jobs/%s", anyAppName, anyEnvironment, anyJobName, scenario.JobName))
 			response := <-responseChannel
@@ -507,7 +480,7 @@ func Test_GetJob_AllProps(t *testing.T) {
 	startTime := metav1.NewTime(time.Date(2022, 1, 2, 3, 4, 10, 0, time.UTC))
 	podCreationTime := metav1.NewTime(time.Date(2022, 1, 2, 3, 4, 15, 0, time.UTC))
 	endTime := metav1.NewTime(time.Date(2022, 1, 2, 3, 4, 15, 0, time.UTC))
-	defaultBackoffLimit := numbers.Int32Ptr(3)
+	defaultBackoffLimit := new(int32(3))
 
 	// Setup
 	commonTestUtils, environmentControllerTestUtils, _, _, radixClient, _, _, _, _ := setupTest(t, nil)
@@ -525,14 +498,14 @@ func Test_GetJob_AllProps(t *testing.T) {
 			WithEnvironment(anyEnvironment).
 			WithJobComponents(utils.NewDeployJobComponentBuilder().
 				WithName(anyJobName).
-				WithTimeLimitSeconds(numbers.Int64Ptr(123)).
+				WithTimeLimitSeconds(new(int64(123))).
 				WithNodeGpu("gpu1").
 				WithNodeGpuCount("2").
 				WithRuntime(&v1.Runtime{Architecture: v1.RuntimeArchitectureArm64}).
 				WithResource(map[string]string{"cpu": "50Mi", "memory": "250M"}, map[string]string{"cpu": "100Mi", "memory": "500M"}),
 				utils.NewDeployJobComponentBuilder().
 					WithName(anyJobName2).
-					WithRuntime(&v1.Runtime{NodeType: pointers.Ptr(nodeType1)})).
+					WithRuntime(&v1.Runtime{NodeType: new(nodeType1)})).
 			WithActiveFrom(time.Now()))
 	require.NoError(t, err)
 
@@ -545,10 +518,9 @@ func Test_GetJob_AllProps(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:        "job-batch1",
+			Labels:      labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Annotations: map[string]string{kube.RadixBatchCronScheduleAnnotation: "0 1 * * *"},
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{
@@ -557,8 +529,8 @@ func Test_GetJob_AllProps(t *testing.T) {
 					{
 						Name:             "job2",
 						JobId:            "anyjobid",
-						BackoffLimit:     numbers.Int32Ptr(5),
-						TimeLimitSeconds: numbers.Int64Ptr(999),
+						BackoffLimit:     new(int32(5)),
+						TimeLimitSeconds: new(int64(999)),
 						Resources: &v1.ResourceRequirements{
 							Limits:   v1.ResourceList{"cpu": "101Mi", "memory": "501M"},
 							Requests: v1.ResourceList{"cpu": "51Mi", "memory": "251M"},
@@ -595,10 +567,8 @@ func Test_GetJob_AllProps(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "job3-batch1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName2), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "job3-batch1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName2), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{
@@ -607,10 +577,10 @@ func Test_GetJob_AllProps(t *testing.T) {
 					{
 						Name:             "job7",
 						JobId:            "anyjobid2",
-						BackoffLimit:     numbers.Int32Ptr(5),
-						TimeLimitSeconds: numbers.Int64Ptr(999),
+						BackoffLimit:     new(int32(5)),
+						TimeLimitSeconds: new(int64(999)),
 						Runtime: &v1.Runtime{
-							NodeType: pointers.Ptr(nodeType1),
+							NodeType: new(nodeType1),
 						},
 					},
 				},
@@ -659,7 +629,8 @@ func Test_GetJob_AllProps(t *testing.T) {
 		Status:           models.ScheduledBatchJobStatusSucceeded,
 		Message:          "anymessage",
 		BackoffLimit:     *defaultBackoffLimit,
-		TimeLimitSeconds: numbers.Int64Ptr(123),
+		TimeLimitSeconds: new(int64(123)),
+		CronSchedule:     "0 1 * * *",
 		Resources: models.ResourceRequirements{
 			Limits:   models.Resources{CPU: "100Mi", Memory: "500M"},
 			Requests: models.Resources{CPU: "50Mi", Memory: "250M"},
@@ -687,7 +658,8 @@ func Test_GetJob_AllProps(t *testing.T) {
 		JobId:            "anyjobid",
 		Status:           models.ScheduledBatchJobStatusWaiting,
 		BackoffLimit:     5,
-		TimeLimitSeconds: numbers.Int64Ptr(999),
+		TimeLimitSeconds: new(int64(999)),
+		CronSchedule:     "0 1 * * *",
 		Resources: models.ResourceRequirements{
 			Limits:   models.Resources{CPU: "101Mi", Memory: "501M"},
 			Requests: models.Resources{CPU: "51Mi", Memory: "251M"},
@@ -713,7 +685,7 @@ func Test_GetJob_AllProps(t *testing.T) {
 		Message:          "anymessage",
 		Status:           models.ScheduledBatchJobStatusSucceeded,
 		BackoffLimit:     5,
-		TimeLimitSeconds: numbers.Int64Ptr(999),
+		TimeLimitSeconds: new(int64(999)),
 		DeploymentName:   anyDeployment,
 		ReplicaList: []models.ReplicaSummary{{
 			Created: podCreationTime.Time,
@@ -749,24 +721,22 @@ func Test_GetJobPayload(t *testing.T) {
 
 	// Insert test data
 	rb := v1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "job-batch1",
-			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-		},
+		Name:   "job-batch1",
+		Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 		Spec: v1.RadixBatchSpec{
 			Jobs: []v1.RadixBatchJob{
 				{Name: "job1"},
 				{Name: "job2", PayloadSecretRef: &v1.PayloadSecretKeySelector{
-					Key:                  "payload1",
-					LocalObjectReference: v1.LocalObjectReference{Name: anySecretName},
+					Key:  "payload1",
+					Name: anySecretName,
 				}},
 				{Name: "job3", PayloadSecretRef: &v1.PayloadSecretKeySelector{
-					Key:                  "missingpayloadkey",
-					LocalObjectReference: v1.LocalObjectReference{Name: anySecretName},
+					Key:  "missingpayloadkey",
+					Name: anySecretName,
 				}},
 				{Name: "job4", PayloadSecretRef: &v1.PayloadSecretKeySelector{
-					Key:                  "payload1",
-					LocalObjectReference: v1.LocalObjectReference{Name: "otherSecret"},
+					Key:  "payload1",
+					Name: "otherSecret",
 				}},
 			},
 		}}
@@ -774,7 +744,7 @@ func Test_GetJobPayload(t *testing.T) {
 	require.NoError(t, err)
 
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: anySecretName},
+		Name: anySecretName,
 		Data: map[string][]byte{
 			"payload1": []byte("job1payload"),
 		},
@@ -833,10 +803,8 @@ func Test_GetBatch_JobList(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   anyBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   anyBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "no1"}, {Name: "no2"}, {Name: "no3"}, {Name: "no4"}, {Name: "no5"}, {Name: "no6"}, {Name: "no7"}, {Name: "no8"}}},
 			Status: v1.RadixBatchStatus{
@@ -909,12 +877,10 @@ func Test_GetBatch_JobList_StopFlag(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   anyBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   anyBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
-				Jobs: []v1.RadixBatchJob{{Name: "no1", Stop: commonUtils.BoolPtr(true)}, {Name: "no2", Stop: commonUtils.BoolPtr(true)}, {Name: "no3", Stop: commonUtils.BoolPtr(true)}, {Name: "no4", Stop: commonUtils.BoolPtr(true)}, {Name: "no5", Stop: commonUtils.BoolPtr(true)}, {Name: "no6", Stop: commonUtils.BoolPtr(true)}, {Name: "no7", Stop: commonUtils.BoolPtr(true)}}},
+				Jobs: []v1.RadixBatchJob{{Name: "no1", Stop: new(true)}, {Name: "no2", Stop: new(true)}, {Name: "no3", Stop: new(true)}, {Name: "no4", Stop: new(true)}, {Name: "no5", Stop: new(true)}, {Name: "no6", Stop: new(true)}, {Name: "no7", Stop: new(true)}}},
 			Status: v1.RadixBatchStatus{
 				JobStatuses: []v1.RadixBatchJobStatus{
 					{Name: "no2"},
@@ -983,25 +949,19 @@ func Test_GetBatches_Status(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job2",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job2",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeWaiting},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job3",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job3",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				JobStatuses: []v1.RadixBatchJobStatus{
 					{Name: "j1"},
@@ -1027,10 +987,8 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job4",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job4",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				JobStatuses: []v1.RadixBatchJobStatus{
 					{Name: "j1"},
@@ -1058,19 +1016,15 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job5",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job5",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeCompleted},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job6",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job6",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeCompleted},
 				JobStatuses: []v1.RadixBatchJobStatus{
@@ -1102,10 +1056,8 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job7",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job7",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Status: v1.RadixBatchStatus{
 				Condition: v1.RadixBatchCondition{Type: v1.BatchConditionTypeCompleted},
 				JobStatuses: []v1.RadixBatchJobStatus{
@@ -1136,16 +1088,12 @@ func Test_GetBatches_Status(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-compute1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-compute1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName("other-component"), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "jobtype-job1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   "jobtype-job1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 		},
 	}
 	for _, rb := range testData {
@@ -1201,10 +1149,8 @@ func Test_GetBatches_JobListShouldHaveJobWithStatusWaiting(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "batch-job1",
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   "batch-job1",
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{{Name: "j1"}},
 			},
@@ -1280,21 +1226,17 @@ func Test_StopJob(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: jobSpecList},
+			Name:   batchTypeBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
+			Spec:   v1.RadixBatchSpec{Jobs: jobSpecList},
 			Status: v1.RadixBatchStatus{
 				JobStatuses: jobStatuses,
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
-			Spec: v1.RadixBatchSpec{Jobs: jobSpecList},
+			Name:   batchTypeJobName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
+			Spec:   v1.RadixBatchSpec{Jobs: jobSpecList},
 			Status: v1.RadixBatchStatus{
 				JobStatuses: jobStatuses,
 			},
@@ -1375,34 +1317,26 @@ func Test_DeleteJob(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}, {Name: jobs[1].name}, {Name: jobs[2].name}, {Name: jobs[3].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus, jobs[1].jobStatus, jobs[2].jobStatus, jobs[3].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobNames[0],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobNames[0],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobNames[1],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobNames[1],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[1].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[1].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobNames[2],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobNames[2],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[2].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[2].jobStatus}},
 		},
@@ -1492,10 +1426,8 @@ func Test_StopBatch(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{Name: validJobs[0].name}, {Name: validJobs[1].name}, {Name: validJobs[2].name}, {Name: validJobs[3].name},
@@ -1510,10 +1442,8 @@ func Test_StopBatch(t *testing.T) {
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec: v1.RadixBatchSpec{
 				Jobs: []v1.RadixBatchJob{
 					{Name: validJobs[0].name}, {Name: validJobs[1].name}, {Name: validJobs[2].name}, {Name: validJobs[3].name},
@@ -1595,34 +1525,26 @@ func Test_DeleteBatch(t *testing.T) {
 	// Insert test data
 	testData := []v1.RadixBatch{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchNames[0],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchNames[0],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}, {Name: jobs[1].name}, {Name: jobs[2].name}, {Name: jobs[3].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus, jobs[1].jobStatus, jobs[2].jobStatus, jobs[3].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchNames[1],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchNames[1],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}, {Name: jobs[1].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus, jobs[1].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeBatchNames[2],
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
-			},
+			Name:   batchTypeBatchNames[2],
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeBatch)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[2].name}, {Name: jobs[3].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[2].jobStatus, jobs[3].jobStatus}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   batchTypeJobName,
-				Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
-			},
+			Name:   batchTypeJobName,
+			Labels: labels.Merge(labels.ForApplicationName(anyAppName), labels.ForComponentName(anyJobName), labels.ForBatchType(kube.RadixBatchTypeJob)),
 			Spec:   v1.RadixBatchSpec{Jobs: []v1.RadixBatchJob{{Name: jobs[0].name}}},
 			Status: v1.RadixBatchStatus{JobStatuses: []v1.RadixBatchJobStatus{jobs[0].jobStatus}},
 		},
@@ -1709,7 +1631,7 @@ func Test_StopAllJobComponentJobs(t *testing.T) {
 		return batch.GetName() == "test-batch2" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch2 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
+	assert.Equal(t, new(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
 
 	rb3, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch3" && batch.GetNamespace() == envNamespace1 && batch.GetLabels()[kube.RadixComponentLabel] == jobComponent2
@@ -1727,13 +1649,13 @@ func Test_StopAllJobComponentJobs(t *testing.T) {
 		return batch.GetName() == "test-batch5" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch5 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
+	assert.Equal(t, new(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
 
 	rb6, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch6" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch6 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb6.Spec.Jobs[0].Stop, "test-batch6 job should be stopped")
+	assert.Equal(t, new(true), rb6.Spec.Jobs[0].Stop, "test-batch6 job should be stopped")
 
 	rb7, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch7" && batch.GetNamespace() == envNamespace2
@@ -1786,7 +1708,7 @@ func Test_StopAllJobComponentBatches(t *testing.T) {
 		return batch.GetName() == "test-batch2" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch2 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
+	assert.Equal(t, new(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
 
 	rb3, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch3" && batch.GetNamespace() == envNamespace1 && batch.GetLabels()[kube.RadixComponentLabel] == jobComponent2
@@ -1804,13 +1726,13 @@ func Test_StopAllJobComponentBatches(t *testing.T) {
 		return batch.GetName() == "test-batch5" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch5 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
+	assert.Equal(t, new(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
 
 	rb6, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch6" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch6 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb6.Spec.Jobs[0].Stop, "test-batch6 job should not be stopped")
+	assert.Equal(t, new(true), rb6.Spec.Jobs[0].Stop, "test-batch6 job should not be stopped")
 
 	rb7, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch7" && batch.GetNamespace() == envNamespace2
@@ -1836,8 +1758,8 @@ func Test_StopAllJobComponentBatchesAndJobs(t *testing.T) {
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(context.Background(), utils.NewDeploymentBuilder().
 		WithAppName(anyAppName).WithEnvironment(envName1).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(8001)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(8002)))
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(new(int32(8001)))).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(new(int32(8002)))))
 	require.NoError(t, err)
 
 	envNamespace1 := utils.GetEnvironmentNamespace(anyAppName, envName1)
@@ -1872,7 +1794,7 @@ func Test_StopAllJobComponentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch2" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch2 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
+	assert.Equal(t, new(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
 
 	rb3, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch3" && batch.GetNamespace() == envNamespace1 && batch.GetLabels()[kube.RadixComponentLabel] == jobComponent2
@@ -1890,7 +1812,7 @@ func Test_StopAllJobComponentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch5" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch5 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
+	assert.Equal(t, new(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
 
 	rb6, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch6" && batch.GetNamespace() == envNamespace1
@@ -1902,13 +1824,13 @@ func Test_StopAllJobComponentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch7" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch7 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb7.Spec.Jobs[0].Stop, "test-batch7 job should be stopped")
+	assert.Equal(t, new(true), rb7.Spec.Jobs[0].Stop, "test-batch7 job should be stopped")
 
 	rb8, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch8" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch8 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb8.Spec.Jobs[0].Stop, "test-batch8 job should be stopped")
+	assert.Equal(t, new(true), rb8.Spec.Jobs[0].Stop, "test-batch8 job should be stopped")
 
 	rb9, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch9" && batch.GetNamespace() == envNamespace2
@@ -1920,13 +1842,13 @@ func Test_StopAllJobComponentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch10" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch10 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb10.Spec.Jobs[0].Stop, "test-batch10 job should be stopped")
+	assert.Equal(t, new(true), rb10.Spec.Jobs[0].Stop, "test-batch10 job should be stopped")
 
 	rb11, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch11" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch11 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb11.Spec.Jobs[0].Stop, "test-batch11 job should be stopped")
+	assert.Equal(t, new(true), rb11.Spec.Jobs[0].Stop, "test-batch11 job should be stopped")
 
 	rb12, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch12" && batch.GetNamespace() == envNamespace2
@@ -1952,8 +1874,8 @@ func Test_StopAllEnvironmentBatchesAndJobs(t *testing.T) {
 	require.NoError(t, err)
 	_, err = commonTestUtils.ApplyDeployment(context.Background(), utils.NewDeploymentBuilder().
 		WithAppName(anyAppName).WithEnvironment(envName1).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(8001)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(8002)))
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent1).WithSchedulerPort(new(int32(8001)))).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(jobComponent2).WithSchedulerPort(new(int32(8002)))))
 	require.NoError(t, err)
 
 	envNamespace1 := utils.GetEnvironmentNamespace(anyAppName, envName1)
@@ -1988,13 +1910,13 @@ func Test_StopAllEnvironmentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch2" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch2 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
+	assert.Equal(t, new(true), rb2.Spec.Jobs[0].Stop, "test-batch2 job should be stopped")
 
 	rb3, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch3" && batch.GetNamespace() == envNamespace1 && batch.GetLabels()[kube.RadixComponentLabel] == jobComponent2
 	})
 	assert.True(t, ok, "test-batch3 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb3.Spec.Jobs[0].Stop, "test-batch3 job should be stopped")
+	assert.Equal(t, new(true), rb3.Spec.Jobs[0].Stop, "test-batch3 job should be stopped")
 
 	rb4, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch4" && batch.GetNamespace() == envNamespace1
@@ -2006,25 +1928,25 @@ func Test_StopAllEnvironmentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch5" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch5 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
+	assert.Equal(t, new(true), rb5.Spec.Jobs[0].Stop, "test-batch5 job should be stopped")
 
 	rb6, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch6" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch6 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb6.Spec.Jobs[0].Stop, "test-batch6 job should be stopped")
+	assert.Equal(t, new(true), rb6.Spec.Jobs[0].Stop, "test-batch6 job should be stopped")
 
 	rb7, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch7" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch7 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb7.Spec.Jobs[0].Stop, "test-batch7 job should be stopped")
+	assert.Equal(t, new(true), rb7.Spec.Jobs[0].Stop, "test-batch7 job should be stopped")
 
 	rb8, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch8" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch8 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb8.Spec.Jobs[0].Stop, "test-batch8 job should be stopped")
+	assert.Equal(t, new(true), rb8.Spec.Jobs[0].Stop, "test-batch8 job should be stopped")
 
 	rb9, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch9" && batch.GetNamespace() == envNamespace2
@@ -2036,13 +1958,13 @@ func Test_StopAllEnvironmentBatchesAndJobs(t *testing.T) {
 		return batch.GetName() == "test-batch10" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch10 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb10.Spec.Jobs[0].Stop, "test-batch10 job should be stopped")
+	assert.Equal(t, new(true), rb10.Spec.Jobs[0].Stop, "test-batch10 job should be stopped")
 
 	rb11, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch11" && batch.GetNamespace() == envNamespace1
 	})
 	assert.True(t, ok, "test-batch11 should be found")
-	assert.Equal(t, pointers.Ptr(true), rb11.Spec.Jobs[0].Stop, "test-batch11 job should be stopped")
+	assert.Equal(t, new(true), rb11.Spec.Jobs[0].Stop, "test-batch11 job should be stopped")
 
 	rb12, ok := slice.FindFirst(batchList.Items, func(batch v1.RadixBatch) bool {
 		return batch.GetName() == "test-batch12" && batch.GetNamespace() == envNamespace2
@@ -2100,18 +2022,16 @@ func addRadixBatchWithStatus(radixClient radixclient.Interface, jobName, compone
 		panic(fmt.Sprintf("invalid job name %s", jobName))
 	}
 	batch := v1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      batchName,
-			Namespace: namespace,
-			Labels:    rbLabels,
-		},
+		Name:      batchName,
+		Namespace: namespace,
+		Labels:    rbLabels,
 		Spec: v1.RadixBatchSpec{
 			Jobs: []v1.RadixBatchJob{
 				{
 					Name: batchJobName,
 					PayloadSecretRef: &v1.PayloadSecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: jobName},
-						Key:                  jobName,
+						Name: jobName,
+						Key:  jobName,
 					},
 				},
 			},

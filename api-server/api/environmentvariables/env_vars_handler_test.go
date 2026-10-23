@@ -6,8 +6,9 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	envvarsmodels "github.com/equinor/radix-operator/api-server/api/environmentvariables/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func Test_GetEnvVars(t *testing.T) {
 		handler := envVarsHandler{
 			kubeUtil:        commonTestUtils.GetKubeUtil(),
 			inClusterClient: nil,
-			accounts:        models.Accounts{UserAccount: models.Account{Client: kubeClient}},
+			accounts:        accounts.Accounts{UserAccount: accounts.Account{Client: kubeClient}},
 		}
 
 		_, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
@@ -74,7 +75,7 @@ func Test_ChangeGetEnvVars(t *testing.T) {
 		handler := envVarsHandler{
 			kubeUtil:        commonTestUtils.GetKubeUtil(),
 			inClusterClient: nil,
-			accounts:        models.Accounts{UserAccount: models.Account{Client: kubeClient}},
+			accounts:        accounts.Accounts{UserAccount: accounts.Account{Client: kubeClient}},
 		}
 
 		_, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
@@ -121,7 +122,7 @@ func Test_ChangeGetEnvVars(t *testing.T) {
 		handler := envVarsHandler{
 			kubeUtil:        commonTestUtils.GetKubeUtil(),
 			inClusterClient: nil,
-			accounts:        models.Accounts{UserAccount: models.Account{Client: kubeClient}},
+			accounts:        accounts.Accounts{UserAccount: accounts.Account{Client: kubeClient}},
 		}
 
 		_, err = kubeUtil.GetConfigMap(context.Background(), namespace, kube.GetEnvVarsConfigMapName(componentName))
@@ -162,11 +163,13 @@ func convertToMap(envVars []envvarsmodels.EnvVar) map[string]string {
 }
 
 func assertRadixEnvVars(t *testing.T, envVarMap map[string]string) {
+	t.Helper()
+
 	assert.Equal(t, appName, envVarMap[defaults.RadixAppEnvironmentVariable], "Invalid or missing RADIX_APP env-var")
 	assert.Equal(t, environmentName, envVarMap[defaults.EnvironmentnameEnvironmentVariable], "Invalid or missing RADIX_ENVIRONMENT env-var")
-	assert.Equal(t, clusterName, envVarMap[defaults.ClusternameEnvironmentVariable], "Invalid or missing RADIX_CLUSTERNAME env-var")
-	assert.Equal(t, clusterType, envVarMap[defaults.RadixClusterTypeEnvironmentVariable], "Invalid or missing RADIX_CLUSTER_TYPE env-var")
+	assert.Equal(t, clusterName, envVarMap[envvars.ComponentClusterName], "Invalid or missing RADIX_CLUSTERNAME env-var")
+	assert.Equal(t, clusterType, envVarMap[envvars.ComponentClusterType], "Invalid or missing RADIX_CLUSTER_TYPE env-var")
 	assert.Equal(t, componentName, envVarMap[defaults.RadixComponentEnvironmentVariable], "Invalid or missing RADIX_COMPONENT env-var")
-	assert.Equal(t, "any.container.registry", envVarMap[defaults.ContainerRegistryEnvironmentVariable], "Invalid or missing RADIX_CONTAINER_REGISTRY env-var")
-	assert.Equal(t, "dev.radix.equinor.com", envVarMap[defaults.RadixDNSZoneEnvironmentVariable], "Invalid or missing RADIX_DNS_ZONE env-var")
+	assert.Equal(t, "any.container.registry", envVarMap[envvars.ComponentContainerRegistry], "Invalid or missing RADIX_CONTAINER_REGISTRY env-var")
+	assert.Equal(t, "dev.radix.equinor.com", envVarMap[envvars.ComponentDNSZone], "Invalid or missing RADIX_DNS_ZONE env-var")
 }

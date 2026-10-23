@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	"github.com/equinor/radix-operator/api-server/api/utils"
 	"github.com/equinor/radix-operator/api-server/api/utils/labelselector"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -107,7 +105,7 @@ func TestGetComponents_active_deployment(t *testing.T) {
 func TestGetComponents_WithVolumeMount_ContainsVolumeMountSecrets(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("prod").
 		WithDeploymentName(anyDeployName).
@@ -168,7 +166,7 @@ func TestGetComponents_WithVolumeMount_ContainsVolumeMountSecrets(t *testing.T) 
 func TestGetComponents_WithTwoVolumeMounts_ContainsTwoVolumeMountSecrets(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("prod").
 		WithDeploymentName(anyDeployName).
@@ -220,8 +218,8 @@ func TestGetComponents_inactive_deployment(t *testing.T) {
 	// Setup
 	commonTestUtils, controllerTestUtils, kubeclient, _, _, _, _, _ := setupTest(t)
 
-	initialDeploymentCreated, _ := radixutils.ParseTimestamp("2018-11-12T11:45:26Z")
-	activeDeploymentCreated, _ := radixutils.ParseTimestamp("2018-11-14T11:45:26Z")
+	initialDeploymentCreated, _ := time.Parse(time.RFC3339, "2018-11-12T11:45:26Z")
+	activeDeploymentCreated, _ := time.Parse(time.RFC3339, "2018-11-14T11:45:26Z")
 
 	_, err := commonTestUtils.ApplyDeployment(
 		context.Background(),
@@ -291,12 +289,10 @@ func createComponentPod(kubeclient kubernetes.Interface, podName, namespace, rad
 
 func getPodSpec(podName, appName, componentName, image string) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: podName,
-			Labels: map[string]string{
-				kube.RadixComponentLabel: componentName,
-				kube.RadixAppLabel:       appName,
-			},
+		Name: podName,
+		Labels: map[string]string{
+			kube.RadixComponentLabel: componentName,
+			kube.RadixAppLabel:       appName,
 		},
 		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: componentName, Image: image}}},
 	}
@@ -600,7 +596,7 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 				for metricName, status := range so.Status.Health {
 					if strings.Contains(metricName, "-azure-servicebus-") {
 						status.Status = "Failing"
-						status.NumberOfFailures = pointers.Ptr[int32](3)
+						status.NumberOfFailures = new(int32(3))
 						so.Status.Health[metricName] = status
 					}
 				}
@@ -617,7 +613,7 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			horizontalScaling := createHorizontalScalingConfig()
 			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
-			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+			err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("prod").
 				WithDeploymentName("dep-hpa").
@@ -725,14 +721,14 @@ func Test_GetComponents_HorizontalScaling_Utilization(t *testing.T) {
 
 func createHorizontalScalingConfig() *v1.RadixHorizontalScaling {
 	return &v1.RadixHorizontalScaling{
-		MinReplicas: pointers.Ptr[int32](2),
+		MinReplicas: new(int32(2)),
 		MaxReplicas: 6,
 		Triggers: []v1.RadixHorizontalScalingTrigger{
 			{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
 			{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 75}},
 			{Name: "cron", Cron: &v1.RadixHorizontalScalingCronTrigger{Start: "0 8 * * 1-5", End: "0 16 * * 1-5", Timezone: "Europe/Oslo", DesiredReplicas: 5}},
-			{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{Namespace: "ns-prod", QueueName: "orders", MessageCount: pointers.Ptr(15), Authentication: v1.RadixHorizontalScalingAuthentication{Identity: v1.RadixHorizontalScalingRequiredIdentity{Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"}}}}},
-			{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{UnprocessedEventThreshold: pointers.Ptr(20), EventHubNamespace: "ehns", EventHubName: "orders", StorageAccount: "storage", Container: "container", Authentication: &v1.RadixHorizontalScalingAuthentication{Identity: v1.RadixHorizontalScalingRequiredIdentity{Azure: v1.AzureIdentity{ClientId: "event-hub-client-id"}}}}},
+			{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{Namespace: "ns-prod", QueueName: "orders", MessageCount: new(15), Authentication: v1.RadixHorizontalScalingAuthentication{Identity: v1.RadixHorizontalScalingRequiredIdentity{Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"}}}}},
+			{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{UnprocessedEventThreshold: new(20), EventHubNamespace: "ehns", EventHubName: "orders", StorageAccount: "storage", Container: "container", Authentication: &v1.RadixHorizontalScalingAuthentication{Identity: v1.RadixHorizontalScalingRequiredIdentity{Azure: v1.AzureIdentity{ClientId: "event-hub-client-id"}}}}},
 		},
 	}
 }
@@ -789,7 +785,7 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 				"desiredReplicas": fmt.Sprintf("%d", trigger.Cron.DesiredReplicas),
 			}
 			externalMetricNames = append(externalMetricNames, externalMetricName)
-			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: pointers.Ptr[int32](0), Status: "Happy"}
+			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: new(int32(0)), Status: "Happy"}
 			externalMetricStatus = append(externalMetricStatus, v2.MetricStatus{
 				Type: v2.ExternalMetricSourceType,
 				External: &v2.ExternalMetricStatus{
@@ -805,7 +801,7 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 			externalMetricName := fmt.Sprintf("s%d-azure-servicebus-orders", triggerIndex)
 			scaleTrigger.Metadata = map[string]string{"messageCount": fmt.Sprintf("%d", messageCount)}
 			externalMetricNames = append(externalMetricNames, externalMetricName)
-			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: pointers.Ptr[int32](0), Status: "Happy"}
+			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: new(int32(0)), Status: "Happy"}
 			externalMetricStatus = append(externalMetricStatus, v2.MetricStatus{
 				Type: v2.ExternalMetricSourceType,
 				External: &v2.ExternalMetricStatus{
@@ -821,7 +817,7 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 			externalMetricName := fmt.Sprintf("s%d-azure-eventhub-orders", triggerIndex)
 			scaleTrigger.Metadata = map[string]string{"unprocessedEventThreshold": fmt.Sprintf("%d", threshold)}
 			externalMetricNames = append(externalMetricNames, externalMetricName)
-			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: pointers.Ptr[int32](0), Status: "Happy"}
+			health[externalMetricName] = v1alpha1.HealthStatus{NumberOfFailures: new(int32(0)), Status: "Happy"}
 			externalMetricStatus = append(externalMetricStatus, v2.MetricStatus{
 				Type: v2.ExternalMetricSourceType,
 				External: &v2.ExternalMetricStatus{
@@ -837,10 +833,8 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 	metricStatus := append(externalMetricStatus, resourceMetricStatus...)
 
 	scaler := v1alpha1.ScaledObject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: labelselector.ForComponent(anyAppName, "frontend"),
-		},
+		Name:   name,
+		Labels: labelselector.ForComponent(anyAppName, "frontend"),
 		Spec: v1alpha1.ScaledObjectSpec{
 			MinReplicaCount: scaling.MinReplicas,
 			MaxReplicaCount: &scaling.MaxReplicas,
@@ -855,10 +849,8 @@ func createHorizontalScalingObjects(name string, scaling *v1.RadixHorizontalScal
 	}
 
 	hpa := v2.HorizontalPodAutoscaler{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   fmt.Sprintf("hpa-%s", name),
-			Labels: labelselector.ForComponent(anyAppName, "frontend"),
-		},
+		Name:   fmt.Sprintf("hpa-%s", name),
+		Labels: labelselector.ForComponent(anyAppName, "frontend"),
 		Spec: v2.HorizontalPodAutoscalerSpec{
 			MinReplicas: scaling.MinReplicas,
 			MaxReplicas: scaling.MaxReplicas,
@@ -882,7 +874,7 @@ func TestGetComponents_WithIdentity(t *testing.T) {
 
 	commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 
-	err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 		WithAppName(appName).
 		WithEnvironment(envName).
 		WithDeploymentName(anyDeployName).
@@ -891,8 +883,8 @@ func TestGetComponents_WithIdentity(t *testing.T) {
 				WithName("job1").
 				WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "job-clientid"}}).
 				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "job-key-vault1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1"}}}}}).
-				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "job-key-vault2", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2"}}, UseAzureIdentity: pointers.Ptr(false)}}}).
-				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "job-key-vault3", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret3"}}, UseAzureIdentity: pointers.Ptr(true)}}}),
+				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "job-key-vault2", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2"}}, UseAzureIdentity: new(false)}}}).
+				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "job-key-vault3", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret3"}}, UseAzureIdentity: new(true)}}}),
 			operatorUtils.NewDeployJobComponentBuilder().WithName("job2"),
 		).
 		WithComponents(
@@ -900,8 +892,8 @@ func TestGetComponents_WithIdentity(t *testing.T) {
 				WithName("comp1").
 				WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "comp-clientid"}}).
 				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "comp-key-vault1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1"}}}}}).
-				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "comp-key-vault2", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2"}}, UseAzureIdentity: pointers.Ptr(false)}}}).
-				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "comp-key-vault3", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret3"}}, UseAzureIdentity: pointers.Ptr(true)}}}),
+				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "comp-key-vault2", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2"}}, UseAzureIdentity: new(false)}}}).
+				WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{Name: "comp-key-vault3", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret3"}}, UseAzureIdentity: new(true)}}}),
 			operatorUtils.NewDeployComponentBuilder().WithName("comp2"),
 		))
 	require.NoError(t, err)
@@ -1075,7 +1067,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 				{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
 					Namespace:    "ns-prod",
 					QueueName:    "orders",
-					MessageCount: pointers.Ptr(15),
+					MessageCount: new(15),
 					Authentication: v1.RadixHorizontalScalingAuthentication{
 						Identity: v1.RadixHorizontalScalingRequiredIdentity{
 							Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"},
@@ -1098,7 +1090,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 				{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
 					Namespace:    "ns-prod",
 					QueueName:    "orders",
-					MessageCount: pointers.Ptr(15),
+					MessageCount: new(15),
 				}},
 			},
 			expectedIdentities: map[string]*deploymentModels.Identity{
@@ -1108,7 +1100,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 		"azure-eventhub trigger with identity": {
 			triggers: []v1.RadixHorizontalScalingTrigger{
 				{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{
-					UnprocessedEventThreshold: pointers.Ptr(20),
+					UnprocessedEventThreshold: new(20),
 					EventHubNamespace:         "ehns",
 					EventHubName:              "orders",
 					StorageAccount:            "storage",
@@ -1133,7 +1125,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 		"azure-eventhub trigger without identity": {
 			triggers: []v1.RadixHorizontalScalingTrigger{
 				{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{
-					UnprocessedEventThreshold: pointers.Ptr(20),
+					UnprocessedEventThreshold: new(20),
 					EventHubNamespace:         "ehns",
 					EventHubName:              "orders",
 					StorageAccount:            "storage",
@@ -1150,7 +1142,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 				{Name: "servicebus", AzureServiceBus: &v1.RadixHorizontalScalingAzureServiceBusTrigger{
 					Namespace:    "ns-prod",
 					QueueName:    "orders",
-					MessageCount: pointers.Ptr(15),
+					MessageCount: new(15),
 					Authentication: v1.RadixHorizontalScalingAuthentication{
 						Identity: v1.RadixHorizontalScalingRequiredIdentity{
 							Azure: v1.AzureIdentity{ClientId: "service-bus-client-id"},
@@ -1158,7 +1150,7 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 					},
 				}},
 				{Name: "eventhub", AzureEventHub: &v1.RadixHorizontalScalingAzureEventHubTrigger{
-					UnprocessedEventThreshold: pointers.Ptr(20),
+					UnprocessedEventThreshold: new(20),
 					EventHubNamespace:         "ehns",
 					EventHubName:              "orders",
 					StorageAccount:            "storage",
@@ -1183,12 +1175,12 @@ func Test_HorizontalScalingSummary_Identity(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 			horizontalScaling := &v1.RadixHorizontalScaling{
-				MinReplicas: pointers.Ptr[int32](1),
+				MinReplicas: new(int32(1)),
 				MaxReplicas: 5,
 				Triggers:    scenario.triggers,
 			}
 
-			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+			err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("dev").
 				WithDeploymentName("dep-identity").
@@ -1247,15 +1239,15 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 	testScenarios := map[string]testScenario{
 		"verify min and max replicas": {
 			horizontalScaling: &v1.RadixHorizontalScaling{
-				MinReplicas: pointers.Ptr[int32](2),
+				MinReplicas: new(int32(2)),
 				MaxReplicas: 10,
 				Triggers: []v1.RadixHorizontalScalingTrigger{
 					{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
 				},
 			},
 			expectedValue: &deploymentModels.HorizontalScalingSummary{
-				MinReplicas: pointers.Ptr[int32](2),
-				MaxReplicas: pointers.Ptr[int32](10),
+				MinReplicas: new(int32(2)),
+				MaxReplicas: new(int32(10)),
 				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
 					{Name: "cpu", Type: "cpu", TargetUtilization: "60"},
 				},
@@ -1263,19 +1255,19 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 		},
 		"verify cooldown and polling intervals": {
 			horizontalScaling: &v1.RadixHorizontalScaling{
-				MinReplicas:     pointers.Ptr[int32](1),
+				MinReplicas:     new(int32(1)),
 				MaxReplicas:     5,
-				CooldownPeriod:  pointers.Ptr[int32](120),
-				PollingInterval: pointers.Ptr[int32](45),
+				CooldownPeriod:  new(int32(120)),
+				PollingInterval: new(int32(45)),
 				Triggers: []v1.RadixHorizontalScalingTrigger{
 					{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 75}},
 				},
 			},
 			expectedValue: &deploymentModels.HorizontalScalingSummary{
-				MinReplicas:     pointers.Ptr[int32](1),
-				MaxReplicas:     pointers.Ptr[int32](5),
-				CooldownPeriod:  pointers.Ptr[int32](120),
-				PollingInterval: pointers.Ptr[int32](45),
+				MinReplicas:     new(int32(1)),
+				MaxReplicas:     new(int32(5)),
+				CooldownPeriod:  new(int32(120)),
+				PollingInterval: new(int32(45)),
 				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
 					{Name: "memory", Type: "memory", TargetUtilization: "75"},
 				},
@@ -1283,7 +1275,7 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 		},
 		"verify multiple triggers are set": {
 			horizontalScaling: &v1.RadixHorizontalScaling{
-				MinReplicas: pointers.Ptr[int32](1),
+				MinReplicas: new(int32(1)),
 				MaxReplicas: 8,
 				Triggers: []v1.RadixHorizontalScalingTrigger{
 					{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 60}},
@@ -1292,8 +1284,8 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 				},
 			},
 			expectedValue: &deploymentModels.HorizontalScalingSummary{
-				MinReplicas: pointers.Ptr[int32](1),
-				MaxReplicas: pointers.Ptr[int32](8),
+				MinReplicas: new(int32(1)),
+				MaxReplicas: new(int32(8)),
 				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
 					{Name: "cpu", Type: "cpu", TargetUtilization: "60"},
 					{Name: "memory", Type: "memory", TargetUtilization: "75"},
@@ -1303,35 +1295,35 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 		},
 		"verify deprecated resources are present without triggers": {
 			horizontalScaling: &v1.RadixHorizontalScaling{
-				MinReplicas: pointers.Ptr[int32](2),
+				MinReplicas: new(int32(2)),
 				MaxReplicas: 9,
-				RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
-					Cpu:    &v1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](55)},
-					Memory: &v1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr[int32](70)},
+				RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{ //nolint:staticcheck
+					Cpu:    &v1.RadixHorizontalScalingResource{AverageUtilization: new(int32(55))},
+					Memory: &v1.RadixHorizontalScalingResource{AverageUtilization: new(int32(70))},
 				},
 			},
 			expectedValue: &deploymentModels.HorizontalScalingSummary{
-				MinReplicas: pointers.Ptr[int32](2),
-				MaxReplicas: pointers.Ptr[int32](9),
+				MinReplicas: new(int32(2)),
+				MaxReplicas: new(int32(9)),
 				Triggers:    []deploymentModels.HorizontalScalingSummaryTrigger{},
 			},
 		},
 		"verify all properties together": {
 			horizontalScaling: &v1.RadixHorizontalScaling{
-				MinReplicas:     pointers.Ptr[int32](3),
+				MinReplicas:     new(int32(3)),
 				MaxReplicas:     12,
-				CooldownPeriod:  pointers.Ptr[int32](300),
-				PollingInterval: pointers.Ptr[int32](30),
+				CooldownPeriod:  new(int32(300)),
+				PollingInterval: new(int32(30)),
 				Triggers: []v1.RadixHorizontalScalingTrigger{
 					{Name: "cpu", Cpu: &v1.RadixHorizontalScalingCPUTrigger{Value: 80}},
 					{Name: "memory", Memory: &v1.RadixHorizontalScalingMemoryTrigger{Value: 85}},
 				},
 			},
 			expectedValue: &deploymentModels.HorizontalScalingSummary{
-				MinReplicas:     pointers.Ptr[int32](3),
-				MaxReplicas:     pointers.Ptr[int32](12),
-				CooldownPeriod:  pointers.Ptr[int32](300),
-				PollingInterval: pointers.Ptr[int32](30),
+				MinReplicas:     new(int32(3)),
+				MaxReplicas:     new(int32(12)),
+				CooldownPeriod:  new(int32(300)),
+				PollingInterval: new(int32(30)),
 				Triggers: []deploymentModels.HorizontalScalingSummaryTrigger{
 					{Name: "cpu", Type: "cpu", TargetUtilization: "80"},
 					{Name: "memory", Type: "memory", TargetUtilization: "85"},
@@ -1344,7 +1336,7 @@ func Test_HorizontalScalingSummary_Properties(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			commonTestUtils, controllerTestUtils, client, radixclient, kedaClient, dynamicClient, secretProviderClient, certClient := setupTest(t)
 
-			err := utils.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
+			err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, dynamicClient, commonTestUtils, secretProviderClient, certClient, operatorUtils.ARadixDeployment().
 				WithAppName(anyAppName).
 				WithEnvironment("dev").
 				WithDeploymentName("dep-props").

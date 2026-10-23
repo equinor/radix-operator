@@ -6,16 +6,17 @@ import (
 	"strings"
 	"time"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	k8sObjectUtils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 var (
@@ -26,44 +27,48 @@ var (
 // StopJob Stops an application job
 func (jh JobHandler) StopJob(ctx context.Context, appName, jobName string) error {
 	log.Ctx(ctx).Info().Msgf("Stopping the job: %s, %s", jobName, appName)
-	radixJob, err := jh.getPipelineJobByName(ctx, appName, jobName)
-	if err != nil {
-		return err
-	}
-	if radixJob.Spec.Stop {
-		return jobModels.JobAlreadyRequestedToStopError(appName, jobName)
-	}
-	if slice.Any(jobConditionsNotValidForJobStop, func(condition radixv1.RadixJobCondition) bool { return condition == radixJob.Status.Condition }) {
-		return jobModels.JobHasInvalidConditionToStopError(appName, jobName, radixJob.Status.Condition)
-	}
 
-	radixJob.Spec.Stop = true
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		radixJob, err := jh.getPipelineJobByName(ctx, appName, jobName)
+		if err != nil {
+			return err
+		}
+		if radixJob.Spec.Stop {
+			return jobModels.JobAlreadyRequestedToStopError(appName, jobName)
+		}
+		if slice.Any(jobConditionsNotValidForJobStop, func(condition radixv1.RadixJobCondition) bool { return condition == radixJob.Status.Condition }) {
+			return jobModels.JobHasInvalidConditionToStopError(appName, jobName, radixJob.Status.Condition)
+		}
 
-	_, err = jh.userAccount.RadixClient.RadixV1().RadixJobs(radixJob.GetNamespace()).Update(ctx, radixJob, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to patch job object: %v", err)
-	}
-	return nil
+		radixJob.Spec.Stop = true
+
+		_, err = jh.userAccount.RadixClient.RadixV1().RadixJobs(radixJob.GetNamespace()).Update(ctx, radixJob, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to patch job object: %w", err)
+		}
+		return nil
+
+	})
 }
 
 // RerunJob Reruns the pipeline job as a copy
-func (jh JobHandler) RerunJob(ctx context.Context, appName, jobName string) error {
+func (jh JobHandler) RerunJob(ctx context.Context, appName, jobName string) (*jobModels.JobSummary, error) {
 	log.Ctx(ctx).Info().Msgf("Rerunning the job %s in the application %s", jobName, appName)
 	radixJob, err := jh.getPipelineJobByName(ctx, appName, jobName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !slice.Any(jobConditionsValidForJobRerun, func(condition radixv1.RadixJobCondition) bool { return condition == radixJob.Status.Condition }) {
-		return jobModels.JobHasInvalidConditionToRerunError(appName, jobName, radixJob.Status.Condition)
+		return nil, jobModels.JobHasInvalidConditionToRerunError(appName, jobName, radixJob.Status.Condition)
 	}
 
 	copiedRadixJob := jh.buildPipelineJobToRerunFrom(ctx, radixJob)
-	_, err = jh.createPipelineJob(ctx, appName, copiedRadixJob)
+	jobSummary, err := jh.createPipelineJob(ctx, appName, copiedRadixJob)
 	if err != nil {
-		return fmt.Errorf("failed to create a job %s to rerun: %v", radixJob.GetName(), err)
+		return nil, fmt.Errorf("failed to create a job %s to rerun: %v", radixJob.GetName(), err)
 	}
 
-	return nil
+	return jobSummary, nil
 }
 func (jh JobHandler) createPipelineJob(ctx context.Context, appName string, job *radixv1.RadixJob) (*jobModels.JobSummary, error) {
 	log.Ctx(ctx).Info().Msgf("Starting job: %s", job.GetName())
@@ -80,12 +85,10 @@ func (jh JobHandler) createPipelineJob(ctx context.Context, appName string, job 
 func (jh JobHandler) buildPipelineJobToRerunFrom(ctx context.Context, radixJob *radixv1.RadixJob) *radixv1.RadixJob {
 	rerunJobName, imageTag := GetUniqueJobName()
 	rerunRadixJob := radixv1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        rerunJobName,
-			Labels:      radixJob.Labels,
-			Annotations: radixJob.Annotations,
-		},
-		Spec: radixJob.Spec,
+		Name:        rerunJobName,
+		Labels:      radixJob.Labels,
+		Annotations: radixJob.Annotations,
+		Spec:        radixJob.Spec,
 	}
 	if rerunRadixJob.Annotations == nil {
 		rerunRadixJob.Annotations = make(map[string]string)
@@ -111,7 +114,7 @@ func (jh JobHandler) getPipelineJobByName(ctx context.Context, appName string, j
 }
 
 func GetUniqueJobName() (string, string) {
-	randomStr := strings.ToLower(radixutils.RandString(5))
+	randomStr := strings.ToLower(random.RandString(5))
 	timestamp := time.Now().Format("20060102150405")
 
 	return fmt.Sprintf("radix-pipeline-%s-%s", timestamp, randomStr), randomStr

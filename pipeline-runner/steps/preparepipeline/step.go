@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -181,8 +181,9 @@ func (step *PreparePipelinesStepImplementation) getGitInfoForBuild(pipelineInfo 
 	if err != nil {
 		return "", "", err
 	}
-	tagsConcat := strings.Join(tags, " ")
-	if err = prepareInternal.GitTagsContainIllegalChars(tagsConcat); err != nil {
+
+	tagsConcat, err := concatGitTags(tags)
+	if err != nil {
 		return "", "", err
 	}
 
@@ -227,7 +228,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 }
 
 func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
-	gitCommit, err := step.getTargetGitCommitForSubPipelines(ctx, pipelineInfo, repo)
+	gitCommit, gitTags, gitRef, gitRefType, err := step.getTargetGitInfoForSubPipelines(ctx, pipelineInfo, repo)
 	if err != nil {
 		return err
 	}
@@ -247,10 +248,10 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 			PipelineType: pipelineInfo.PipelineArguments.PipelineType,
 			Environment:  targetEnv.Environment,
 			GitSSHUrl:    step.GetRegistration().Spec.CloneURL,
-			GitRef:       pipelineInfo.GetGitRef(),
-			GitRefType:   pipelineInfo.GetGitRefTypeOrDefault(),
-			GitCommit:    pipelineInfo.GitCommitHash,
-			GitTags:      pipelineInfo.GitTags,
+			GitRef:       gitRef,
+			GitRefType:   gitRefType,
+			GitCommit:    gitCommit,
+			GitTags:      gitTags,
 		}
 	}
 
@@ -280,71 +281,100 @@ func (step *PreparePipelinesStepImplementation) setSubPipelinesToRun(ctx context
 	return errors.Join(errs...)
 }
 
-func (step *PreparePipelinesStepImplementation) getTargetGitCommitForSubPipelines(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (string, error) {
-	pipelineArgs := pipelineInfo.PipelineArguments
+func (step *PreparePipelinesStepImplementation) getTargetGitInfoForSubPipelines(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) (gitCommit, gitTags, gitRef, gitRefType string, err error) {
 	pipelineType := pipelineInfo.GetRadixPipelineType()
 
-	if pipelineType == radixv1.ApplyConfig {
-		return "", nil
-	}
-
-	if pipelineType == radixv1.Promote {
-		sourceRdHashFromAnnotation, sourceDeploymentGitBranch, err := step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
+	switch pipelineType {
+	case radixv1.ApplyConfig:
+		return "", "", "", "", nil
+	case radixv1.BuildDeploy, radixv1.Build:
+		return pipelineInfo.GitCommitHash, pipelineInfo.GitTags, pipelineInfo.GetGitRef(), pipelineInfo.GetGitRefTypeOrDefault(), nil
+	case radixv1.Promote:
+		gitCommit, gitTags, gitRef, gitRefType, err = step.getPromoteSourceDeploymentGitInfo(ctx, pipelineInfo.PipelineArguments.PromoteFromEnvironment, pipelineInfo.PipelineArguments.PromoteDeploymentName)
 		if err != nil {
-			return "", err
+			return "", "", "", "", err
 		}
 
-		if sourceRdHashFromAnnotation != "" {
-			return sourceRdHashFromAnnotation, nil
+		if gitCommit != "" {
+			return gitCommit, gitTags, gitRef, gitRefType, nil
 		}
 
-		// TODO: Should we fail if sourcecommithash is empty instead of trying to resolve commit from source RD branch?
-		if sourceDeploymentGitBranch == "" {
+		if gitRef == "" {
 			log.Ctx(ctx).Info().Msg("Source deployment has no git metadata, skipping sub-pipelines")
-			return "", nil
+			return "", "", "", "", nil
 		}
-		sourceRdHashFromBranchHead, err := repo.ResolveCommitForReference(sourceDeploymentGitBranch)
+
+		gitCommit, err = repo.ResolveCommitForReference(gitRef)
 		if err != nil {
-			return "", nil
-		}
-		return sourceRdHashFromBranchHead, nil
-	}
-
-	if pipelineType == radixv1.Deploy {
-		pipelineJobBranch := step.GetRegistration().Spec.ConfigBranch
-
-		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineArgs.ToEnvironment); ok && len(env.Build.From) > 0 {
-			pipelineJobBranch = env.Build.From
+			return "", "", "", "", err
 		}
 
-		if containsRegex(pipelineJobBranch) {
-			log.Ctx(ctx).Info().Msg("Deploy job with build branch having regex pattern, skipping sub-pipelines.")
-			return "", nil
-		}
-
-		gitHash, err := repo.ResolveCommitForReference(pipelineJobBranch)
+		tags, err := repo.ResolveTagsForCommit(gitCommit)
 		if err != nil {
-			return "", err
+			return "", "", "", "", err
 		}
-		return gitHash, nil
+
+		tagsConcat, err := concatGitTags(tags)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		return gitCommit, tagsConcat, gitRef, gitRefType, nil
+	case radixv1.Deploy:
+		gitRef = step.GetRegistration().Spec.ConfigBranch
+		gitRefType = string(radixv1.GitRefBranch)
+
+		if env, ok := pipelineInfo.GetRadixApplication().GetEnvironmentByName(pipelineInfo.PipelineArguments.ToEnvironment); ok {
+			if len(env.Build.From) > 0 {
+				gitRef = env.Build.From
+				if len(env.Build.FromType) > 0 {
+					gitRefType = env.Build.FromType
+				}
+			}
+		}
+
+		if containsRegex(gitRef) {
+			log.Ctx(ctx).Info().Msgf("Git ref %q contains regex pattern, skipping sub-pipelines.", gitRef)
+			return "", "", "", "", nil
+		}
+
+		gitCommit, err = repo.ResolveCommitForReference(gitRef)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		tags, err := repo.ResolveTagsForCommit(gitCommit)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		tagsConcat, err := concatGitTags(tags)
+		if err != nil {
+			return "", "", "", "", err
+		}
+
+		return gitCommit, tagsConcat, gitRef, gitRefType, nil
 	}
 
-	if pipelineType == radixv1.BuildDeploy || pipelineType == radixv1.Build {
-		return pipelineInfo.GitCommitHash, nil
-	}
-
-	return "", fmt.Errorf("unknown pipeline type %s", pipelineType)
+	return "", "", "", "", fmt.Errorf("unknown pipeline type %s", pipelineType)
 }
 
-func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (string, string, error) {
+func (step *PreparePipelinesStepImplementation) getPromoteSourceDeploymentGitInfo(ctx context.Context, sourceEnvName, sourceDeploymentName string) (gitCommit, gitTags, gitRef, gitRefType string, err error) {
 	ns := utils.GetEnvironmentNamespace(step.GetAppName(), sourceEnvName)
 	rd, err := step.GetRadixClient().RadixV1().RadixDeployments(ns).Get(ctx, sourceDeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return "", "", err
+		return "", "", "", "", err
 	}
-	gitHash := internal.GetGitCommitHashFromDeployment(rd)
-	gitBranch := internal.GetGitRefNameFromDeployment(rd)
-	return gitHash, gitBranch, err
+
+	gitCommit = internal.GetGitCommitHashFromDeployment(rd)
+	gitTags = internal.GetGitTagsFromDeployment(rd)
+	if err := prepareInternal.GitTagsContainIllegalChars(gitTags); err != nil {
+		return "", "", "", "", err
+	}
+	gitRef = internal.GetGitRefNameFromDeployment(rd)
+	gitRefType = internal.GetGitRefTypeFromDeployment(rd)
+
+	return gitCommit, gitTags, gitRef, gitRefType, nil
 }
 
 func containsRegex(value string) bool {
@@ -430,9 +460,7 @@ func (step *PreparePipelinesStepImplementation) buildSubPipelineTasks(envName st
 			task.ObjectMeta.Annotations = map[string]string{}
 		}
 
-		for k, v := range labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName, step.GetAppID()) {
-			task.ObjectMeta.Labels[k] = v
-		}
+		maps.Copy(task.ObjectMeta.Labels, labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, envName, step.GetAppID()))
 
 		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok {
 			if val != "true" {
@@ -516,7 +544,7 @@ func ensureCorrectSecureContext(task *v1.Task) {
 }
 
 func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
-	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
+	securityContext.RunAsNonRoot = new(true)
 	if securityContext.RunAsUser != nil && *securityContext.RunAsUser == 0 {
 		securityContext.RunAsUser = nil
 	}
@@ -525,8 +553,8 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	}
 	securityContext.WindowsOptions = nil
 	securityContext.SELinuxOptions = nil
-	securityContext.Privileged = commonUtils.BoolPtr(false)
-	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
+	securityContext.Privileged = new(false)
+	securityContext.AllowPrivilegeEscalation = new(false)
 	if securityContext.Capabilities == nil {
 		securityContext.Capabilities = &corev1.Capabilities{}
 	}
@@ -564,23 +592,26 @@ func (step *PreparePipelinesStepImplementation) createSubPipelineAndTasks(envNam
 		return fmt.Errorf("failed to get sub-pipeline param references for environment %s: %w", envName, err)
 	}
 
-	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
-		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
-		if !ok {
-			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
-			continue
-		}
-
-		pipeline.Spec.Tasks[taskIndex].TaskRef = &v1.TaskRef{Name: task.Name}
-		if azureClientIdPipelineParamExist {
-			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
-		}
-		for _, paramRef := range paramRefs {
-			if slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
-				return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramRef.Name, pipelineSpecTask.Name)
+	for _, pipelineSpecTasks := range [][]v1.PipelineTask{pipeline.Spec.Tasks, pipeline.Spec.Finally} {
+		for taskIndex := range pipelineSpecTasks {
+			pipelineSpecTask := &pipelineSpecTasks[taskIndex]
+			task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
+			if !ok {
+				errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
+				continue
 			}
+
+			pipelineSpecTask.TaskRef = &v1.TaskRef{Name: task.Name}
+			if azureClientIdPipelineParamExist {
+				ensureAzureClientIdParamExistInTaskParams(pipelineSpecTask, task)
+			}
+			for _, paramRef := range paramRefs {
+				if slice.Any(pipelineSpecTask.Params, func(p v1.Param) bool { return p.Name == paramRef.Name }) {
+					return fmt.Errorf("parameter %q is reserved and cannot be manually defined in pipeline task %s", paramRef.Name, pipelineSpecTask.Name)
+				}
+			}
+			pipelineSpecTask.Params = append(pipelineSpecTask.Params, paramRefs...)
 		}
-		pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params, paramRefs...)
 	}
 
 	if len(errs) > 0 {
@@ -633,9 +664,9 @@ func ensureAzureClientIdParamExistInPipelineParams(pipeline *v1.Pipeline) {
 	}
 }
 
-func ensureAzureClientIdParamExistInTaskParams(pipeline *v1.Pipeline, pipelineTaskIndex int, task v1.Task) {
-	if taskHasAzureIdentityClientIdParam(task) && !pipelineTaskHasAzureIdentityClientIdParam(pipeline, pipelineTaskIndex) {
-		addAzureIdentityClientIdParamToPipelineTask(pipeline, pipelineTaskIndex)
+func ensureAzureClientIdParamExistInTaskParams(pipelineSpecTask *v1.PipelineTask, task v1.Task) {
+	if taskHasAzureIdentityClientIdParam(task) && !pipelineTaskHasAzureIdentityClientIdParam(pipelineSpecTask) {
+		addAzureIdentityClientIdParamToPipelineTask(pipelineSpecTask)
 	}
 }
 
@@ -649,8 +680,8 @@ func pipelineHasAzureIdentityClientIdParam(pipeline *v1.Pipeline) bool {
 	})
 }
 
-func addAzureIdentityClientIdParamToPipelineTask(pipeline *v1.Pipeline, taskIndex int) {
-	pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params,
+func addAzureIdentityClientIdParamToPipelineTask(pipelineSpecTask *v1.PipelineTask) {
+	pipelineSpecTask.Params = append(pipelineSpecTask.Params,
 		v1.Param{
 			Name:  pipelineDefaults.AzureClientIdEnvironmentVariable,
 			Value: v1.ParamValue{Type: v1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", pipelineDefaults.AzureClientIdEnvironmentVariable)},
@@ -663,8 +694,8 @@ func taskHasAzureIdentityClientIdParam(task v1.Task) bool {
 	})
 }
 
-func pipelineTaskHasAzureIdentityClientIdParam(pipeline *v1.Pipeline, taskIndex int) bool {
-	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param v1.Param) bool {
+func pipelineTaskHasAzureIdentityClientIdParam(pipelineSpecTask *v1.PipelineTask) bool {
+	return slice.Any(pipelineSpecTask.Params, func(param v1.Param) bool {
 		return param.Name == pipelineDefaults.AzureClientIdEnvironmentVariable
 	})
 }
@@ -768,4 +799,12 @@ func getComponentNames(ra *radixv1.RadixApplication) model.EnvironmentComponentN
 		result[env.Name] = componentNames
 	}
 	return result
+}
+
+func concatGitTags(tags []string) (string, error) {
+	tagsConcat := strings.Join(tags, " ")
+	if err := prepareInternal.GitTagsContainIllegalChars(tagsConcat); err != nil {
+		return "", err
+	}
+	return tagsConcat, nil
 }

@@ -1,9 +1,5 @@
 package v1
 
-import (
-	"github.com/equinor/radix-common/utils/numbers"
-)
-
 type RadixCommonEnvironmentConfig interface {
 	GetEnvironment() string
 	GetImage() string
@@ -156,7 +152,7 @@ func (config *RadixJobComponentEnvironmentConfig) GetHorizontalScaling() *RadixH
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetReplicas() *int {
-	return numbers.IntPtr(1)
+	return new(1)
 }
 
 func (config *RadixJobComponentEnvironmentConfig) GetIdentity() *Identity {

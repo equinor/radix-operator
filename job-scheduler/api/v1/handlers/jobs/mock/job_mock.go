@@ -58,18 +58,18 @@ func (mr *MockJobHandlerMockRecorder) CopyJob(ctx, jobName, deploymentName any) 
 }
 
 // CreateJob mocks base method.
-func (m *MockJobHandler) CreateJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, isCronJob bool) (*v1.JobStatus, error) {
+func (m *MockJobHandler) CreateJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, cronSchedule string) (*v1.JobStatus, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateJob", ctx, jobScheduleDescription, isCronJob)
+	ret := m.ctrl.Call(m, "CreateJob", ctx, jobScheduleDescription, cronSchedule)
 	ret0, _ := ret[0].(*v1.JobStatus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateJob indicates an expected call of CreateJob.
-func (mr *MockJobHandlerMockRecorder) CreateJob(ctx, jobScheduleDescription, isCronJob any) *gomock.Call {
+func (mr *MockJobHandlerMockRecorder) CreateJob(ctx, jobScheduleDescription, cronSchedule any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJob", reflect.TypeOf((*MockJobHandler)(nil).CreateJob), ctx, jobScheduleDescription, isCronJob)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJob", reflect.TypeOf((*MockJobHandler)(nil).CreateJob), ctx, jobScheduleDescription, cronSchedule)
 }
 
 // DeleteJob mocks base method.

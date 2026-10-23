@@ -23,7 +23,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -46,23 +45,11 @@ type GatewayTestSuite struct {
 	dynamicClient client.Client
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
-	cfg           *config.Config
+	cfg           config.Config
 }
 
 func TestGatewayTestSuite(t *testing.T) {
 	suite.Run(t, new(GatewayTestSuite))
-}
-
-func (s *GatewayTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, testDNSZone)
-	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	s.T().Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
-	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 }
 
 func (s *GatewayTestSuite) SetupTest() {
@@ -83,15 +70,21 @@ func (s *GatewayTestSuite) setupTest() {
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, radixClient, kedaClient, secretProviderClient)
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, radixClient, kedaClient, secretProviderClient)
-	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites(testClusterName, "anysubid"))
+	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites())
 	s.testUtils = &handlerTestUtils
-	s.cfg = &config.Config{
-		DeploymentSyncer:      testConfig.DeploymentSyncer,
-		CertificateAutomation: testConfig.CertificateAutomation,
-		Gateway: config.GatewayConfig{
-			Name:        testGatewayName,
-			Namespace:   testGatewayNamespace,
-			SectionName: testGatewaySectionName,
+	s.cfg = config.Config{
+		Common: config.CommonConfig{
+			DNSZone:               testDNSZone,
+			ClusterName:           testClusterName,
+			AppAliasBaseURL:       testAppAliasBaseURL,
+			CertificateAutomation: testConfig.Common.CertificateAutomation,
+		},
+		Operator: config.OperatorConfig{
+			Gateway: config.GatewayConfig{
+				Name:        testGatewayName,
+				Namespace:   testGatewayNamespace,
+				SectionName: testGatewaySectionName,
+			},
 		},
 	}
 }
@@ -127,14 +120,14 @@ func (s *GatewayTestSuite) listHTTPRoutes(ctx context.Context, namespace string)
 	return routes, err
 }
 
-func (s *GatewayTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapixv1alpha1.XListenerSet, error) {
-	ls := &gatewayapixv1alpha1.XListenerSet{}
+func (s *GatewayTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapiv1.ListenerSet, error) {
+	ls := &gatewayapiv1.ListenerSet{}
 	err := s.dynamicClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ls)
 	return ls, err
 }
 
-func (s *GatewayTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapixv1alpha1.XListenerSetList, error) {
-	lsList := &gatewayapixv1alpha1.XListenerSetList{}
+func (s *GatewayTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapiv1.ListenerSetList, error) {
+	lsList := &gatewayapiv1.ListenerSetList{}
 	err := s.dynamicClient.List(ctx, lsList, client.InNamespace(namespace))
 	return lsList, err
 }
@@ -576,13 +569,13 @@ func (s *GatewayTestSuite) TestHTTPRouteHostnames_ContainsNonExternalDNSTypes() 
 	s.NotContains(routeHostnames, externalDNSFQDN, "external DNS hostname should not be in component HTTPRoute")
 
 	// Active cluster hostname
-	activeClusterHostname := getActiveClusterHostName(testComponentName, ns)
+	activeClusterHostname := getActiveClusterHostName(testComponentName, ns, testDNSZone)
 	if activeClusterHostname != "" {
 		s.Contains(routeHostnames, activeClusterHostname, "should contain active cluster hostname")
 	}
 
 	// Cluster-specific hostname
-	clusterHostname := getHostName(testComponentName, ns, testClusterName)
+	clusterHostname := getHostName(testComponentName, ns, testClusterName, testDNSZone)
 	if clusterHostname != "" {
 		s.Contains(routeHostnames, clusterHostname, "should contain cluster-specific hostname")
 	}

@@ -46,3 +46,12 @@ func Test_ForClusterAutoscalerSafeToEvict(t *testing.T) {
 	expected = map[string]string{"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"}
 	assert.Equal(t, expected, actual)
 }
+
+func Test_ForBatchCronSchedule(t *testing.T) {
+	actual := ForBatchCronSchedule("")
+	assert.Equal(t, map[string]string(nil), actual)
+
+	actual = ForBatchCronSchedule("0 1 * * *")
+	expected := map[string]string{kube.RadixBatchCronScheduleAnnotation: "0 1 * * *"}
+	assert.Equal(t, expected, actual)
+}

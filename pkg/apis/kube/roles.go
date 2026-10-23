@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
@@ -146,15 +147,11 @@ func ReadSecretsRule(secretNames []string) RuleBuilder {
 
 func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-			Kind:       k8s.KindRole,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				RadixAppLabel: appName,
-			},
+		APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+		Kind:       k8s.KindRole,
+		Name:       roleName,
+		Labels: map[string]string{
+			RadixAppLabel: appName,
 		},
 	}
 
@@ -162,9 +159,7 @@ func CreateAppRole(appName, roleName string, customLabels map[string]string, rul
 		role.Rules = append(role.Rules, rb())
 	}
 
-	for key, value := range customLabels {
-		role.ObjectMeta.Labels[key] = value
-	}
+	maps.Copy(role.ObjectMeta.Labels, customLabels)
 
 	return role
 }
@@ -208,7 +203,7 @@ func (kubeutil *Kube) ListRolesWithSelector(ctx context.Context, namespace strin
 			return nil, err
 		}
 
-		roles = slice.PointersOf(list.Items).([]*rbacv1.Role)
+		roles = slice.PointersOf(list.Items)
 	}
 
 	return roles, nil
@@ -256,7 +251,7 @@ func (kubeutil *Kube) ListClusterRolesWithSelector(ctx context.Context, labelSel
 			return nil, err
 		}
 
-		clusterRoles = slice.PointersOf(list.Items).([]*rbacv1.ClusterRole)
+		clusterRoles = slice.PointersOf(list.Items)
 	}
 
 	return clusterRoles, nil

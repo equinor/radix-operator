@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	modelsv1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
 	"github.com/equinor/radix-operator/job-scheduler/models/v1/events"
 	"github.com/equinor/radix-operator/job-scheduler/pkg/internal"
@@ -69,12 +68,10 @@ func webhookIsNotEmpty(webhook *string) bool {
 func getRadixBatchEventFromRadixBatch(event events.Event, radixBatch *radixv1.RadixBatch, radixBatchJobStatuses []radixv1.RadixBatchJobStatus, radixDeployJobComponent *radixv1.RadixDeployJobComponent) events.BatchEvent {
 	batchStatus, jobStatuses := getBatchAndJobStatuses(radixBatch, radixDeployJobComponent, radixBatchJobStatuses)
 	return events.BatchEvent{
-		Event: event,
-		BatchStatus: modelsv1.BatchStatus{
-			JobStatus:   batchStatus,
-			JobStatuses: jobStatuses,
-			BatchType:   radixBatch.Labels[kube.RadixBatchTypeLabel],
-		},
+		Event:       event,
+		JobStatus:   batchStatus,
+		JobStatuses: jobStatuses,
+		BatchType:   radixBatch.Labels[kube.RadixBatchTypeLabel],
 	}
 }
 
@@ -90,12 +87,12 @@ func getBatchAndJobStatuses(radixBatch *radixv1.RadixBatch, radixDeployJobCompon
 	batchStatus := modelsv1.JobStatus{
 		Name:    radixBatch.GetName(),
 		BatchId: internal.GetBatchId(radixBatch),
-		Created: pointers.Ptr(radixBatch.GetCreationTimestamp().Time),
+		Created: new(radixBatch.GetCreationTimestamp().Time),
 		Started: startedTime,
 		Ended:   endedTime,
 		Status:  internal.GetRadixBatchStatus(radixBatch, radixDeployJobComponent),
 		Message: radixBatch.Status.Condition.Message,
-		Updated: pointers.Ptr(time.Now()),
+		Updated: new(time.Now()),
 	}
 	jobStatuses := getRadixBatchJobStatusesFromRadixBatch(radixBatch, radixBatchJobStatuses)
 	return batchStatus, jobStatuses
@@ -143,7 +140,7 @@ func getRadixBatchJobStatusesFromRadixBatch(radixBatch *radixv1.RadixBatch, radi
 			Failed:      radixBatchJobStatus.Failed,
 			Restart:     radixBatchJobStatus.Restart,
 			Message:     radixBatchJobStatus.Message,
-			Updated:     pointers.Ptr(time.Now()),
+			Updated:     new(time.Now()),
 			PodStatuses: internal.GetPodStatusByRadixBatchJobPodStatus(radixBatch, radixBatchJobStatus.RadixBatchJobPodStatuses),
 		}
 		jobStatuses = append(jobStatuses, jobStatus)

@@ -2,17 +2,15 @@ package applications
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
 	"github.com/equinor/radix-operator/api-server/api/environments"
@@ -21,15 +19,16 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/middleware/auth"
 	apimodels "github.com/equinor/radix-operator/api-server/api/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/warningcollector"
-	"github.com/equinor/radix-operator/api-server/internal/config"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/api-server/internal/pipelineservice"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	jobPipeline "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/google/uuid"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog/log"
 	authorizationapi "k8s.io/api/authorization/v1"
@@ -49,19 +48,19 @@ type ApplicationHandlerOption func(ah *ApplicationHandler)
 // ApplicationHandler Instance variables
 type ApplicationHandler struct {
 	environmentHandler              environments.EnvironmentHandler
-	accounts                        models.Accounts
-	config                          config.Config
+	accounts                        accounts.Accounts
+	cfg                             config.Config
 	hasAccessToGetConfigMap         hasAccessToGetConfigMapFunc
 	getWarningCollectionFromContext CollectContextWarningsFunc
 	pipelineSvc                     *pipelineservice.PipelineService
 }
 
 // NewApplicationHandler Constructor
-func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) ApplicationHandler {
+func NewApplicationHandler(accounts accounts.Accounts, config config.Config, hasAccessToGetConfigMap hasAccessToGetConfigMapFunc, options ...ApplicationHandlerOption) ApplicationHandler {
 	ah := ApplicationHandler{
 		environmentHandler:              environments.Init(environments.WithAccounts(accounts)),
 		accounts:                        accounts,
-		config:                          config,
+		cfg:                             config,
 		hasAccessToGetConfigMap:         hasAccessToGetConfigMap,
 		getWarningCollectionFromContext: warningcollector.GetWarningCollectionFromContext,
 		pipelineSvc:                     &pipelineservice.PipelineService{RadixClient: accounts.UserAccount.RadixClient},
@@ -74,11 +73,11 @@ func NewApplicationHandler(accounts models.Accounts, config config.Config, hasAc
 	return ah
 }
 
-func (ah *ApplicationHandler) getUserAccount() models.Account {
+func (ah *ApplicationHandler) getUserAccount() accounts.Account {
 	return ah.accounts.UserAccount
 }
 
-func (ah *ApplicationHandler) getServiceAccount() models.Account {
+func (ah *ApplicationHandler) getServiceAccount() accounts.Account {
 	return ah.accounts.ServiceAccount
 }
 
@@ -112,7 +111,7 @@ func (ah *ApplicationHandler) GetApplication(ctx context.Context, appName string
 	}
 
 	dnsAliases := kubequery.GetDNSAliases(ctx, ah.accounts.UserAccount.RadixClient, ra)
-	application := apimodels.BuildApplication(rr, ra, reList, rdList, rjList, userIsAdmin, dnsAliases, ah.config.DNSZone)
+	application := apimodels.BuildApplication(rr, ra, reList, rdList, rjList, userIsAdmin, dnsAliases, ah.cfg.Common.DNSZone)
 	return application, nil
 }
 
@@ -122,11 +121,6 @@ func (ah *ApplicationHandler) RegisterApplication(ctx context.Context, applicati
 
 	application := applicationRegistrationRequest.ApplicationRegistration
 	creator := auth.GetOriginator(ctx)
-
-	if len(application.SharedSecret) == 0 {
-		application.SharedSecret = radixutils.RandString(20)
-		log.Ctx(ctx).Debug().Msg("There is no Shared Secret specified for the registering application - a random Shared Secret has been generated")
-	}
 
 	radixRegistration, err := applicationModels.NewApplicationRegistrationBuilder().
 		WithAppRegistration(application).
@@ -184,7 +178,6 @@ func (ah *ApplicationHandler) ChangeRegistrationDetails(ctx context.Context, app
 
 	// Only these fields can change over time
 	updatedRegistration.Spec.CloneURL = radixRegistration.Spec.CloneURL
-	updatedRegistration.Spec.SharedSecret = radixRegistration.Spec.SharedSecret
 	updatedRegistration.Spec.AdGroups = radixRegistration.Spec.AdGroups
 	updatedRegistration.Spec.ReaderAdGroups = radixRegistration.Spec.ReaderAdGroups
 	updatedRegistration.Spec.Owner = radixRegistration.Spec.Owner
@@ -223,7 +216,7 @@ func (ah *ApplicationHandler) ModifyRegistrationDetails(ctx context.Context, app
 
 	// Only these fields can change over time
 	patchRequest := applicationRegistrationPatchRequest.ApplicationRegistrationPatch
-	if patchRequest.AdGroups != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.AdGroups, *patchRequest.AdGroups) {
+	if patchRequest.AdGroups != nil && !slice.ElementsMatch(currentRegistration.Spec.AdGroups, *patchRequest.AdGroups) {
 		err := ah.validateUserIsMemberOfAdGroups(ctx, appName, *patchRequest.AdGroups)
 		if err != nil {
 			return nil, err
@@ -231,15 +224,15 @@ func (ah *ApplicationHandler) ModifyRegistrationDetails(ctx context.Context, app
 		updatedRegistration.Spec.AdGroups = *patchRequest.AdGroups
 		runUpdate = true
 	}
-	if patchRequest.AdUsers != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.AdUsers, *patchRequest.AdUsers) {
+	if patchRequest.AdUsers != nil && !slice.ElementsMatch(currentRegistration.Spec.AdUsers, *patchRequest.AdUsers) {
 		updatedRegistration.Spec.AdUsers = *patchRequest.AdUsers
 		runUpdate = true
 	}
-	if patchRequest.ReaderAdGroups != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.ReaderAdGroups, *patchRequest.ReaderAdGroups) {
+	if patchRequest.ReaderAdGroups != nil && !slice.ElementsMatch(currentRegistration.Spec.ReaderAdGroups, *patchRequest.ReaderAdGroups) {
 		updatedRegistration.Spec.ReaderAdGroups = *patchRequest.ReaderAdGroups
 		runUpdate = true
 	}
-	if patchRequest.ReaderAdUsers != nil && !radixutils.ArrayEqualElements(currentRegistration.Spec.ReaderAdUsers, *patchRequest.ReaderAdUsers) {
+	if patchRequest.ReaderAdUsers != nil && !slice.ElementsMatch(currentRegistration.Spec.ReaderAdUsers, *patchRequest.ReaderAdUsers) {
 		updatedRegistration.Spec.ReaderAdUsers = *patchRequest.ReaderAdUsers
 		runUpdate = true
 	}
@@ -442,50 +435,41 @@ func (ah *ApplicationHandler) RegenerateDeployKey(ctx context.Context, appName s
 }
 
 // RegenerateSharedSecret Regenerates the GitHub webhook secret for an application.
-func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string, regenerateWebhookSecretData applicationModels.RegenerateSharedSecretData) error {
-	sharedKey := strings.TrimSpace(regenerateWebhookSecretData.SharedSecret)
+func (ah *ApplicationHandler) RegenerateSharedSecret(ctx context.Context, appName string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Make check that this is an existing application and that the user has access to it
-		currentRegistration, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
+		// Make check that this is an existing application and that the user has access to the secret
+		currentSecret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		updatedRegistration := currentRegistration.DeepCopy()
-		if len(sharedKey) != 0 {
-			updatedRegistration.Spec.SharedSecret = sharedKey
-		} else {
-			newShareKey, err := uuid.NewUUID()
-			if err != nil {
-				return fmt.Errorf("failed to generate new shared secret: %v", err)
-			}
-			updatedRegistration.Spec.SharedSecret = newShareKey.String()
+
+		newSecret := currentSecret.DeepCopy()
+		if newSecret.Data == nil {
+			newSecret.Data = map[string][]byte{}
 		}
 
-		if reflect.DeepEqual(updatedRegistration, currentRegistration) {
-			return nil
-		}
-		if _, err := ah.ValidateRadixRegistration(ctx, updatedRegistration, true); err != nil {
-			return err
-		}
-		_, err = ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Update(ctx, updatedRegistration, metav1.UpdateOptions{})
+		newSecret.Data[defaults.WebhookSharedSecretKey] = []byte(rand.Text())
+
+		_, err = ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Update(ctx, newSecret, metav1.UpdateOptions{})
 		return err
 	})
 }
 
 func (ah *ApplicationHandler) GetDeployKeyAndSecret(ctx context.Context, appName string) (*applicationModels.DeployKeyAndSecret, error) {
-	cm, err := ah.getUserAccount().Client.CoreV1().ConfigMaps(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return nil, err
-	}
 	publicKey := ""
-	if cm != nil {
+	if cm, err := ah.getUserAccount().Client.CoreV1().ConfigMaps(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.GitPublicKeyConfigMapName, metav1.GetOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+		return nil, err
+	} else if cm != nil {
 		publicKey = cm.Data[defaults.GitPublicKeyConfigMapKey]
 	}
-	rr, err := ah.getUserAccount().RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
-	if err != nil {
+
+	sharedSecret := ""
+	if secret, err := ah.getUserAccount().Client.CoreV1().Secrets(operatorUtils.GetAppNamespace(appName)).Get(ctx, defaults.WebhookSharedSecretName, metav1.GetOptions{}); err != nil && !k8serrors.IsNotFound(err) && !k8serrors.IsForbidden(err) {
 		return nil, err
+	} else if secret != nil {
+		sharedSecret = string(secret.Data[defaults.WebhookSharedSecretKey])
 	}
-	sharedSecret := rr.Spec.SharedSecret
+
 	return &applicationModels.DeployKeyAndSecret{
 		PublicDeployKey: publicKey,
 		SharedSecret:    sharedSecret,
@@ -522,41 +506,41 @@ func (ah *ApplicationHandler) validateUserIsMemberOfAdGroups(ctx context.Context
 	}
 	name := fmt.Sprintf("access-validation-%s", appName)
 	labels := map[string]string{"radix-access-validation": "true"}
-	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(operatorUtils.RandString(6)))
-	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, name, labels, configMapName)
+	configMapName := fmt.Sprintf("%s-%s", name, strings.ToLower(random.RandString(6)))
+	role, err := createRoleToGetConfigMap(ctx, ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, name, labels, configMapName)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = deleteRole(context.Background(), ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, role.GetName())
+		err = deleteRole(context.Background(), ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, role.GetName())
 		if err != nil {
 			log.Ctx(ctx).Warn().Msgf("Failed to delete role %s: %v", role.GetName(), err)
 		}
 	}()
-	roleBinding, err := createRoleBindingForRole(ctx, ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, role, name, adGroups, labels)
+	roleBinding, err := createRoleBindingForRole(ctx, ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, role, name, adGroups, labels)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = deleteRoleBinding(context.Background(), ah.accounts.ServiceAccount.Client, ah.config.PodNamespace, roleBinding.GetName())
+		err = deleteRoleBinding(context.Background(), ah.accounts.ServiceAccount.Client, ah.cfg.ApiServer.PodNamespace, roleBinding.GetName())
 		if err != nil {
 			log.Ctx(ctx).Warn().Msgf("Failed to delete role binding %s: %v", roleBinding.GetName(), err)
 		}
 	}()
 
-	valid, err := ah.hasAccessToGetConfigMap(ctx, ah.accounts.UserAccount.Client, ah.config.PodNamespace, configMapName)
+	valid, err := ah.hasAccessToGetConfigMap(ctx, ah.accounts.UserAccount.Client, ah.cfg.ApiServer.PodNamespace, configMapName)
 	if err != nil {
 		return err
 	}
 	if !valid {
-		return userShouldBeMemberOfAdminAdGroupError()
+		return radixhttp.ValidationError("Radix Registration", "User should be a member of at least one admin group or their sub-members")
 	}
 	return nil
 }
 
 func createRoleToGetConfigMap(ctx context.Context, kubeClient kubernetes.Interface, namespace, roleName string, labels map[string]string, configMapName string) (*rbacv1.Role, error) {
 	return kubeClient.RbacV1().Roles(namespace).Create(ctx, &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{GenerateName: roleName, Labels: labels},
+		GenerateName: roleName, Labels: labels,
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:         []string{"get"},
 			APIGroups:     []string{""},
@@ -583,16 +567,14 @@ func createRoleBindingForRole(ctx context.Context, kubeClient kubernetes.Interfa
 		})
 	}
 	newRoleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: roleBindingName,
-			Labels:       labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
-					Kind:       k8s.KindRole,
-					Name:       role.GetName(),
-					UID:        role.GetUID(),
-				},
+		GenerateName: roleBindingName,
+		Labels:       labels,
+		OwnerReferences: []metav1.OwnerReference{
+			{
+				APIVersion: rbacv1.SchemeGroupVersion.Identifier(),
+				Kind:       k8s.KindRole,
+				Name:       role.GetName(),
+				UID:        role.GetUID(),
 			},
 		},
 		RoleRef: rbacv1.RoleRef{

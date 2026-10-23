@@ -37,7 +37,7 @@ func Test_CloneInitContainersWithContainerName_CustomImages(t *testing.T) {
 		image string
 	}
 	cloneName := "anyclonename"
-	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", "anycommit", "/some-workspace", true, false, cloneName, "anygit:any")
+	containers := git.CloneInitContainersWithContainerName("anysshurl", "anybranch", "anycommit", "/some-workspace", cloneName, git.WithImage("anygit:any"))
 	actual := slice.Map(containers, func(c corev1.Container) containerInfo { return containerInfo{name: c.Name, image: c.Image} })
 	expected := []containerInfo{
 		{name: cloneName, image: "anygit:any"},

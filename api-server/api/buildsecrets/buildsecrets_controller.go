@@ -5,30 +5,31 @@ import (
 	"net/http"
 
 	environmentModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
 const rootPath = "/applications/{appName}"
 
 type buildSecretsController struct {
-	*models.DefaultController
+	*controller.DefaultController
 }
 
 // NewBuildSecretsController Constructor
-func NewBuildSecretsController() models.Controller {
+func NewBuildSecretsController() controller.Controller {
 	return &buildSecretsController{}
 }
 
 // GetRoutes List the supported routes of this handler
-func (dc *buildSecretsController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (dc *buildSecretsController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/buildsecrets",
 			Method:      "GET",
 			HandlerFunc: dc.GetBuildSecrets,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/buildsecrets/{secretName}",
 			Method:      "PUT",
 			HandlerFunc: dc.ChangeBuildSecret,
@@ -39,7 +40,7 @@ func (dc *buildSecretsController) GetRoutes() models.Routes {
 }
 
 // GetBuildSecrets Lists build secrets
-func (dc *buildSecretsController) GetBuildSecrets(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *buildSecretsController) GetBuildSecrets(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/buildsecrets application getBuildSecrets
 	// ---
 	// summary: Lists the application build secrets
@@ -84,7 +85,7 @@ func (dc *buildSecretsController) GetBuildSecrets(accounts models.Accounts, w ht
 }
 
 // ChangeBuildSecret Modifies an application build secret
-func (dc *buildSecretsController) ChangeBuildSecret(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *buildSecretsController) ChangeBuildSecret(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName}/buildsecrets/{secretName} application updateBuildSecretsSecretValue
 	// ---
 	// summary: Update an application build secret

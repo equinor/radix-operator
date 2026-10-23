@@ -8,6 +8,7 @@ var (
 	ErrInternalError = errors.New("internal error. Please try again later or contact support if the issue persists")
 
 	ErrNoRadixApplication                                            = errors.New("no corresponding radix application found. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console")
+	ErrApplicationNameTooLong                                        = errors.New("application name cannot exceed 40 characters")
 	ErrDNSAliasComponentIsNotMarkedAsPublic                          = errors.New("component for dns alias is not marked as public")
 	ErrDNSAliasAlreadyUsedByAnotherApplication                       = errors.New("dns alias is already used by another application")
 	ErrDNSAliasReservedForRadixPlatformApplication                   = errors.New("dns alias is reserved for Radix platform application")
@@ -62,6 +63,7 @@ var (
 	WarnPublicImageComponentCannotHaveSourceOrDockerfileSetWithImage = "job or component cannot have 'src' or 'Dockerfile' set when image is defined"
 	WarnDeprecatedFieldPublicUsed                                    = "deprecated: instead of using spec.components.public: true, set publicPort to name of port"
 	ErrSchedulerPortCannotBeEmptyForJob                              = errors.New("scheduler port cannot be empty for job")
+	ErrSchedulerPortOrCronRequiredForJob                             = errors.New("job must specify either a schedulerPort or a cron schedule")
 	ErrPayloadPathCannotBeEmptyForJob                                = errors.New("payload path cannot be empty for job")
 	ErrSecretNameConflictsWithVariable                               = errors.New("secret name conflicts with variable")
 	ErrMissingAzureIdentityForAzureKeyVault                          = errors.New("missing Azure identity for Azure Key vault with useAzureIdentity enabled")
@@ -70,6 +72,7 @@ var (
 	ErrSecretRefEnvVarNameConflictsWithEnvironmentVariable           = errors.New("secret reference environment variable name conflicts with environment variable")
 	ErrDuplicatePathForAzureKeyVault                                 = errors.New("duplicate path for Azure Key vault")
 	ErrInvalidEnvironmentNameLength                                  = errors.New("combined app-name and environment name length must be between 2 and 62 characters")
+	ErrInvalidHostnameLength                                         = errors.New("hostname length must be between 2 and 63 characters")
 	ErrEnvironmentNameIsNotAvailable                                 = errors.New("environment name is not available. it is already in use or conflicts with reserved namespace")
 	ErrEgressRuleMustContainAtLeastOneDestination                    = errors.New("egress rule must contain at least one destination")
 	ErrEgressRulePortOutOfRange                                      = errors.New("egress rule port must be equal to or greater than 1 and lower than or equal to 65535")
@@ -77,7 +80,7 @@ var (
 	ErrNotValidCidr                                                  = errors.New("not a valid CIDR")
 	ErrNotValidIPv4Cidr                                              = errors.New("not a valid IPv4 CIDR")
 	ErrEgressRulesExceedMaxNumber                                    = errors.New("number of egress rules exceeds maximum allowed")
-	ErrVariableNameCannotStartWithReservedPrefix                     = errors.New("variable name cannot start with reserved prefix RADIX_ or RADIXOPERATOR_")
+	ErrVariableNameCannotStartWithReservedPrefix                     = errors.New("variable name cannot start with reserved prefix RADIX_")
 	ErrVariableNameCannotContainIllegalCharacters                    = errors.New("variable name cannot contain illegal characters")
 	ErrVariableNameCannotExceedMaxLength                             = errors.New("variable name cannot exceed maximum length of 253 characters")
 	ErrBranchFromTooLong                                             = errors.New("branch from exceeds maximum length of 253 characters")
@@ -122,4 +125,9 @@ var (
 	ErrCronScheduleEmpty      = errors.New("cron schedule must contain at least one entry")
 	ErrCronTimeZoneInvalid    = errors.New("cron time zone is invalid")
 	ErrCronConcurrencyInvalid = errors.New("cron concurrency policy is invalid")
+
+	ErrMissingConfiguredCertificateAutomationIssuers = errors.New("missing configured certificate automation issuers")
+	ErrMissingCertificateAutomationIssuer            = errors.New("certificateAutomation.issuer must be set when useCertificateAutomation is true, as no default issuer is configured for this cluster")
+	ErrInvalidCertificateAutomationIssuer            = errors.New("invalid selected certificate automation issuer")
+	WarnUnusedCertificateAutomation                  = "unused certificate automation configuration"
 )

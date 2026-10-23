@@ -18,6 +18,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+export GOTOOLCHAIN="$(go env GOVERSION)"
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CODEGEN_PKG=$(go list -f '{{ .Dir }}' -m k8s.io/code-generator)
 source "${CODEGEN_PKG}/kube_codegen.sh"

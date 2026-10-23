@@ -47,7 +47,7 @@ func (m *MockDeploymentSyncerFactory) EXPECT() *MockDeploymentSyncerFactoryMockR
 }
 
 // CreateDeploymentSyncer mocks base method.
-func (m *MockDeploymentSyncerFactory) CreateDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned0.Interface, dynamicClient client.Client, certClient versioned.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, auxResourceManagers []AuxiliaryResourceManager, arg8 *config.Config) DeploymentSyncer {
+func (m *MockDeploymentSyncerFactory) CreateDeploymentSyncer(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient versioned0.Interface, dynamicClient client.Client, certClient versioned.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, auxResourceManagers []AuxiliaryResourceManager, arg8 config.Config) DeploymentSyncer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateDeploymentSyncer", kubeclient, kubeutil, radixclient, dynamicClient, certClient, registration, radixDeployment, auxResourceManagers, arg8)
 	ret0, _ := ret[0].(DeploymentSyncer)

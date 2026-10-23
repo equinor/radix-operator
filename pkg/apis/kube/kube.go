@@ -24,7 +24,6 @@ const (
 	RadixCommitAnnotation                            = "radix.equinor.com/radix-commit"
 	RadixConfigHash                                  = "radix.equinor.com/radix-config-hash"
 	RadixBuildSecretHash                             = "radix.equinor.com/build-secret-hash"
-	RadixUseBuildKit                                 = "radix.equinor.com/use-build-kit"
 	RadixUseBuildCache                               = "radix.equinor.com/use-build-cache"
 	RadixRefreshBuildCache                           = "radix.equinor.com/refresh-build-cache"
 	RadixComponentImagesAnnotation                   = "radix-component-images"
@@ -34,6 +33,8 @@ const (
 	RadixDeploymentPromotedFromEnvironmentAnnotation = "radix.equinor.com/radix-deployment-promoted-from-environment"
 	// RadixDeploymentObservedGeneration Used to verify kubernetes deployments are synced with active radix deployment, must contain the active RadixDeployments synced Generation
 	RadixDeploymentObservedGeneration = "radix.equinor.com/radix-deployment-observed-generation"
+	// RadixBatchCronScheduleAnnotation holds the cron schedule expression a RadixBatch was created from, for presentation only
+	RadixBatchCronScheduleAnnotation = "radix.equinor.com/batch-cron-schedule"
 )
 
 // Radix Labels

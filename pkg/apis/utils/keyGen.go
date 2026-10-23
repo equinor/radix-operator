@@ -17,7 +17,7 @@ type DeployKey struct {
 
 // GenerateDeployKey Generates a deploy key
 func GenerateDeployKey() (*DeployKey, error) {
-	bitSize := 2048
+	bitSize := 3072
 
 	privateKey, err := generatePrivateKey(bitSize)
 	if err != nil {

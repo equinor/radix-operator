@@ -7,7 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -16,17 +16,16 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	v1 "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixutils "github.com/equinor/radix-common/utils"
-	radixmaps "github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -59,19 +58,40 @@ const (
 )
 
 var testConfig = config.Config{
-	ClusterName:           testClusterName,
-	ClusterType:           "development",
-	DNSZone:               "dev.radix.equinor.com",
-	ContainerRegistryName: "any.container.registry",
-	DeploymentSyncer: config.DeploymentSyncerConfig{
-		TenantID:               "123456789",
+	Common: config.CommonConfig{
+		DNSZone:     "dev.radix.equinor.com",
+		ClusterName: testClusterName,
+		ClusterType: "development",
+		CertificateAutomation: config.CertificateAutomationConfig{
+			DefaultIssuer: "digicert",
+			Issuers: map[string]config.CertificateIssuerConfig{
+				"digicert": {
+					ClusterIssuerName: "digicert-http01-gateway",
+					Duration:          10000 * time.Hour,
+					RenewBefore:       5000 * time.Hour,
+				},
+			},
+		},
+	},
+	PipelineRunner: config.PipelineRunnerConfig{
+		ContainerRegistry: "any.container.registry",
+	},
+	Operator: config.OperatorConfig{
+		ReadinessProbeInitialDelaySeconds:  25,
+		ReadinessProbePeriodSeconds:        15,
+		DefaultRollingUpdateMaxUnavailable: "25%",
+		DefaultRollingUpdateMaxSurge:       "35%",
+		JobSchedulerImage: config.ContainerImage{
+			Repository: "docker.io/radix-job-scheduler",
+			Tag:        "main-latest",
+		},
+		JobSchedulerAuxImage: config.ContainerImage{
+			Repository: "docker.io/bash",
+			Tag:        "latest",
+		},
+		AzureKeyVaultTenantID:  "123456789",
 		KubernetesAPIPort:      543,
 		DeploymentHistoryLimit: 10,
-	},
-	CertificateAutomation: config.CertificateAutomationConfig{
-		GatewayClusterIssuer: "test-gateway-cert-issuer",
-		Duration:             10000 * time.Hour,
-		RenewBefore:          5000 * time.Hour,
 	},
 }
 
@@ -90,34 +110,24 @@ func SetupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 		secretProviderClient,
 	)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, kedaClient, secretProviderClient)
-	err := handlerTestUtils.CreateClusterPrerequisites(testClusterName, "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, kedaClient, dynamicClient, secretProviderClient, certClient
 }
 
-func TeardownTest() {
-	// Cleanup setup
-	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	_ = os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-	_ = os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-	_ = os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
-	_ = os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
-}
-
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
-	defer TeardownTest()
 	commitId := string(uuid.NewUUID())
 	const componentNameApp = "app"
 	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
 	adminUsers, readerUsers := []string{"admUsr1", "admUsr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
 	for _, componentsExist := range []bool{true, false} {
-		testScenario := utils.TernaryString(componentsExist, "Updating deployment", "Creating deployment")
+		testScenario := "Creating deployment"
+		if componentsExist {
+			testScenario = "Updating deployment"
+		}
 
 		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-		defer TeardownTest()
 
 		t.Run("Test Suite", func(t *testing.T) {
 			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
@@ -156,14 +166,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithReplicas(test.IntPtr(2)),
+							WithReplicas(new(2)),
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 							WithName(componentNameRedis).
 							WithEnvironmentVariable("a_variable", "3002").
 							WithPort("http", 6378).
 							WithPublicPort("").
-							WithReplicas(test.IntPtr(1)),
+							WithReplicas(new(1)),
 						utils.NewDeployComponentBuilder().
 							WithImage("old_radixdev.azurecr.io/edcradix-radixquote:axmz8").
 							WithName(componentNameRadixQuote).
@@ -196,14 +206,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 								"memory": "128Mi",
 								"cpu":    "500m",
 							}).
-							WithReplicas(test.IntPtr(4)),
+							WithReplicas(new(4)),
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 							WithName(componentNameRedis).
 							WithEnvironmentVariable("a_variable", "3001").
 							WithPort("http", 6379).
 							WithPublicPort("").
-							WithReplicas(test.IntPtr(0)),
+							WithReplicas(new(0)),
 						utils.NewDeployComponentBuilder().
 							WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
 							WithName(componentNameRadixQuote).
@@ -248,9 +258,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-				assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, testConfig.PipelineRunner.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, componentNameApp, deployments))
+				assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, componentNameApp, deployments))
+				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentClusterName, componentNameApp, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.CanonicalEndpointEnvironmentVariable, componentNameApp, deployments))
@@ -288,11 +298,11 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				assert.Equal(t, 10, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.True(t, envVariableByNameExistOnDeployment("a_variable", componentNameRedis, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRedis, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRedis, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentContainerRegistry, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentDNSZone, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentClusterName, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRedis, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixClusterTypeEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentClusterType, componentNameRedis, deployments))
 
 				if !componentsExist {
 					assert.Equal(t, "3001", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", componentNameRedis, deployments))
@@ -303,9 +313,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.True(t, deploymentByNameExists(componentNameRadixQuote, deployments), "radixquote deployment not there")
 				spec := getDeploymentByName(componentNameRadixQuote, deployments).Spec
 				assert.Equal(t, defaults.DefaultReplicas, *spec.Replicas, "number of replicas was unexpected")
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRadixQuote, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRadixQuote, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentContainerRegistry, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentDNSZone, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(envvars.ComponentClusterName, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRadixQuote, deployments))
 
 				if !componentsExist {
@@ -341,7 +351,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					Type: appsv1.RollingUpdateDeploymentStrategyType,
 					RollingUpdate: &appsv1.RollingUpdateDeployment{
 						MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
-						MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
+						MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "35%"},
 					},
 				}
 
@@ -438,7 +448,6 @@ func TestObjectSynced_Components_AffinityAccordingToSpec(t *testing.T) {
 		comp1, comp2, comp3 = "comp1", "comp2", "comp3"
 	)
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	rrBuilder := utils.ARadixRegistration()
 	raBuilder := utils.ARadixApplication().WithRadixRegistration(rrBuilder)
@@ -493,17 +502,17 @@ func TestObjectSynced_Components_AffinityAccordingToSpec(t *testing.T) {
 }
 
 func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
-	const jobSchedulerImage = "docker.io/radix-job-scheduler:latest"
-	defer TeardownTest()
 	commitId := string(uuid.NewUUID())
 	adminGroups, readerGroups := []string{"adm1", "adm2"}, []string{"rdr1", "rdr2"}
 	adminUsers, readerUsers := []string{"admUsr1", "admUsr2"}, []string{"rdrUsr1", "rdrUsr2"}
 
 	for _, jobsExist := range []bool{false, true} {
-		testScenario := utils.TernaryString(jobsExist, "Updating deployment", "Creating deployment")
+		testScenario := "Creating deployment"
+		if jobsExist {
+			testScenario = "Updating deployment"
+		}
 
 		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
 
 		t.Run("Test Suite", func(t *testing.T) {
 			aRadixRegistrationBuilder := utils.ARadixRegistration().WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
@@ -541,7 +550,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithSchedulerPort(9000).
+							WithSchedulerPort(new(int32(9000))).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{remainingSecret, addingSecret}).
 							WithAlwaysPullImageOnDeploy(false).
@@ -580,13 +589,13 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 									Storage: "some-storage",
 									Path:    "some-path",
 								}).
-							WithSchedulerPort(8000).
+							WithSchedulerPort(new(int32(8000))).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
 							WithAlwaysPullImageOnDeploy(false).
 							WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 						utils.NewDeployJobComponentBuilder().
-							WithName(jobName2).WithSchedulerPort(8000).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
+							WithName(jobName2).WithSchedulerPort(new(int32(8000))).WithRuntime(&radixv1.Runtime{Architecture: "customarch"}),
 					).
 					WithComponents()
 
@@ -622,17 +631,17 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 				assert.Equal(t, jobName, getDeploymentByName(jobName, deployments).Name, "app deployment not there")
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
-
-				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
-				assert.Equal(t, 13, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
+				jobContainer := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers)
+				assert.Equal(t, "docker.io/radix-job-scheduler:main-latest", jobContainer.Image)
+				envVars := jobContainer.Env
+				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, "a_value", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", jobName, deployments))
-				assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, testConfig.PipelineRunner.ContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentContainerRegistry, jobName, deployments))
+				assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentDNSZone, jobName, deployments))
+				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, envvars.ComponentClusterName, jobName, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, jobName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixComponentEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, "300M", getEnvVariableByNameOnDeployment(kubeclient, defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
 
@@ -778,6 +787,68 @@ func TestObjectSynced_Job_GarbageCollectDeployments(t *testing.T) {
 	assert.ElementsMatch(t, []string{"job1", "job1-aux"}, actualDeploymentNames)
 }
 
+func TestObjectSynced_JobAux_DeploymentSpecIsSet(t *testing.T) {
+	const (
+		appName = "any-app"
+		envName = "test"
+		jobName = "job1"
+	)
+
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithAppName(appName).
+			WithEnvironment(envName).
+			WithComponents().
+			WithJobComponents(utils.NewDeployJobComponentBuilder().WithName(jobName).WithRuntime(&radixv1.Runtime{Architecture: "customarch"})))
+	require.NoError(t, err)
+
+	namespace := utils.GetEnvironmentNamespace(appName, envName)
+	allDeployments, err := kubeclient.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+
+	jobAuxDeploymentName := defaults.GetJobAuxKubeDeployName(jobName)
+	jobAuxDeployment := getDeploymentByName(jobAuxDeploymentName, allDeployments.Items)
+	require.NotNil(t, jobAuxDeployment)
+
+	require.NotNil(t, jobAuxDeployment.Spec.Replicas)
+	assert.Equal(t, int32(1), *jobAuxDeployment.Spec.Replicas)
+
+	assert.Equal(t, appName, jobAuxDeployment.Spec.Template.Labels[kube.RadixAppLabel])
+	assert.Equal(t, jobName, jobAuxDeployment.Spec.Template.Labels[kube.RadixAuxiliaryComponentLabel])
+	assert.Equal(t, kube.RadixJobTypeManagerAux, jobAuxDeployment.Spec.Template.Labels[kube.RadixAuxiliaryComponentTypeLabel])
+	assert.Equal(t, "true", jobAuxDeployment.Spec.Template.Labels[kube.RadixPodIsJobAuxObjectLabel])
+	require.NotEmpty(t, jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel])
+
+	expectedSelectorMatchLabels := radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
+		map[string]string{kube.RadixAppIDLabel: jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel]},
+		radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux),
+	)
+	assert.EqualValues(t, expectedSelectorMatchLabels, jobAuxDeployment.Spec.Selector.MatchLabels)
+
+	assert.Equal(t, new(false), jobAuxDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
+	assert.Equal(t, defaultServiceAccountName, jobAuxDeployment.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, utils.GetAffinityForJobAPIAuxComponent(), jobAuxDeployment.Spec.Template.Spec.Affinity)
+
+	require.Len(t, jobAuxDeployment.Spec.Template.Spec.Containers, 1)
+	container := jobAuxDeployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, jobAuxDeploymentName, container.Name)
+	assert.Equal(t, testConfig.Operator.JobSchedulerAuxImage.String(), container.Image)
+	assert.Equal(t, corev1.PullIfNotPresent, container.ImagePullPolicy)
+	assert.Equal(t, []string{"sh"}, container.Command)
+	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, container.Args)
+	requestCPU := container.Resources.Requests[corev1.ResourceCPU]
+	requestMemory := container.Resources.Requests[corev1.ResourceMemory]
+	limitCPU := container.Resources.Limits[corev1.ResourceCPU]
+	limitMemory := container.Resources.Limits[corev1.ResourceMemory]
+	assert.True(t, requestCPU.Equal(parseQuantity("1m")))
+	assert.True(t, requestMemory.Equal(parseQuantity("20M")))
+	assert.True(t, limitCPU.Equal(parseQuantity("0")))
+	assert.True(t, limitMemory.Equal(parseQuantity("20M")))
+}
+
 func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service {
 	var result []corev1.Service
 	for _, svc := range *services {
@@ -805,15 +876,14 @@ func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Depl
 
 func Test_ReconcileStatus(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 	rr := &radixv1.RadixRegistration{}
-	rd := &radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Generation: 42}}
+	rd := &radixv1.RadixDeployment{Name: "any-rd", Generation: 42}
 	rd, err := radixclient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	// First sync sets status
 	expectedGen := rd.Generation
-	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{})
+	sut := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -826,7 +896,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	rd.Generation++
 	expectedGen = rd.Generation
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -842,7 +912,7 @@ func Test_ReconcileStatus(t *testing.T) {
 		return true, nil, errors.New(errorMsg)
 	})
 	rr.Generation++
-	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, &config.Config{})
+	sut = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, config.Config{})
 	err = sut.OnSync(context.Background())
 	assert.ErrorContains(t, err, errorMsg)
 	rd, err = radixclient.RadixV1().RadixDeployments(rd.Namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
@@ -861,14 +931,13 @@ func TestObjectSynced_ReadOnlyFileSystem(t *testing.T) {
 
 	tests := map[string]scenarioSpec{
 		"notSet": {readOnlyFileSystem: nil, expectedReadOnlyFileSystem: nil},
-		"false":  {readOnlyFileSystem: pointers.Ptr(false), expectedReadOnlyFileSystem: pointers.Ptr(false)},
-		"true":   {readOnlyFileSystem: pointers.Ptr(true), expectedReadOnlyFileSystem: pointers.Ptr(true)},
+		"false":  {readOnlyFileSystem: new(false), expectedReadOnlyFileSystem: new(false)},
+		"true":   {readOnlyFileSystem: new(true), expectedReadOnlyFileSystem: new(true)},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-			defer TeardownTest()
 			appName := "any-app"
 			envName := "any-env"
 			componentName := "readOnlyFileSystem-app"
@@ -901,14 +970,13 @@ func TestObjectSynced_RunAsUser(t *testing.T) {
 
 	tests := map[string]scenarioSpec{
 		"notSet": {runAsUser: nil, expectedRunAsUser: nil},
-		"1000":   {runAsUser: pointers.Ptr(int64(1000)), expectedRunAsUser: pointers.Ptr(int64(1000))},
-		"1001":   {runAsUser: pointers.Ptr(int64(1001)), expectedRunAsUser: pointers.Ptr(int64(1001))},
+		"1000":   {runAsUser: new(int64(1000)), expectedRunAsUser: new(int64(1000))},
+		"1001":   {runAsUser: new(int64(1001)), expectedRunAsUser: new(int64(1001))},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-			defer TeardownTest()
 			appName := "any-app"
 			envName := "any-env"
 			componentName := "runAsUser-app"
@@ -935,7 +1003,6 @@ func TestObjectSynced_RunAsUser(t *testing.T) {
 }
 
 func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
-	defer TeardownTest()
 	// Test
 	t.Run("app with component use default SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
@@ -948,7 +1015,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
@@ -976,7 +1043,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
@@ -1000,7 +1067,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
 
@@ -1016,7 +1083,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
 		assert.False(t, hasLabel)
@@ -1027,7 +1094,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
 		_, err := client.CoreV1().ServiceAccounts("any-app-any-env").Create(
 			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}}},
+			&corev1.ServiceAccount{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}},
 			metav1.CreateOptions{})
 		require.NoError(t, err)
 		_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -1047,7 +1114,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
 		_, err := client.CoreV1().ServiceAccounts("any-app-any-env").Create(
 			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}}},
+			&corev1.ServiceAccount{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}},
 			metav1.CreateOptions{})
 		require.NoError(t, err)
 		_, err = ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
@@ -1075,7 +1142,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		// A service account that must not be deleted
 		_, err := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).Create(
 			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}}},
+			&corev1.ServiceAccount{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}},
 			metav1.CreateOptions{})
 		require.NoError(t, err)
 		// Deploy component with Azure identity must create custom SA
@@ -1123,7 +1190,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
-		assert.Equal(t, pointers.Ptr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 	})
@@ -1144,7 +1211,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		allDeployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
@@ -1160,12 +1227,12 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(),
 			metav1.ListOptions{})
 		expectedJobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
-		assert.Equal(t, 1, len(expectedJobDeployments))
-		assert.Equal(t, pointers.Ptr(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		require.Equal(t, 1, len(expectedJobDeployments))
+		assert.Equal(t, new(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedJobDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		expectedJobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
-		assert.Equal(t, 1, len(expectedJobAuxDeployments))
-		assert.Equal(t, pointers.Ptr(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		require.Equal(t, 1, len(expectedJobAuxDeployments))
+		assert.Equal(t, new(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedJobAuxDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// And change app back to a component
@@ -1181,7 +1248,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.Background(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(allDeployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
-		assert.Equal(t, pointers.Ptr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, new(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 }
@@ -1189,7 +1256,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	// Test
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName("app").
@@ -1220,7 +1287,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	appName := "app"
 	comp1, comp2, job1, job2 := "comp1", "comp2", "job1", "job2"
 	anyEnvironment := "test"
@@ -1283,7 +1350,7 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 func TestConfigMap_RetainDataBetweenSync(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	appName := "app"
 	comp, job1, job2 := "comp", "job1", "job2"
 	anyEnvironment := "test"
@@ -1400,7 +1467,6 @@ func Test_ComponentAndJobSecrets_SecretKeyExistAndDataRetainedBetweenSync(t *tes
 	ns := utils.GetEnvironmentNamespace(appName, envName)
 
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	initialRD := utils.ARadixDeployment().
 		WithDeploymentName("rd-init").
@@ -1524,7 +1590,6 @@ func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
 	for testName, testSpec := range tests {
 		t.Run(testName, func(t *testing.T) {
 			tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-			defer TeardownTest()
 
 			testComponentSecret := func(componentName string, expectedData map[string][]byte) *corev1.Secret {
 				secret, err := kubeclient.CoreV1().Secrets(ns).Get(context.Background(), defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, "vol"), metav1.GetOptions{})
@@ -1573,7 +1638,7 @@ func Test_BlobFuse2VolumeMountSecret_ExpectedKeysAndData(t *testing.T) {
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyEnvironment := "test"
 	commitId := string(uuid.NewUUID())
 
@@ -1599,17 +1664,17 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 
 		templateSpecEnv := container.Env
 		assert.Equal(t, 8, len(templateSpecEnv), "Should only have default environment variables")
-		assert.True(t, envVariableByNameExist(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
-		assert.True(t, envVariableByNameExist(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
-		assert.True(t, envVariableByNameExist(defaults.ClusternameEnvironmentVariable, templateSpecEnv))
-		assert.True(t, envVariableByNameExist(defaults.RadixClusterTypeEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(envvars.ComponentContainerRegistry, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(envvars.ComponentDNSZone, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(envvars.ComponentClusterName, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(envvars.ComponentClusterType, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, os.Getenv(defaults.ContainerRegistryEnvironmentVariable), getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
-		assert.Equal(t, os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable), getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
-		assert.Equal(t, testClusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, testConfig.PipelineRunner.ContainerRegistry, getEnvVariableByName(envvars.ComponentContainerRegistry, templateSpecEnv, nil))
+		assert.Equal(t, testConfig.Common.DNSZone, getEnvVariableByName(envvars.ComponentDNSZone, templateSpecEnv, cm))
+		assert.Equal(t, testClusterName, getEnvVariableByName(envvars.ComponentClusterName, templateSpecEnv, cm))
 		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv, cm))
 		assert.Equal(t, "component", getEnvVariableByName(defaults.RadixComponentEnvironmentVariable, templateSpecEnv, cm))
@@ -1625,7 +1690,6 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	// Test
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
@@ -1651,7 +1715,6 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	// Test
 	now := time.Now().UTC()
@@ -1726,7 +1789,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	// Test first deployment
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithDeploymentName("first_deployment").
@@ -1770,7 +1833,7 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 
 func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
@@ -1781,7 +1844,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
-				WithReplicas(test.IntPtr(0))))
+				WithReplicas(new(0))))
 	require.NoError(t, err)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -1801,7 +1864,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 
 func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
@@ -1811,11 +1874,11 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 		WithEnvironment("test").
 		WithComponents(
 			utils.NewDeployComponentBuilder().WithName("comp1"),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(2)),
-			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
-			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(new(2)),
+			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(new(4)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(new(6)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(new(11)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(new(1)).WithReplicasOverride(new(0)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(5).WithMaxReplicas(10).Build()),
 		))
 	require.NoError(t, err)
@@ -1837,7 +1900,7 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 
 func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Initial sync creating deployments should use replicas from spec
@@ -1846,7 +1909,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1854,7 +1917,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
 
 	// Simulate HPA scaling up comp1 to 3 replicas
-	comp1.Spec.Replicas = pointers.Ptr[int32](3)
+	comp1.Spec.Replicas = new(int32(3))
 	_, err = client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp1, metav1.UpdateOptions{})
 	require.NoError(t, err)
 	// Resync existing RD should use replicas from current deployment for HPA enabled component
@@ -1863,7 +1926,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1876,7 +1939,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1889,7 +1952,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)),
 		))
 	require.NoError(t, err)
 
@@ -1899,7 +1962,7 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 
 func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Initial sync creating deployments should use replicas from spec
@@ -1908,7 +1971,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1923,8 +1986,8 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("comp1").
-				WithReplicas(pointers.Ptr(1)).
-				WithReplicasOverride(pointers.Ptr(0)).
+				WithReplicas(new(1)).
+				WithReplicasOverride(new(0)).
 				WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(1).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
@@ -1938,7 +2001,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithHorizontalScaling(utils.NewHorizontalScalingBuilder().WithMinReplicas(2).WithMaxReplicas(4).Build()),
 		))
 	require.NoError(t, err)
 
@@ -1948,7 +2011,7 @@ func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
 
 func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Initial sync creating deployments should use replicas from spec
@@ -1957,7 +2020,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)),
 		))
 	require.NoError(t, err)
 
@@ -1970,7 +2033,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithReplicasOverride(pointers.Ptr(5)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)).WithReplicasOverride(new(5)),
 		))
 	require.NoError(t, err)
 
@@ -1983,7 +2046,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(new(1)),
 		))
 	require.NoError(t, err)
 
@@ -1993,7 +2056,7 @@ func TestObjectSynced_ManuallyOverridingReplicasIsApplied(t *testing.T) {
 
 func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
@@ -2007,9 +2070,9 @@ func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 		))
 	require.NoError(t, err)
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp1", metav1.GetOptions{})
-	assert.Equal(t, pointers.Ptr(int32(10)), comp1.Spec.RevisionHistoryLimit, "Invalid default RevisionHistoryLimit")
+	assert.Equal(t, new(int32(10)), comp1.Spec.RevisionHistoryLimit, "Invalid default RevisionHistoryLimit")
 	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, pointers.Ptr(int32(0)), comp2.Spec.RevisionHistoryLimit, "Invalid RevisionHistoryLimit")
+	assert.Equal(t, new(int32(0)), comp2.Spec.RevisionHistoryLimit, "Invalid RevisionHistoryLimit")
 }
 
 func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *testing.T) {
@@ -2039,7 +2102,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(tt *testing.T) {
 			tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-			defer TeardownTest()
+
 			envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 			radixApplication := utils.ARadixApplication()
@@ -2056,9 +2119,7 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 						utils.NewDeployJobComponentBuilder().WithName("job1"),
 					), func(syncer DeploymentSyncer) {
 					if s, ok := syncer.(*Deployment); ok {
-						newcfg := *s.config
-						newcfg.DeploymentSyncer.DeploymentHistoryLimit = 2
-						s.config = &newcfg
+						s.config.Operator.DeploymentHistoryLimit = 2
 					}
 				})
 				require.NoError(t, err)
@@ -2072,9 +2133,8 @@ func TestObjectSynced_DeploymentsUsedByScheduledJobsMaintainHistoryLimit(t *test
 			rbList, err := radixclient.RadixV1().RadixBatches(envNamespace).List(context.Background(), metav1.ListOptions{})
 			assert.NoError(tt, err)
 			assert.NotNil(tt, rbList)
-
 			foundRdNames := slice.Map(rdList.Items, func(rd radixv1.RadixDeployment) string { return rd.GetName() })
-			assert.True(tt, radixutils.EqualStringLists(ts.expectedDeploymentNames, foundRdNames), fmt.Sprintf("expected %v, got %v", ts.expectedDeploymentNames, foundRdNames))
+			assert.ElementsMatch(tt, ts.expectedDeploymentNames, foundRdNames)
 		})
 	}
 }
@@ -2083,13 +2143,13 @@ func addRadixBatches(radixclient radixclient.Interface, envNamespace string, dep
 	var errs []error
 	for _, jobName := range jobNames {
 		_, err := radixclient.RadixV1().RadixBatches(envNamespace).Create(context.Background(), &radixv1.RadixBatch{
-			ObjectMeta: metav1.ObjectMeta{Name: deploymentName + jobName},
+			Name: deploymentName + jobName,
 			Spec: radixv1.RadixBatchSpec{
 				RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 					LocalObjectReference: radixv1.LocalObjectReference{Name: deploymentName},
 					Job:                  jobName,
 				},
-				Jobs: []radixv1.RadixBatchJob{{Name: radixutils.RandString(5)}},
+				Jobs: []radixv1.RadixBatchJob{{Name: random.RandString(5)}},
 			},
 		}, metav1.CreateOptions{})
 		if err != nil {
@@ -2101,7 +2161,7 @@ func addRadixBatches(radixclient radixclient.Interface, envNamespace string, dep
 
 func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
 
 	// Test
@@ -2112,7 +2172,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
-				WithReplicas(test.IntPtr(3))))
+				WithReplicas(new(3))))
 	require.NoError(t, err)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
@@ -2132,7 +2192,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 
 func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
@@ -2150,12 +2210,12 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(test.IntPtr(4)),
+				WithReplicas(new(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(new(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -2179,7 +2239,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)).
+				WithReplicas(new(0)).
 				WithSecrets([]string{"a_secret"})))
 
 	require.NoError(t, err)
@@ -2230,7 +2290,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 	anyComponentName := "frontend"
 
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
@@ -2275,7 +2335,7 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 	anyEnv := "dev"
 	anyComponentName := "frontend"
 	tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	rd1 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient, kedaClient, dynamicClient, certClient)
 
 	time.Sleep(2 * time.Millisecond)
@@ -2340,7 +2400,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
 
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	// Setup
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
@@ -2358,7 +2418,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
 	// Secret is initially empty but get filled with data from the API
-	assert.Len(t, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data), 0, "Component secret data is not as expected")
+	assert.Len(t, anyComponentSecret.Data, 0, "Component secret data is not as expected")
 
 	// Will emulate that data is set from the API
 	anySecretValue := "anySecretValue"
@@ -2385,109 +2445,12 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.Background(), metav1.ListOptions{})
 	assert.Len(t, secrets.Items, 1)
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
-	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
-}
-
-func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
-	anyAppName := "any-app"
-	anyComponentName := "frontend"
-	anyEnvironment := "dev"
-	anyLimit := 3
-
-	tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
-	// Current cluster is active cluster
-	deploymentHistoryLimitSetter := func(syncer DeploymentSyncer) {
-		if s, ok := syncer.(*Deployment); ok {
-			newcfg := *s.config
-			newcfg.DeploymentSyncer.DeploymentHistoryLimit = anyLimit
-			s.config = &newcfg
-		}
-	}
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	_, err := applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("firstdeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("seconddeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("thirddeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("fourthdeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
-
-	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("seconddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
-
-	_, err = applyDeploymentWithModifiedSync(tu, client, kubeUtils, radixclient, kedaClient, prometheusclient, certClient,
-		utils.ARadixDeployment().
-			WithDeploymentName("fifthdeployment").
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment).
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")),
-		deploymentHistoryLimitSetter)
-	require.NoError(t, err)
-	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.Background(), metav1.ListOptions{})
-	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
-
-	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
-	assert.False(t, radixDeploymentByNameExists("seconddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
-	assert.True(t, radixDeploymentByNameExists("fifthdeployment", deployments))
-
-	TeardownTest()
+	assert.ElementsMatch(t, []string{"a_secret", "a_third_secret"}, slices.Collect(maps.Keys(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
 func TestMonitoringConfig(t *testing.T) {
 	tu, kubeClient, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	myAppName := "anyappname"
 	myEnvName := "test"
 
@@ -2567,7 +2530,7 @@ func TestMonitoringConfig(t *testing.T) {
 
 func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	var portTestFunc = func(portName string, portNumber int32, ports []corev1.ContainerPort) {
 		port := getPortByName(portName, ports)
 		assert.NotNil(t, port)
@@ -2586,7 +2549,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName("job").
-				WithSchedulerPort(8080)))
+				WithSchedulerPort(new(int32(8080)))))
 	require.NoError(t, err)
 
 	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(context.Background(), metav1.ListOptions{})
@@ -2609,7 +2572,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 		WithJobComponents(
 			utils.NewDeployJobComponentBuilder().
 				WithName("job").
-				WithSchedulerPort(9090)))
+				WithSchedulerPort(new(int32(9090)))))
 	require.NoError(t, err)
 
 	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(context.Background(), metav1.ListOptions{})
@@ -2623,7 +2586,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 
 func TestUseGpuNode(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentName1 := "componentName1"
@@ -2702,7 +2665,7 @@ func TestUseGpuNode(t *testing.T) {
 
 func TestUseGpuNodeOnDeploy(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentName1 := "componentName1"
@@ -2815,7 +2778,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 
 func TestUseGpuNodeCount(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentName1 := "componentName1"
@@ -2912,7 +2875,7 @@ func TestUseGpuNodeCount(t *testing.T) {
 
 func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentName1 := "componentName1"
@@ -3046,7 +3009,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 
 func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
 	componentName := "componentName"
@@ -3115,7 +3078,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 }
 
 func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
-	defer TeardownTest()
+
 	type theoryData struct {
 		name             string
 		builder          utils.DeploymentBuilder
@@ -3138,10 +3101,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 			_, err := client.BatchV1().Jobs(namespace).Create(context.Background(),
 				&batchv1.Job{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: labels,
-					},
+					Name:   name,
+					Labels: labels,
 				},
 				metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3156,10 +3117,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 			_, err := client.CoreV1().Secrets(namespace).Create(context.Background(),
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: labels,
-					},
+					Name:   name,
+					Labels: labels,
 				},
 				metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3174,10 +3133,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 			_, err := client.CoreV1().Services(namespace).Create(context.Background(),
 				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   name,
-						Labels: labels,
-					},
+					Name:   name,
+					Labels: labels,
 				},
 				metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3291,7 +3248,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3308,7 +3265,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("dev").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3325,8 +3282,8 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 		WithAppName("app").
 		WithEnvironment("prod").
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
-			utils.NewDeployJobComponentBuilder().WithName("compute").WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 8000}}),
+			utils.NewDeployJobComponentBuilder().WithName("job").WithSchedulerPort(new(int32(8000))),
+			utils.NewDeployJobComponentBuilder().WithName("compute").WithSchedulerPort(new(int32(8000))),
 		).
 		WithComponents()
 
@@ -3341,7 +3298,7 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 
 func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -3354,14 +3311,14 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.NoError(t, err)
 }
 
 func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -3375,14 +3332,14 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(nil)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(auxErr)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
 func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
@@ -3396,7 +3353,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(1).Return(auxErr)
 	auxResource.EXPECT().Sync(gomock.Any()).Times(0)
 
-	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, &config.Config{})
+	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, config.Config{})
 	err = syncer.OnSync(context.Background())
 	assert.Contains(t, err.Error(), auxErr.Error())
 }
@@ -3404,7 +3361,6 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 	appName, environment, compName := "app", "dev", "comp"
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.NewDeploymentBuilder().
@@ -3435,7 +3391,6 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	appName, environment, jobName := "app", "dev", "job"
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.NewDeploymentBuilder().
@@ -3467,7 +3422,6 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 func Test_ComponentSynced_SecretRefs(t *testing.T) {
 	appName, environment, compName := "app", "dev", "comp"
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.NewDeploymentBuilder().
@@ -3483,8 +3437,8 @@ func Test_ComponentSynced_SecretRefs(t *testing.T) {
 					WithName(compName).
 					WithSecretRefs(
 						radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{
-							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
-							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
+							{Name: "kv1", Path: new("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
+							{Name: "kv2", Path: new("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
 						}},
 					),
 			),
@@ -3505,7 +3459,6 @@ func Test_ComponentSynced_SecretRefs(t *testing.T) {
 func Test_JobSynced_SecretRefs(t *testing.T) {
 	appName, environment, jobName := "app", "dev", "job"
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
 		utils.NewDeploymentBuilder().
@@ -3521,8 +3474,8 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 					WithName(jobName).
 					WithSecretRefs(
 						radixv1.RadixSecretRefs{AzureKeyVaults: []radixv1.RadixAzureKeyVault{
-							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
-							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+							{Name: "kv1", Path: new("/mnt/kv1"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+							{Name: "kv2", Path: new("/mnt/kv2"), Items: []radixv1.RadixAzureKeyVaultItem{{Name: "secret"}}},
 						}},
 					),
 			),
@@ -3546,7 +3499,6 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 func Test_RestartJobManager_RestartsAuxDeployment(t *testing.T) {
 	appName, environment, jobName := "app", "dev", "job"
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	applicationBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))
 	jobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(jobName)
@@ -3602,10 +3554,92 @@ func Test_RestartJobManager_RestartsAuxDeployment(t *testing.T) {
 	}), "Not found restart env var in the job aux deployment")
 }
 
+func Test_JobAuxDeployment_IsDeletedOnlyWhenSelectorMatchLabelsChange(t *testing.T) {
+	const (
+		appName        = "app"
+		environment    = "dev"
+		jobName        = "job"
+		deploymentName = "deployment1"
+	)
+
+	applicationBuilder := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))
+	jobComponentBuilder := utils.NewDeployJobComponentBuilder().WithName(jobName)
+	newDeploymentBuilder := func() utils.DeploymentBuilder {
+		return utils.NewDeploymentBuilder().
+			WithDeploymentName(deploymentName).
+			WithRadixApplication(applicationBuilder).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithJobComponent(jobComponentBuilder)
+	}
+	jobAuxDeploymentName := defaults.GetJobAuxKubeDeployName(jobName)
+
+	t.Run("kept when selector matchlabels are equal", func(t *testing.T) {
+		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+
+		jobAuxDeleteCount := 0
+		kubeclient.PrependReactor("delete", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			deleteAction, ok := action.(k8stesting.DeleteAction)
+			if ok && deleteAction.GetName() == jobAuxDeploymentName {
+				jobAuxDeleteCount++
+			}
+			return false, nil, nil
+		})
+
+		_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		err = applyDeploymentUpdateWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		assert.Equal(t, 0, jobAuxDeleteCount)
+	})
+
+	t.Run("deleted when selector matchlabels do not match", func(t *testing.T) {
+		tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+
+		jobAuxDeleteCount := 0
+		kubeclient.PrependReactor("delete", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			deleteAction, ok := action.(k8stesting.DeleteAction)
+			if ok && deleteAction.GetName() == jobAuxDeploymentName {
+				jobAuxDeleteCount++
+			}
+			return false, nil, nil
+		})
+
+		_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+		jobAuxDeployment, err := kubeclient.AppsV1().Deployments(envNamespace).Get(context.Background(), jobAuxDeploymentName, metav1.GetOptions{})
+		require.NoError(t, err)
+		jobAuxDeployment.Spec.Selector.MatchLabels[kube.RadixAuxiliaryComponentLabel] = "other-job"
+		_, err = kubeclient.AppsV1().Deployments(envNamespace).Update(context.Background(), jobAuxDeployment, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		err = applyDeploymentUpdateWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient, newDeploymentBuilder())
+		require.NoError(t, err)
+
+		assert.Equal(t, 1, jobAuxDeleteCount)
+
+		jobAuxDeployment, err = kubeclient.AppsV1().Deployments(envNamespace).Get(context.Background(), jobAuxDeploymentName, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotEmpty(t, jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel])
+		expectedSelectorMatchLabels := radixlabels.Merge(
+			radixlabels.ForApplicationName(appName),
+			map[string]string{kube.RadixAppIDLabel: jobAuxDeployment.Spec.Template.Labels[kube.RadixAppIDLabel]},
+			radixlabels.ForJobAuxObject(jobName, kube.RadixJobTypeManagerAux),
+		)
+		assert.EqualValues(t, expectedSelectorMatchLabels, jobAuxDeployment.Spec.Selector.MatchLabels)
+	})
+}
+
 func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	appName := "app"
 	anyEnvironment := "test"
 	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
@@ -3617,10 +3651,8 @@ func TestRadixBatch_IsGarbageCollected(t *testing.T) {
 		}
 
 		return &radixv1.RadixBatch{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: lbl,
-			},
+			Name:   name,
+			Labels: lbl,
 		}
 	}
 
@@ -3666,7 +3698,6 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 	ns := utils.GetEnvironmentNamespace(appName, envName)
 
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups(adminGroups).WithAdUsers(adminUsers).WithReaderAdGroups(readerGroups).WithReaderAdUsers(readerUsers)
 	raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(rrBuilder)
@@ -3706,10 +3737,10 @@ func Test_ExternalDNS_ContainsAllResources(t *testing.T) {
 		assert.Empty(t, cert.OwnerReferences)
 		expectedCertSpec := cmv1.CertificateSpec{
 			DNSNames:    []string{fqdn},
-			Duration:    &metav1.Duration{Duration: testConfig.CertificateAutomation.Duration},
-			RenewBefore: &metav1.Duration{Duration: testConfig.CertificateAutomation.RenewBefore},
-			IssuerRef: v1.ObjectReference{
-				Name:  testConfig.CertificateAutomation.GatewayClusterIssuer,
+			Duration:    &metav1.Duration{Duration: testConfig.Common.CertificateAutomation.Issuers["digicert"].Duration},
+			RenewBefore: &metav1.Duration{Duration: testConfig.Common.CertificateAutomation.Issuers["digicert"].RenewBefore},
+			IssuerRef: v1.IssuerReference{
+				Name:  testConfig.Common.CertificateAutomation.Issuers["digicert"].ClusterIssuerName,
 				Kind:  "ClusterIssuer",
 				Group: "cert-manager.io",
 			},
@@ -3763,7 +3794,6 @@ func Test_ExternalDNS_RolesAndBinding_Lifecycle(t *testing.T) {
 	ns := utils.GetEnvironmentNamespace(appName, envName)
 
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	rrBuilder := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"any"}).WithAdUsers([]string{"any"}).WithReaderAdGroups([]string{"any"}).WithReaderAdUsers([]string{"any"})
 	raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(rrBuilder)
@@ -3817,7 +3847,6 @@ func Test_ExternalDNS_RetainSecretData(t *testing.T) {
 	ns := utils.GetEnvironmentNamespace(appName, envName)
 
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	rdBuilder := utils.ARadixDeployment().
 		WithDeploymentName("rd-init").
@@ -3875,7 +3904,7 @@ func Test_ExternalDNS_RetainSecretData(t *testing.T) {
 func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	fqdn := "any.example.com"
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
 		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
@@ -3886,52 +3915,75 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Duration and RenewBefore not below min values
-	cfg := &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "anyissuer",
-			Duration:             10000 * time.Hour,
-			RenewBefore:          1000 * time.Hour,
-		}}
-
+	cfg := config.Config{
+		Common: config.CommonConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          8760 * time.Hour,
+						RenewBefore:       720 * time.Hour,
+					},
+				},
+			},
+		},
+	}
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ := certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
-	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// Duration below min value
-	cfg = &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "anyissuer",
-			Duration:             2159 * time.Hour,
-			RenewBefore:          1000 * time.Hour,
-		}}
+	cfg = config.Config{
+		Common: config.CommonConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          2159 * time.Hour,
+						RenewBefore:       1000 * time.Hour,
+					},
+				},
+			},
+		},
+	}
 
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
 	assert.Equal(t, 2160*time.Hour, cert.Spec.Duration.Duration)
-	assert.Equal(t, cfg.CertificateAutomation.RenewBefore, cert.Spec.RenewBefore.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].RenewBefore, cert.Spec.RenewBefore.Duration)
 
 	// RenewBefore below min value
-	cfg = &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: "anyissuer",
-			Duration:             10000 * time.Hour,
-			RenewBefore:          359 * time.Hour,
-		}}
+	cfg = config.Config{
+		Common: config.CommonConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          10000 * time.Hour,
+						RenewBefore:       359 * time.Hour,
+					},
+				},
+			},
+		},
+	}
 
 	syncer = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
 	require.NoError(t, syncer.OnSync(context.Background()))
 	cert, _ = certClient.CertmanagerV1().Certificates("app-dev").Get(context.Background(), fqdn, metav1.GetOptions{})
-	assert.Equal(t, cfg.CertificateAutomation.Duration, cert.Spec.Duration.Duration)
+	assert.Equal(t, cfg.Common.CertificateAutomation.Issuers["digicert"].Duration, cert.Spec.Duration.Duration)
 	assert.Equal(t, 360*time.Hour, cert.Spec.RenewBefore.Duration)
 }
 
 func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	fqdn := "any.example.com"
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
+
 	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(
 		utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080).WithExternalDNS(radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true}),
@@ -3942,29 +3994,44 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Duration and RenewBefore not below min values
-	cfg := &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			Duration:    10000 * time.Hour,
-			RenewBefore: 1000 * time.Hour,
-		}}
+	cfg := config.Config{
+		Common: config.CommonConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
+				//DefaultIssuer: "digicert",
+				// Issuers: map[string]config.CertificateIssuerConfig{
+				// 	"digicert": {
+				// 		ClusterIssuerName: "digicert-http01-gateway",
+				// 		Duration:          10000 * time.Hour,
+				// 		RenewBefore:       1000 * time.Hour,
+				// 	},
+				// },
+			},
+		},
+	}
 
 	syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, prometheusclient, certClient, rr, rd, nil, cfg)
-	assert.ErrorContains(t, syncer.OnSync(context.Background()), "cluster issuer not set in certificate automation config")
+	assert.ErrorContains(t, syncer.OnSync(context.Background()), "list of issuers is empty in certificate automation config")
 }
 
 func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 	fqdn := "any.example.com"
-	gatewayClusterIssuer := "gateway-issuer"
+	gatewayClusterIssuer := "digicert-http01-gateway"
 	envName := "dev"
 
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
-	cfg := &config.Config{
-		CertificateAutomation: config.CertificateAutomationConfig{
-			GatewayClusterIssuer: gatewayClusterIssuer,
-			Duration:             10000 * time.Hour,
-			RenewBefore:          1000 * time.Hour,
+	cfg := config.Config{
+		Common: config.CommonConfig{
+			CertificateAutomation: config.CertificateAutomationConfig{
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						Duration:          10000 * time.Hour,
+						RenewBefore:       1000 * time.Hour,
+					},
+				},
+			},
 		},
 	}
 
@@ -3992,7 +4059,6 @@ func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
 	ns := utils.GetEnvironmentNamespace(appName, envName)
 
 	tu, kubeclient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
-	defer TeardownTest()
 
 	rdBuilder := utils.ARadixDeployment().
 		WithDeploymentName("rd1").
@@ -4015,8 +4081,8 @@ func Test_ExternalDNS_GarbageCollectResourceNoLongerInSpec(t *testing.T) {
 	// Simulate that cert-manager creates Certificate secrets
 	for _, cert := range certs.Items {
 		_, err := kubeclient.CoreV1().Secrets(ns).Create(context.Background(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: cert.Spec.SecretName, Labels: cert.Spec.SecretTemplate.Labels},
-			Type:       corev1.SecretTypeTLS,
+			Name: cert.Spec.SecretName, Labels: cert.Spec.SecretTemplate.Labels,
+			Type: corev1.SecretTypeTLS,
 		}, metav1.CreateOptions{})
 		require.NoError(t, err)
 	}
@@ -4071,7 +4137,6 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 	for testName, test := range tests {
 		t.Run(testName, func(t *testing.T) {
 			_, kubeclient, kubeUtil, radixclient, _, promClient, _, certClient := SetupTest(t)
-			defer TeardownTest()
 
 			rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
 			rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithImagePullSecrets(test.rdImagePullSecrets).
@@ -4083,9 +4148,7 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 			_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			cfg := &config.Config{
-				ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret},
-			}
+			cfg := config.Config{Common: config.CommonConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg)
 			err = syncer.OnSync(context.Background())
@@ -4127,7 +4190,7 @@ func applyDeploymentWithModifiedSync(tu *test.Utils, kubeclient kubernetes.Inter
 		return nil, err
 	}
 
-	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, &testConfig)
+	deploymentSyncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, testConfig)
 	modifySyncer(deploymentSyncer)
 	err = deploymentSyncer.OnSync(context.Background())
 	if err != nil {
@@ -4150,7 +4213,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, &testConfig)
+	deployment := NewDeploymentSyncer(client, kubeUtil, radixclient, dynamicClient, certClient, radixRegistration, rd, nil, testConfig)
 	err = deployment.OnSync(context.Background())
 	if err != nil {
 		return err
@@ -4169,20 +4232,6 @@ func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, dep
 	envVarsConfigMapName := kube.GetEnvVarsConfigMapName(container.Name)
 	cm, _ := kubeclient.CoreV1().ConfigMaps(deployment.Namespace).Get(context.Background(), envVarsConfigMapName, metav1.GetOptions{})
 	return getEnvVariableByName(name, container.Env, cm)
-}
-
-func radixDeploymentByNameExists(name string, deployments *radixv1.RadixDeploymentList) bool {
-	return getRadixDeploymentByName(name, deployments) != nil
-}
-
-func getRadixDeploymentByName(name string, deployments *radixv1.RadixDeploymentList) *radixv1.RadixDeployment {
-	for _, deployment := range deployments.Items {
-		if deployment.Name == name {
-			return &deployment
-		}
-	}
-
-	return nil
 }
 
 func deploymentByNameExists(name string, deployments []appsv1.Deployment) bool {
@@ -4241,7 +4290,7 @@ func serviceMonitorByNameExists(name string, serviceMonitors *monitoringv1.Servi
 func getServiceMonitorByName(name string, serviceMonitors *monitoringv1.ServiceMonitorList) *monitoringv1.ServiceMonitor {
 	for _, serviceMonitor := range serviceMonitors.Items {
 		if serviceMonitor.Name == name {
-			return serviceMonitor
+			return &serviceMonitor
 		}
 	}
 

@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // GenerateImageTag generates a unique tag for the current build
@@ -25,7 +27,7 @@ func BuildImage(ctx context.Context, dockerfile, imageName, imageTag string) err
 	projectRoot := filepath.Dir(cwd)
 
 	fullImageName := fmt.Sprintf("%s:%s", imageName, imageTag)
-	fmt.Printf("Building image %s...\n", fullImageName)
+	log.Info().Msgf("Building image %s...\n", fullImageName)
 
 	// Build the Docker image from project root
 	buildCmd := exec.CommandContext(ctx, "docker", "build",
@@ -41,14 +43,14 @@ func BuildImage(ctx context.Context, dockerfile, imageName, imageTag string) err
 		return fmt.Errorf("failed to build image %s: %w", fullImageName, err)
 	}
 
-	fmt.Printf("Successfully built %s\n", fullImageName)
+	log.Info().Msgf("Successfully built %s\n", fullImageName)
 	return nil
 }
 
 // RemoveImage removes a Docker image
 func RemoveImage(ctx context.Context, imageName, imageTag string) error {
 	fullImageName := fmt.Sprintf("%s:%s", imageName, imageTag)
-	fmt.Printf("Removing image %s\n", fullImageName)
+	log.Info().Msgf("Removing image %s\n", fullImageName)
 
 	// Remove docker image
 	cmd := exec.CommandContext(ctx, "docker", "image", "rm", fullImageName)
@@ -59,6 +61,6 @@ func RemoveImage(ctx context.Context, imageName, imageTag string) error {
 		return fmt.Errorf("failed to remove image %s: %w", fullImageName, err)
 	}
 
-	fmt.Printf("Successfully removed %s\n", fullImageName)
+	log.Info().Msgf("Successfully removed %s\n", fullImageName)
 	return nil
 }

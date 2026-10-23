@@ -6,38 +6,39 @@ import (
 
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
 const rootPath = "/applications/{appName}"
 
 type secretController struct {
-	*models.DefaultController
+	*controller.DefaultController
 	tlsValidator tlsvalidation.Validator
 }
 
 // NewSecretController Constructor
-func NewSecretController(tlsValidator tlsvalidation.Validator) models.Controller {
+func NewSecretController(tlsValidator tlsvalidation.Validator) controller.Controller {
 	return &secretController{
 		tlsValidator: tlsValidator,
 	}
 }
 
 // GetRoutes List the supported routes of this handler
-func (c *secretController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (c *secretController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/secrets/{secretName}",
 			Method:      "PUT",
 			HandlerFunc: c.ChangeComponentSecret,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/secrets/azure/keyvault/{azureKeyVaultName}",
 			Method:      "GET",
 			HandlerFunc: c.GetAzureKeyVaultSecretVersions,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/environments/{envName}/components/{componentName}/externaldns/{fqdn}/tls",
 			Method:      "PUT",
 			HandlerFunc: c.UpdateComponentExternalDNSTLS,
@@ -47,7 +48,7 @@ func (c *secretController) GetRoutes() models.Routes {
 }
 
 // ChangeComponentSecret Modifies an application environment component secret
-func (c *secretController) ChangeComponentSecret(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *secretController) ChangeComponentSecret(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName}/environments/{envName}/components/{componentName}/secrets/{secretName} environment changeComponentSecret
 	// ---
 	// summary: Update an application environment component secret
@@ -126,7 +127,7 @@ func (c *secretController) ChangeComponentSecret(accounts models.Accounts, w htt
 }
 
 // GetAzureKeyVaultSecretVersions Get Azure Key vault secret versions for a component
-func (c *secretController) GetAzureKeyVaultSecretVersions(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *secretController) GetAzureKeyVaultSecretVersions(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/components/{componentName}/secrets/azure/keyvault/{azureKeyVaultName} environment getAzureKeyVaultSecretVersions
 	// ---
 	// summary: Get Azure Key vault secret versions for a component
@@ -204,7 +205,7 @@ func (c *secretController) GetAzureKeyVaultSecretVersions(accounts models.Accoun
 }
 
 // UpdateComponentExternalDNSTLS Set external DNS TLS private key and certificate for a component
-func (c *secretController) UpdateComponentExternalDNSTLS(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (c *secretController) UpdateComponentExternalDNSTLS(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName}/environments/{envName}/components/{componentName}/externaldns/{fqdn}/tls component updateComponentExternalDnsTls
 	// ---
 	// summary: Set external DNS TLS private key certificate for a component
@@ -282,6 +283,6 @@ func (c *secretController) UpdateComponentExternalDNSTLS(accounts models.Account
 	c.JSONResponse(w, r, "Success")
 }
 
-func (c *secretController) getSecretHandler(accounts models.Accounts) *SecretHandler {
+func (c *secretController) getSecretHandler(accounts accounts.Accounts) *SecretHandler {
 	return Init(WithAccounts(accounts), WithTLSValidator(c.tlsValidator))
 }

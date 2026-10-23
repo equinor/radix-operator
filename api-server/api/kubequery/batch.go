@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-common/net/http"
 	"github.com/equinor/radix-common/utils/slice"
+	"github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -44,7 +44,7 @@ func GetRadixBatches(ctx context.Context, radixClient radixclient.Interface, app
 	if err != nil {
 		return nil, err
 	}
-	return slice.PointersOf(radixBatchList.Items).([]*radixv1.RadixBatch), nil
+	return slice.PointersOf(radixBatchList.Items), nil
 }
 
 // GetRadixBatch Get Radix batch

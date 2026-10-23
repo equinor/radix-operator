@@ -128,14 +128,7 @@ type Job struct {
 	//    "$ref": "#/definitions/ComponentSummary"
 	Components []*deploymentModels.ComponentSummary `json:"components,omitempty"`
 
-	// Enables BuildKit when building Dockerfile.
-	//
-	// required: false
-	// Extensions:
-	// x-nullable: true
-	UseBuildKit *bool `json:"useBuildKit,omitempty"`
-
-	// Defaults to true and requires useBuildKit to have an effect.
+	// Defaults to true.
 	//
 	// required: false
 	// Extensions:

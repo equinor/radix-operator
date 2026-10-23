@@ -13,7 +13,7 @@ func (env *Environment) syncStatus(ctx context.Context, reconcileErr error) erro
 	err := env.updateStatus(ctx, func(currStatus *radixv1.RadixEnvironmentStatus) {
 		now := metav1.NewTime(time.Now().UTC())
 
-		isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
+		isOrphaned := !existsInAppConfig(env.appConfig, env.environment.Spec.EnvName)
 		currStatus.Orphaned = isOrphaned
 		if isOrphaned && currStatus.OrphanedTimestamp == nil {
 			currStatus.OrphanedTimestamp = &now
@@ -22,7 +22,7 @@ func (env *Environment) syncStatus(ctx context.Context, reconcileErr error) erro
 		}
 
 		currStatus.Reconciled = now
-		currStatus.ObservedGeneration = env.config.Generation
+		currStatus.ObservedGeneration = env.environment.Generation
 		if reconcileErr != nil {
 			currStatus.ReconcileStatus = radixv1.RadixEnvironmentReconcileFailed
 			currStatus.Message = reconcileErr.Error()
@@ -38,13 +38,13 @@ func (env *Environment) syncStatus(ctx context.Context, reconcileErr error) erro
 }
 
 func (env *Environment) updateStatus(ctx context.Context, changeStatusFunc func(currStatus *radixv1.RadixEnvironmentStatus)) error {
-	updateObj := env.config.DeepCopy()
+	updateObj := env.environment.DeepCopy()
 	changeStatusFunc(&updateObj.Status)
 	updateObj, err := env.radixclient.RadixV1().RadixEnvironments().UpdateStatus(ctx, updateObj, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
-	env.config = updateObj
+	env.environment = updateObj
 	return nil
 }
 

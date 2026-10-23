@@ -39,7 +39,7 @@ type RuntimeTransformer struct{}
 
 // Transformer implements the mergo.Transformer interface
 func (transformer RuntimeTransformer) Transformer(t reflect.Type) func(dst, src reflect.Value) error {
-	if t != reflect.TypeOf(new(Runtime)) {
+	if t != reflect.TypeFor[*Runtime]() {
 		return nil
 	}
 

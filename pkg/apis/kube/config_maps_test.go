@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	_ "github.com/equinor/radix-operator/pkg/apis/test"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -70,13 +69,11 @@ func (suite *ConfigMapSuite) Test_CreateConfigMap() {
 		namespace := "some-namespace"
 		name := "some-name"
 		configMap, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   name,
-				Labels: labels,
-			}})
+			Name:   name,
+			Labels: labels})
 		assert.Nil(t, err)
 
-		assert.True(t, radixutils.EqualStringMaps(labels, configMap.ObjectMeta.Labels))
+		assert.Equal(t, labels, configMap.ObjectMeta.Labels)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
 	})
@@ -103,10 +100,8 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 		for _, scenario := range scenarios {
 			testEnv := getConfigMapTestEnv()
 			_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   scenario.cmName,
-					Labels: labels,
-				}})
+				Name:   scenario.cmName,
+				Labels: labels})
 			assert.Nil(t, err)
 
 			configMaps, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
@@ -114,7 +109,7 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 
 			assert.Len(t, configMaps.Items, 1)
 			savedConfigMap := configMaps.Items[0]
-			assert.True(t, radixutils.EqualStringMaps(labels, savedConfigMap.ObjectMeta.Labels))
+			assert.Equal(t, labels, savedConfigMap.ObjectMeta.Labels)
 			assert.Equal(t, scenario.cmName, savedConfigMap.ObjectMeta.Name)
 			assert.Equal(t, namespace, savedConfigMap.ObjectMeta.Namespace)
 		}
@@ -129,8 +124,8 @@ func Test_GetConfigMap(t *testing.T) {
 		namespace := "some-namespace"
 		name := "some-name"
 		testConfigMap := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: name},
-			Data:       map[string]string{"key1": "value1", "key2": "value2"},
+			Name: name,
+			Data: map[string]string{"key1": "value1", "key2": "value2"},
 		}
 		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &testConfigMap, metav1.CreateOptions{})
 
@@ -139,7 +134,7 @@ func Test_GetConfigMap(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
-		assert.True(t, radixutils.EqualStringMaps(testConfigMap.Data, configMap.Data))
+		assert.Equal(t, testConfigMap.Data, configMap.Data)
 	})
 }
 
@@ -147,12 +142,12 @@ func Test_ApplyConfigMap(t *testing.T) {
 	namespace := "some-namespace"
 	name := "some-name"
 	currentConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       map[string]string{"key1": "value1", "key2": "value2"},
+		Name: name,
+		Data: map[string]string{"key1": "value1", "key2": "value2"},
 	}
 	desiredConfigMap := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Data:       map[string]string{"key2": "value2changed", "key3": "value3"},
+		Name: name,
+		Data: map[string]string{"key2": "value2changed", "key3": "value3"},
 	}
 
 	t.Run("Patch not existing config-map", func(t *testing.T) {
@@ -179,6 +174,6 @@ func Test_ApplyConfigMap(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, name, configMap.ObjectMeta.Name)
 		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
-		assert.True(t, radixutils.EqualStringMaps(desiredConfigMap.Data, configMap.Data))
+		assert.Equal(t, desiredConfigMap.Data, configMap.Data)
 	})
 }

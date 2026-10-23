@@ -1,117 +1,851 @@
-package config
+package config_test
 
 import (
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	_ "embed"
+
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestMustParse(t *testing.T) {
-	envVars := map[string]string{
-		// Config
-		defaults.LogLevel: "INFO",
-		"LOG_PRETTY":      "true",
-		defaults.OperatorDNSZoneEnvironmentVariable:          "dev.radix.equinor.com",
-		defaults.OperatorClusterTypeEnvironmentVariable:      "development",
-		defaults.ClusternameEnvironmentVariable:              "weekly-e2e",
-		defaults.ContainerRegistryEnvironmentVariable:        "radixdev.azurecr.io",
-		defaults.RadixSafeToRestartBatchJobThresholdVariable: "259200",
+//go:embed testdata/config-happypath.yaml
+var configHappyYaml string
 
-		// Gateway
-		defaults.RadixIngressGatewayNameVariable:        "radix-gateway",
-		defaults.RadixIngressGatewayNamespaceVariable:   "radix-gateway-ns",
-		defaults.RadixIngressGatewaySectionNameVariable: "https",
+//go:embed testdata/config-missing-required.yaml
+var configMissingRequiredYaml string
 
-		// CertificateAutomation
-		defaults.RadixCertificateAutomationGatewayClusterIssuerVariable: "letsencrypt",
-		defaults.RadixCertificateAutomationDurationVariable:             "2160h",
-		defaults.RadixCertificateAutomationRenewBeforeVariable:          "720h",
+type MutateConfigFunc func(*config.Config)
 
-		// PipelineJobConfig
-		defaults.PipelineJobsHistoryLimitEnvironmentVariable:                  "5",
-		defaults.PipelineJobsHistoryPeriodLimitEnvironmentVariable:            "720h",
-		defaults.DeploymentsHistoryLimitEnvironmentVariable:                   "10",
-		defaults.OperatorAppBuilderResourcesLimitsCPUEnvironmentVariable:      "2000m",
-		defaults.OperatorAppBuilderResourcesLimitsMemoryEnvironmentVariable:   "500M",
-		defaults.OperatorAppBuilderResourcesRequestsCPUEnvironmentVariable:    "200m",
-		defaults.OperatorAppBuilderResourcesRequestsMemoryEnvironmentVariable: "500M",
-		defaults.RadixGitCloneGitImageEnvironmentVariable:                     "docker.io/alpine/git:2.45.2",
-		defaults.RadixPipelineImageEnvironmentVariable:                        "radixdev.azurecr.io/radix-pipeline:latest",
+func mutateConfig(t *testing.T, mutate func(*config.Config)) string {
+	t.Helper()
+	var cfg config.Config
+	require.NoError(t, configcodec.Decode([]byte(configHappyYaml), &cfg))
 
-		// DeploymentSyncer
-		defaults.OperatorTenantIdEnvironmentVariable:  "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
-		defaults.KubernetesApiPortEnvironmentVariable: "443",
+	mutate(&cfg)
 
-		// ContainerRegistryConfig
-		defaults.RadixExternalRegistryDefaultAuthEnvironmentVariable: "radix-external-registry-auth",
+	configYaml, err := configcodec.Encode(&cfg)
+	require.NoError(t, err)
 
-		// TaskConfig
-		defaults.RadixOrphanedEnvironmentsRetentionPeriodVariable: "720h",
-		defaults.RadixOrphanedEnvironmentsCleanupCronVariable:     "0 0 * * *",
-	}
-
-	for k, v := range envVars {
-		t.Setenv(k, v)
-	}
-
-	cfg := MustParse()
-
-	// Config top-level fields
-	assert.Equal(t, "INFO", cfg.LogLevel)
-	assert.Equal(t, true, cfg.LogPretty)
-	assert.Equal(t, "dev.radix.equinor.com", cfg.DNSZone)
-	assert.Equal(t, "development", cfg.ClusterType)
-	assert.Equal(t, "weekly-e2e", cfg.ClusterName)
-	assert.Equal(t, "radixdev.azurecr.io", cfg.ContainerRegistryName)
-	assert.Equal(t, int64(259200), cfg.SafeToRestartBatchJobThreshold)
-
-	// Gateway
-	assert.Equal(t, "radix-gateway", cfg.Gateway.Name)
-	assert.Equal(t, "radix-gateway-ns", cfg.Gateway.Namespace)
-	assert.Equal(t, "https", cfg.Gateway.SectionName)
-
-	// CertificateAutomation
-	assert.Equal(t, "letsencrypt", cfg.CertificateAutomation.GatewayClusterIssuer)
-	assert.Equal(t, 2160*time.Hour, cfg.CertificateAutomation.Duration)
-	assert.Equal(t, 720*time.Hour, cfg.CertificateAutomation.RenewBefore)
-
-	// PipelineJobConfig
-	require.NotNil(t, cfg.PipelineJobConfig)
-	assert.Equal(t, 5, cfg.PipelineJobConfig.PipelineJobsHistoryLimit)
-	assert.Equal(t, 720*time.Hour, cfg.PipelineJobConfig.PipelineJobsHistoryPeriodLimit)
-	assert.Equal(t, 10, cfg.PipelineJobConfig.DeploymentsHistoryLimitPerEnvironment)
-	assert.Equal(t, resource.MustParse("2000m"), cfg.PipelineJobConfig.AppBuilderResourcesLimitsCPU.Quantity)
-	assert.Equal(t, resource.MustParse("500M"), cfg.PipelineJobConfig.AppBuilderResourcesLimitsMemory.Quantity)
-	assert.Equal(t, resource.MustParse("200m"), cfg.PipelineJobConfig.AppBuilderResourcesRequestsCPU.Quantity)
-	assert.Equal(t, resource.MustParse("500M"), cfg.PipelineJobConfig.AppBuilderResourcesRequestsMemory.Quantity)
-	assert.Equal(t, "docker.io/alpine/git:2.45.2", cfg.PipelineJobConfig.GitCloneImage)
-	assert.Equal(t, "radixdev.azurecr.io/radix-pipeline:latest", cfg.PipelineJobConfig.PipelineImage)
-
-	// DeploymentSyncer
-	assert.Equal(t, "3aa4a235-b6e2-48d5-9195-7fcf05b459b0", cfg.DeploymentSyncer.TenantID)
-	assert.Equal(t, int32(443), cfg.DeploymentSyncer.KubernetesAPIPort)
-	assert.Equal(t, 10, cfg.DeploymentSyncer.DeploymentHistoryLimit)
-
-	// ContainerRegistryConfig
-	assert.Equal(t, "radix-external-registry-auth", cfg.ContainerRegistryConfig.ExternalRegistryAuthSecret)
-
-	// TaskConfig
-	require.NotNil(t, cfg.TaskConfig)
-	assert.Equal(t, 720*time.Hour, cfg.TaskConfig.OrphanedRadixEnvironmentsRetentionPeriod)
-	assert.Equal(t, "0 0 * * *", cfg.TaskConfig.OrphanedEnvironmentsCleanupCron)
+	return string(configYaml)
 }
 
-func Test_ImagePullSecretsFromDefaultAuth(t *testing.T) {
-	cfg := ContainerRegistryConfig{ExternalRegistryAuthSecret: ""}
-	assert.Len(t, cfg.ImagePullSecretsFromExternalRegistryAuth(), 0)
+func TestParse_HappyPath(t *testing.T) {
+	var cfg = &config.Config{}
+	err := configcodec.Decode([]byte(configHappyYaml), cfg)
+	require.NoError(t, err)
 
-	secretName := "a-secret"
-	cfg = ContainerRegistryConfig{ExternalRegistryAuthSecret: secretName}
-	expected := []corev1.LocalObjectReference{{Name: secretName}}
-	assert.ElementsMatch(t, expected, cfg.ImagePullSecretsFromExternalRegistryAuth())
+	expected := &config.Config{
+		Common: config.CommonConfig{
+			DNSZone:                    "dev.local.radix.equinor.com",
+			ClusterName:                "test-cluster",
+			ClusterType:                "development",
+			AppAliasBaseURL:            "app.dev.radix.equinor.com",
+			ExternalRegistryAuthSecret: "anyExternalAuth",
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				ProxyDefaults: v1.OAuth2{
+					Scope:                  "openid profile email",
+					ProxyPrefix:            "/oauth2",
+					SetXAuthRequestHeaders: new(false),
+					SetAuthorizationHeader: new(false),
+					SessionStoreType:       v1.SessionStoreCookie,
+					Cookie: &v1.OAuth2Cookie{
+						Name:     "_oauth2_proxy",
+						Expire:   "168h0m0s",
+						Refresh:  "60m0s",
+						SameSite: v1.SameSiteLax,
+					},
+					OIDC: &v1.OAuth2OIDC{
+						IssuerURL:     "https://issuer.com",
+						SkipDiscovery: new(false),
+					},
+				},
+			},
+			CertificateAutomation: config.CertificateAutomationConfig{
+				DefaultIssuer: "digicert",
+				Issuers: map[string]config.CertificateIssuerConfig{
+					"digicert": {
+						ClusterIssuerName: "digicert-http01-gateway",
+						RenewBefore:       768 * time.Hour,
+						Duration:          2160 * time.Hour,
+					},
+					"letsencrypt": {
+						ClusterIssuerName: "letsencrypt-http01",
+						RenewBefore:       768 * time.Hour,
+						Duration:          2160 * time.Hour,
+					},
+				},
+			},
+		},
+		Runtime: config.RuntimeConfig{
+			// DefaultArchitecture: "amd64",
+			// SpecialNodeTypes: map[string]config.NodeTypeConfig{
+			// 	"gpu-nvidia-v1": {
+			// 		Description:     "Nvidia GPU node",
+			// 		Architecture:    "amd64",
+			// 		Template:        podTemplateWithNodeSelector(map[string]string{"kubernetes.io/os": "linux", "nodetype": "gpu-nvidia-v1"}),
+			// 		BuilderTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/os": "linux", "nodetype": "gpu-nvidia-v1"}),
+			// 	},
+			// },
+			// Architectures: map[string]config.ArchitectureSpec{
+			// 	"amd64": {
+			// 		Enabled:           true,
+			// 		BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
+			// 		JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
+			// 		ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
+			// 	},
+			// 	"arm64": {
+			// 		Enabled:           false,
+			// 		BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+			// 		JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+			// 		ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
+			// 	},
+			// },
+			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
+								Image: "docker.io/redis:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "session-store",
+								Image: "docker.io/redis:v8.6.0",
+							},
+						},
+					},
+				},
+			},
+			Oauth2ProxyTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:latest",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1001)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "proxy",
+								Image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.0",
+							},
+						},
+					},
+				},
+			},
+			PipelineRunnerTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "radix-pipeline",
+								Image: "ghcr.io/equinor/radix/pipeline:1.0.0",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1000)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "radix-pipeline",
+								Image: "ghcr.io/equinor/radix/pipeline:1.2.0",
+							},
+						},
+					},
+				},
+			},
+		},
+		PipelineRunner: config.PipelineRunnerConfig{
+			ContainerRegistry:      "any.registry.com",
+			CacheContainerRegistry: "app.registry.com",
+			Builder: config.BuilderConfig{
+				Resources: config.Resources{
+					Limits: config.ResourceRequirements{
+						Memory: resource.MustParse("500M"),
+						CPU:    resource.MustParse("2000m"),
+					},
+					Requests: config.ResourceRequirements{
+						Memory: resource.MustParse("500M"),
+						CPU:    resource.MustParse("200m"),
+					},
+				},
+				Image: config.ContainerImage{
+					Repository: "ghcr.io/equinor/radix/buildkit-builder",
+					Tag:        "v3.4.5",
+				},
+				SeccompProfileLocalhostProfile: "anyseccomp.json",
+			},
+			GitCloneImage: config.ContainerImage{
+				Repository: "ghcr.io/equinor/radix-git-clone",
+				Tag:        "v1.0.0",
+			},
+		},
+		Operator: config.OperatorConfig{
+			MetricsPort:                       9000,
+			LogLevel:                          "info",
+			LogPrettyPrint:                    true,
+			UseProfiler:                       false,
+			RegistrationControllerThreads:     1,
+			ApplicationControllerThreads:      2,
+			EnvironmentControllerThreads:      3,
+			DeploymentControllerThreads:       4,
+			JobControllerThreads:              5,
+			AlertControllerThreads:            6,
+			KubeClientRateLimitBurst:          100,
+			KubeClientRateLimitQPS:            50.5,
+			ReadinessProbeInitialDelaySeconds: 5,
+			ReadinessProbePeriodSeconds:       10,
+
+			DeploymentHistoryLimit: 10,
+
+			DefaultRollingUpdateMaxUnavailable: "25%",
+			DefaultRollingUpdateMaxSurge:       "35%",
+
+			DefaultAppAdminGroups: []string{"default-app-admin-group1", "default-app-admin-group2"},
+
+			AppNsLimitRange: config.LimitRangeConfig{
+				DefaultMemory:        new(resource.MustParse("500M")),
+				DefaultRequestMemory: new(resource.MustParse("450M")),
+				DefaultRequestCPU:    new(resource.MustParse("100m")),
+			},
+			EnvNsLimitRange: config.LimitRangeConfig{
+				DefaultMemory:        new(resource.MustParse("555M")),
+				DefaultRequestMemory: new(resource.MustParse("444M")),
+				DefaultRequestCPU:    new(resource.MustParse("111m")),
+			},
+
+			JobSchedulerImage: config.ContainerImage{
+				Repository: "ghcr.io/equinor/radix-job-scheduler",
+				Tag:        "v1.2.3",
+			},
+			JobSchedulerAuxImage: config.ContainerImage{
+				Repository: "docker.io/bash",
+				Tag:        "latest",
+			},
+			PodSecurityStandard: config.PodSecurityStandardConfig{
+				AppNamespace: config.PodSecurityStandardPolicyConfig{
+					Enforce: config.PodSecurityStandardModeConfig{
+						Level:   "app-enforce-level",
+						Version: "app-enforce-version",
+					},
+					Audit: config.PodSecurityStandardModeConfig{
+						Level:   "app-audit-level",
+						Version: "app-audit-version",
+					},
+					Warn: config.PodSecurityStandardModeConfig{
+						Level:   "app-warn-level",
+						Version: "app-warn-version",
+					},
+				},
+				EnvNamespace: config.PodSecurityStandardPolicyConfig{
+					Enforce: config.PodSecurityStandardModeConfig{
+						Level:   "env-enforce-level",
+						Version: "env-enforce-version",
+					},
+					Audit: config.PodSecurityStandardModeConfig{
+						Level:   "env-audit-level",
+						Version: "env-audit-version",
+					},
+					Warn: config.PodSecurityStandardModeConfig{
+						Level:   "env-warn-level",
+						Version: "env-warn-version",
+					},
+				},
+			},
+			BatchSafeToRestartJobThreshold: 1234,
+			AzureKeyVaultTenantID:          "any-tenant-id",
+			KubernetesAPIPort:              443,
+			Gateway: config.GatewayConfig{
+				Name:        "gateway",
+				Namespace:   "istio-system",
+				SectionName: "https",
+			},
+			OrphanedEnvironmentsRetentionPeriod: 720 * time.Hour,
+			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
+			PipelineJobsHistoryLimit:            5,
+			PipelineJobsHistoryPeriodLimit:      720 * time.Hour,
+		},
+		Webhook: config.WebhookConfig{
+			LogLevel:                 "info",
+			LogPrettyPrint:           false,
+			Port:                     9443,
+			MetricsPort:              9000,
+			HealthPort:               9440,
+			RequireGroups:            true,
+			RequireConfigurationItem: true,
+			ReservedDNSAppAliases: map[string]string{
+				"canary":   "radix-canary-golang",
+				"console":  "radix-web-console",
+				"cost-api": "radix-cost-allocation-api",
+				"www":      "radix-public-site",
+			},
+			ReservedDNSAliases:                 []string{"grafana", "prometheus", "app", "playground", "dev", "api", "webhook"},
+			SecretName:                         "radix-webhook-certs",
+			SecretNamespace:                    "default",
+			DisableCertRotation:                false,
+			DNSName:                            "radix-webhook.example.svc",
+			CAName:                             "radix-webhook-ca",
+			CAOrganization:                     "Radix Webhook CA",
+			CertsDir:                           "/run/certs",
+			ExtraDNSNames:                      []string{"helloworld.example.svc"},
+			ValidatingWebhookConfigurationName: "radix-webhook-configuration",
+		},
+		ApiServer: config.ApiServerConfig{
+			Port:               3002,
+			MetricsPort:        9090,
+			UseProfiler:        true,
+			LogLevel:           "info",
+			LogPrettyPrint:     true,
+			ClusterEgressIps:   []string{"IP1", "IP2", "IP3"},
+			ClusterOidcIssuers: []string{"Issuer1", "Issuer2", "Issuer3"},
+			Authenticators: map[string]config.OidcAuthenticatorConfig{
+				"azure": {
+					Issuer:   MustParseUrl("https://fakeissuer.com"),
+					Audience: "fakeAudience",
+				},
+				"kubernetes": {
+					Issuer:   MustParseUrl("https://fakeissuer.com"),
+					Audience: "fakeAudience",
+				},
+			},
+			PrometheusUrl: MustParseUrl("https://prometheus.example.com"),
+			PodNamespace:  "fakePodNamespace",
+		},
+	}
+
+	assert.Equal(t, expected, cfg)
 }
+
+func TestParse_EnvOverride(t *testing.T) {
+	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug")
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "debug", cfg.Operator.LogLevel)
+}
+
+func TestParse_EnvOverrideAuthenticatorByKey(t *testing.T) {
+	t.Setenv("RADIXCONFIG_APISERVER_AUTHENTICATORS_AZURE_AUDIENCE", "overriddenAudience")
+
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "overriddenAudience", cfg.ApiServer.Authenticators["azure"].Audience)
+}
+
+func TestParse_EnvMacro(t *testing.T) {
+	t.Setenv("TEST_KUBERNETES_API_PORT", "6443")
+
+	configYaml := []byte(strings.ReplaceAll(configHappyYaml, "kubernetesAPIPort: 443", `kubernetesAPIPort: $__env(TEST_KUBERNETES_API_PORT)`))
+
+	var cfg config.Config
+	err := configcodec.Decode(configYaml, &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, int32(6443), cfg.Operator.KubernetesAPIPort)
+}
+
+func TestParse_AuthenticatorsValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"one entry should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {
+						Issuer:   MustParseUrl("https://fakeissuer.com"),
+						Audience: "fakeAudience",
+					},
+				}
+			},
+		},
+		"nil entry should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = nil
+			},
+			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
+		},
+		"zero entries should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{}
+			},
+			expectedError: `field "ApiServer.Authenticators" did not pass validation expression`,
+		},
+		"authenticator without issuer should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {Audience: "fakeAudience"},
+				}
+			},
+			expectedError: `field "ApiServer.Authenticators[azure].Issuer" is required but not set`,
+		},
+		"authenticator without audience should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.ApiServer.Authenticators = map[string]config.OidcAuthenticatorConfig{
+					"azure": {Issuer: MustParseUrl("https://fakeissuer.com")},
+				}
+			},
+			expectedError: `field "ApiServer.Authenticators[azure].Audience" is required but not set`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, test.expectedError)
+			assert.Empty(t, cfg)
+		})
+	}
+}
+
+// Only slice fields are comma separated, a scalar keeps the value as it is.
+func TestParse_EnvOverrideDoesNotSplitStrings(t *testing.T) {
+	t.Setenv("RADIXCONFIG_OPERATOR_LOGLEVEL", "debug,info")
+
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "debug,info", cfg.Operator.LogLevel)
+}
+func TestParse_RequiredFieldFromEnvOverride(t *testing.T) {
+	t.Setenv("RADIXCONFIG_COMMON_CLUSTERNAME", "env-cluster")
+	configYamlStr := []byte(strings.ReplaceAll(configHappyYaml, "  clusterName: test-cluster\n", ""))
+
+	var cfg config.Config
+	err := configcodec.Decode(configYamlStr, &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
+}
+
+// A field without an env tag is overridden by the uppercased field path, with dots replaced by underscores.
+func TestParse_EnvOverrideFromFieldPath(t *testing.T) {
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYDEFAULTS_SCOPE", "openid email")
+	t.Setenv("RADIXCONFIG_COMMON_OAUTH2PROXY_PROXYDEFAULTS_COOKIE_NAME", "_custom_cookie")
+
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "openid email", cfg.Common.OAuth2Proxy.ProxyDefaults.Scope)
+	require.NotNil(t, cfg.Common.OAuth2Proxy.ProxyDefaults.Cookie)
+	assert.Equal(t, "_custom_cookie", cfg.Common.OAuth2Proxy.ProxyDefaults.Cookie.Name)
+}
+
+func TestParse_EnvTagTakesPrecedenceOverFieldPath(t *testing.T) {
+	t.Setenv("RADIXCONFIG_COMMON_CLUSTERNAME", "env-cluster")
+
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configHappyYaml), &cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, "env-cluster", cfg.Common.ClusterName)
+}
+
+func TestParse_MissingRequiredField(t *testing.T) {
+	var cfg config.Config
+	err := configcodec.Decode([]byte(configMissingRequiredYaml), &cfg)
+
+	require.Error(t, err)
+	assert.Empty(t, cfg)
+}
+
+func TestParse_DeploymentHistoryLimitValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"below 3 should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.DeploymentHistoryLimit = 2
+			},
+			expectedError: `failed to validate config: field "Operator.DeploymentHistoryLimit" did not pass validation expression`,
+		},
+		"equal to 3 should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.DeploymentHistoryLimit = 3
+			},
+			expectedError: ``,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			} else {
+				require.Error(t, err)
+				assert.Empty(t, cfg)
+				assert.ErrorContains(t, err, test.expectedError)
+			}
+		})
+	}
+
+}
+func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"below 5 minutes should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.OrphanedEnvironmentsRetentionPeriod = 4 * time.Minute
+			},
+			expectedError: `failed to validate config: field "Operator.OrphanedEnvironmentsRetentionPeriod" did not pass validation expression`,
+		},
+		"equal to 5 minutes should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.OrphanedEnvironmentsRetentionPeriod = 5 * time.Minute
+			},
+			expectedError: ``,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			} else {
+				require.Error(t, err)
+				assert.Empty(t, cfg)
+				assert.ErrorContains(t, err, test.expectedError)
+			}
+		})
+	}
+
+}
+
+// func TestParse_RuntimeDefaultArchitectureValidation(t *testing.T) {
+// 	tests := map[string]struct {
+// 		mutateConfig  MutateConfigFunc
+// 		expectedError string
+// 	}{
+// 		"enabled architecture should pass": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "amd64"
+// 			},
+// 		},
+// 		"disabled architecture should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "arm64"
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" did not pass validation expression`,
+// 		},
+// 		"architecture enabled alongside the default should pass": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				arm64 := cfg.Runtime.Architectures["arm64"]
+// 				arm64.Enabled = true
+// 				cfg.Runtime.Architectures["arm64"] = arm64
+// 				cfg.Runtime.DefaultArchitecture = "arm64"
+// 			},
+// 		},
+// 		"architecture not defined as a key should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "s390x"
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" did not pass validation expression`,
+// 		},
+// 		"architecture matching a node type name should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = "gpu-nvidia-v1"
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" did not pass validation expression`,
+// 		},
+// 		"missing default architecture should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.DefaultArchitecture = ""
+// 			},
+// 			expectedError: `field "Runtime.DefaultArchitecture" is required but not set`,
+// 		},
+// 		"empty architectures should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.Architectures = map[string]config.ArchitectureSpec{}
+// 			},
+// 			expectedError: `field "Runtime.Architectures" did not pass validation expression`,
+// 		},
+// 		"omitted architectures should fail": {
+// 			mutateConfig: func(cfg *config.Config) {
+// 				cfg.Runtime.Architectures = nil
+// 			},
+// 			expectedError: `field "Runtime.Architectures" did not pass validation expression`,
+// 		},
+// 	}
+
+// 	for name, test := range tests {
+// 		t.Run(name, func(t *testing.T) {
+// 			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+// 			var cfg config.Config
+// 			err := configcodec.Decode(configYaml, &cfg)
+// 			if test.expectedError == "" {
+// 				require.NoError(t, err)
+// 				return
+// 			}
+
+//				require.Error(t, err)
+//				assert.ErrorContains(t, err, test.expectedError)
+//				assert.Empty(t, cfg)
+//			})
+//		}
+//	}
+func TestParse_CertificateAutomationDefaultIssuerValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"default issuer defined in issuers should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Common.CertificateAutomation.DefaultIssuer = "letsencrypt"
+			},
+			expectedError: ``,
+		},
+		"default issuer not defined in issuers should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Common.CertificateAutomation.DefaultIssuer = "nonexisting"
+			},
+			expectedError: `failed to validate config: field "Common.CertificateAutomation.DefaultIssuer" did not pass validation expression`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Empty(t, cfg)
+			assert.ErrorContains(t, err, test.expectedError)
+		})
+	}
+}
+
+func TestParse_RequiredStructMustNotBeZero(t *testing.T) {
+	configYaml := []byte(mutateConfig(t, func(cfg *config.Config) {
+		cfg.Operator.JobSchedulerImage = config.ContainerImage{}
+	}))
+	var cfg config.Config
+	err := configcodec.Decode(configYaml, &cfg)
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, `field "Operator.JobSchedulerImage" is required but not set`)
+}
+
+func TestParse_FieldValidator(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"repository is required": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.JobSchedulerImage.Repository = ""
+			},
+			expectedError: `field "Operator.JobSchedulerImage" validation failed: repository is required`,
+		},
+		"tag is required": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.JobSchedulerImage.Tag = ""
+			},
+			expectedError: `field "Operator.JobSchedulerImage" validation failed: tag is required`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+
+			require.Error(t, err)
+			assert.Empty(t, cfg)
+			assert.ErrorContains(t, err, test.expectedError)
+		})
+	}
+}
+
+func TestParse_BuilderResourceLimits(t *testing.T) {
+	tests := map[string]struct {
+		modifyConfig MutateConfigFunc
+		errorPath    string
+	}{
+		"equivalent CPU quantities are valid": {
+			modifyConfig: func(cfg *config.Config) {
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("1")
+				cfg.PipelineRunner.Builder.Resources.Requests.CPU = resource.MustParse("1000m")
+			},
+		},
+		"CPU limit below request is invalid": {
+			modifyConfig: func(cfg *config.Config) {
+				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("100m")
+			},
+			errorPath: "PipelineRunner.Builder.Resources",
+		},
+		"memory limit below request is invalid": {
+			modifyConfig: func(cfg *config.Config) {
+				cfg.PipelineRunner.Builder.Resources.Limits.Memory = resource.MustParse("499M")
+			},
+			errorPath: "PipelineRunner.Builder.Resources",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.modifyConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+			if test.errorPath == "" {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Empty(t, cfg)
+			assert.ErrorContains(t, err, test.errorPath)
+		})
+	}
+}
+
+func TestEnvConfigMapReader(t *testing.T) {
+
+	tests := map[string]struct {
+		env       map[string]string
+		configMap *corev1.ConfigMap
+		expectErr bool
+	}{
+		"defaults are used when env vars are not set": {
+			configMap: &corev1.ConfigMap{
+				Name: "radix-common-config", Namespace: "default",
+				Data: map[string]string{"configYaml": configHappyYaml},
+			},
+		},
+		"env vars select namespace, name and key": {
+			env: map[string]string{
+				"POD_NAMESPACE":            "radix-system",
+				"RADIX_COMMON_CONFIG_NAME": "custom-config",
+				"RADIX_COMMON_CONFIG_KEY":  "customKey",
+			},
+			configMap: &corev1.ConfigMap{
+				Name: "custom-config", Namespace: "radix-system",
+				Data: map[string]string{"customKey": configHappyYaml},
+			},
+		},
+		"configmap not found": {
+			configMap: &corev1.ConfigMap{
+				Name: "other-config", Namespace: "default",
+				Data: map[string]string{"configYaml": configHappyYaml},
+			},
+			expectErr: true,
+		},
+		"key not found in configmap": {
+			configMap: &corev1.ConfigMap{
+				Name: "radix-common-config", Namespace: "default",
+				Data: map[string]string{"someOtherKey": configHappyYaml},
+			},
+			expectErr: true,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range test.env {
+				t.Setenv(k, v)
+			}
+			client := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(test.configMap).Build()
+
+			reader, err := config.EnvConfigMapReader(t.Context(), client)
+			if test.expectErr {
+				require.Error(t, err)
+				assert.Empty(t, reader)
+				return
+			}
+			require.NoError(t, err)
+
+			var cfg config.Config
+			err = configcodec.Decode([]byte(reader), &cfg)
+			require.NoError(t, err)
+			assert.Equal(t, "test-cluster", cfg.Common.ClusterName)
+			assert.Equal(t, "info", cfg.Operator.LogLevel)
+		})
+	}
+}
+
+func MustParseUrl(u string) url.URL {
+	x, err := url.Parse(u)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to parse url")
+	}
+	return *x
+}
+
+// func podTemplateWithNodeSelector(selector map[string]string) corev1.PodTemplateSpec {
+// 	return corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeSelector: selector}}
+// }

@@ -1,8 +1,10 @@
 package radixregistration_test
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -10,18 +12,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // Test unique appId validation
 
+var cfg = config.Config{
+	Webhook: config.WebhookConfig{
+		RequireGroups:            true,
+		RequireConfigurationItem: true,
+	},
+}
+
 func Test_valid_rr_returns_true(t *testing.T) {
 	client := test.CreateClient()
 	validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 
-	validator := radixregistration.CreateOnlineValidator(client, true, true)
+	validator := radixregistration.CreateOnlineValidator(client, cfg)
 	warnings, err := validator.Validate(t.Context(), validRR)
 
 	assert.Empty(t, warnings)
@@ -46,6 +54,16 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            nil,
 		},
 		{
+			name: "registration name longer than 40 chars fails",
+			updateRR: func(rr *radixv1.RadixRegistration) {
+				rr.Name = strings.Repeat("a", 41)
+			},
+			requireAdGroups:          false,
+			requireConfigurationItem: false,
+			expectedWarnings:         nil,
+			expectedError:            radixregistration.ErrAppNameTooLong,
+		},
+		{
 			name:                     "required ConfigurationItem is empty fails",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.ConfigurationItem = "" },
 			requireAdGroups:          false,
@@ -54,26 +72,31 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 			expectedError:            radixregistration.ErrConfigurationItemIsRequired,
 		},
 		{
-			name:                     "optional ad groups is empty returns warning",
+			name:                     "optional groups is empty returns warning",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          false,
 			requireConfigurationItem: false,
-			expectedWarnings:         admission.Warnings{radixregistration.WarningAdGroupsShouldHaveAtleastOneItem},
+			expectedWarnings:         admission.Warnings{radixregistration.WarningGroupsShouldHaveAtleastOneItem},
 			expectedError:            nil,
 		},
 		{
-			name:                     "required ad groups is empty fails",
+			name:                     "required groups is empty fails",
 			updateRR:                 func(rr *radixv1.RadixRegistration) { rr.Spec.AdGroups = nil },
 			requireAdGroups:          true,
 			requireConfigurationItem: false,
 			expectedWarnings:         nil,
-			expectedError:            radixregistration.ErrAdGroupIsRequired,
+			expectedError:            radixregistration.ErrGroupIsRequired,
 		},
 	}
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validator := radixregistration.CreateOfflineValidator(testcase.requireAdGroups, testcase.requireConfigurationItem)
+			client := test.CreateClient()
+			c := cfg
+			c.Webhook.RequireGroups = testcase.requireAdGroups
+			c.Webhook.RequireConfigurationItem = testcase.requireConfigurationItem
+
+			validator := radixregistration.CreateOnlineValidator(client, c)
 			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 			testcase.updateRR(validRR)
 			warnings, err := validator.Validate(t.Context(), validRR)
@@ -88,11 +111,36 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 	}
 }
 
+func Test_RegistrationNameLengthLimit(t *testing.T) {
+	t.Run("name length 40 is valid", func(t *testing.T) {
+		client := test.CreateClient()
+		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
+		validRR.Name = strings.Repeat("a", 40)
+
+		validator := radixregistration.CreateOnlineValidator(client, cfg)
+		warnings, err := validator.Validate(t.Context(), validRR)
+
+		assert.NoError(t, err)
+		assert.Empty(t, warnings)
+	})
+
+	t.Run("name length 41 is invalid", func(t *testing.T) {
+		client := test.CreateClient()
+		validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
+		validRR.Name = strings.Repeat("a", 41)
+
+		validator := radixregistration.CreateOnlineValidator(client, cfg)
+		_, err := validator.Validate(t.Context(), validRR)
+
+		assert.ErrorIs(t, err, radixregistration.ErrAppNameTooLong)
+	})
+}
+
 func TestDuplicateAppIDMustFail(t *testing.T) {
 	validRR2 := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
 	client := test.CreateClient("testdata/radixregistration.yaml")
 	validRR2.Name = "duplicate-app-id"
-	validator := radixregistration.CreateOnlineValidator(client, false, false)
+	validator := radixregistration.CreateOnlineValidator(client, cfg)
 
 	_, err := validator.Validate(t.Context(), validRR2)
 
@@ -114,10 +162,8 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with same name owned by same app returns no error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-app",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-app",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 			},
 			expectedError: nil,
@@ -126,10 +172,8 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with same name owned by different app returns error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-app",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "testapp-app",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectedError: radixregistration.ErrEnvironmentNameIsNotAvailable,
@@ -138,9 +182,7 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with same name without radix-app label returns error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "testapp-app",
-					},
+					Name: "testapp-app",
 				},
 			},
 			expectedError: radixregistration.ErrEnvironmentNameIsNotAvailable,
@@ -149,10 +191,8 @@ func TestNamespaceUsableValidator(t *testing.T) {
 			name: "namespace with different name returns no error",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "otherapp-app",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "otherapp-app",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectedError: nil,
@@ -166,7 +206,7 @@ func TestNamespaceUsableValidator(t *testing.T) {
 				require.NoError(t, client.Create(t.Context(), ns))
 			}
 			validRR := test.Load[*radixv1.RadixRegistration]("testdata/radixregistration.yaml")
-			validator := radixregistration.CreateOnlineValidator(client, false, false)
+			validator := radixregistration.CreateOnlineValidator(client, cfg)
 
 			warnings, err := validator.Validate(t.Context(), validRR)
 

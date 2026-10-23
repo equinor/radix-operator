@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-operator/webhook/validation/genericvalidator"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -52,7 +51,7 @@ func (validator *Validator) Validate(ctx context.Context, hr *gatewayapiv1.HTTPR
 func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, route *gatewayapiv1.HTTPRoute) ([]string, []error) {
 		// Only validate HTTPRoute if it is in a namespace managed by radix, otherwise skip validation to avoid blocking non-radix HTTPRoutes
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: route.Namespace}}
+		ns := corev1.Namespace{Name: route.Namespace}
 		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(&ns), &ns); err != nil {
 			log.Ctx(ctx).Error().Err(err).Msgf("failed to get namespace %s", route.Namespace)
 			return nil, []error{fmt.Errorf("failed to get namespace %s: %w", route.Namespace, err)}
@@ -80,7 +79,13 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 		var errs []error
 		for _, incomingHostname := range route.Spec.Hostnames {
-			if !validateHostname(normalizeHostname(incomingHostname), existingHostnames) {
+			normalizedIncomingHostname := normalizeHostname(incomingHostname)
+			if !validateHostnameLabelLength(normalizedIncomingHostname) {
+				errs = append(errs, fmt.Errorf("failed to validate hostname %s: %w", incomingHostname, ErrHostnameLabelTooLong))
+				continue
+			}
+
+			if !validateHostname(normalizedIncomingHostname, existingHostnames) {
 				errs = append(errs, fmt.Errorf("failed to validate hostname %s: %w", incomingHostname, ErrDuplicateHostname))
 			}
 		}
@@ -91,6 +96,19 @@ func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
 
 func normalizeHostname(hostname gatewayapiv1.Hostname) string {
 	return strings.ToLower(string(hostname))
+}
+
+func validateHostnameLabelLength(hostname string) bool {
+	// According to RFC 1035, each label in a hostname must be between 1 and 63 characters long. https://www.rfc-editor.org/info/rfc2181/
+	const maxHostnameLabelLength = 63
+
+	for label := range strings.SplitSeq(hostname, ".") {
+		if len(label) > maxHostnameLabelLength {
+			return false
+		}
+	}
+
+	return true
 }
 
 func validateHostname(incomingHostname string, existing []string) bool {

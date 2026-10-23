@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -26,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 )
 
 const (
@@ -55,7 +53,7 @@ func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Conte
 	}
 
 	// Garbage collect any ListenerSets and HTTPRoutes for external DNS that are no longer in the spec
-	listenersSets := &gatewayapixv1alpha1.XListenerSetList{}
+	listenersSets := &gatewayapiv1.ListenerSetList{}
 	if err := deploy.dynamicClient.List(ctx, listenersSets, client.InNamespace(deploy.radixDeployment.Namespace)); err != nil {
 		return fmt.Errorf("failed to list ListenerSets: %w", err)
 	}
@@ -94,13 +92,13 @@ func (deploy *Deployment) reconcileGatewayResourcesExternalDns(ctx context.Conte
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Context, component radixv1.RadixCommonDeployComponent, ed radixv1.RadixDeployExternalDNS, parentListenerSet gatewayapixv1alpha1.XListenerSet) error {
+func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Context, component radixv1.RadixCommonDeployComponent, ed radixv1.RadixDeployExternalDNS, parentListenerSet gatewayapiv1.ListenerSet) error {
 	logger := log.Ctx(ctx)
 
 	oauth2enabled := component.GetAuthentication().GetOAuth2() != nil
 	logger.Debug().Msgf("Reconciling HTTPRoute for external dns %s. OAuth2 enabled: %t", ed.FQDN, oauth2enabled)
 
-	route := &gatewayapiv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+	route := &gatewayapiv1.HTTPRoute{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, route, func() error {
 
 		lsGVK, err := deploy.dynamicClient.GroupVersionKindFor(&parentListenerSet)
@@ -146,14 +144,14 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 					},
 				},
 			},
-			CommonRouteSpec: gatewayapiv1.CommonRouteSpec{ParentRefs: []gatewayapiv1.ParentReference{
+			ParentRefs: []gatewayapiv1.ParentReference{
 				{
 					Group:     new(gatewayapiv1.Group(lsGVK.Group)),
 					Kind:      new(gatewayapiv1.Kind(lsGVK.Kind)),
 					Name:      gatewayapiv1.ObjectName(parentListenerSet.Name),
 					Namespace: new(gatewayapiv1.Namespace(parentListenerSet.Namespace)),
 				},
-			}},
+			},
 		}
 
 		route.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
@@ -170,24 +168,24 @@ func (deploy *Deployment) createOrUpdateHTTPRouteForExternalDns(ctx context.Cont
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapixv1alpha1.XListenerSet, error) {
+func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Context, ed radixv1.RadixDeployExternalDNS) (gatewayapiv1.ListenerSet, error) {
 	logger := log.Ctx(ctx)
 	logger.Debug().Msgf("Reconciling ListenerSet for %s", ed.FQDN)
 
-	ls := gatewayapixv1alpha1.XListenerSet{ObjectMeta: metav1.ObjectMeta{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}}
+	ls := gatewayapiv1.ListenerSet{Name: ed.FQDN, Namespace: deploy.radixDeployment.Namespace}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, deploy.dynamicClient, &ls, func() error {
 		ls.Labels = kubelabels.Merge(ls.Labels, labels.ForExternalDNSResource(deploy.registration.Name, ed))
-		ls.Spec = gatewayapixv1alpha1.ListenerSetSpec{
-			ParentRef: gatewayapixv1alpha1.ParentGatewayReference{
+		ls.Spec = gatewayapiv1.ListenerSetSpec{
+			ParentRef: gatewayapiv1.ParentGatewayReference{
 				Group:     new(gatewayapiv1.Group(gatewayapiv1.GroupName)),
 				Kind:      new(gatewayapiv1.Kind("Gateway")),
-				Name:      gatewayapiv1.ObjectName(deploy.config.Gateway.Name),
-				Namespace: new(gatewayapiv1.Namespace(deploy.config.Gateway.Namespace)),
+				Name:      gatewayapiv1.ObjectName(deploy.config.Operator.Gateway.Name),
+				Namespace: new(gatewayapiv1.Namespace(deploy.config.Operator.Gateway.Namespace)),
 			},
-			Listeners: []gatewayapixv1alpha1.ListenerEntry{{
-				Name:     gatewayapixv1alpha1.SectionName("https"),
-				Hostname: new(gatewayapixv1alpha1.Hostname(ed.FQDN)),
+			Listeners: []gatewayapiv1.ListenerEntry{{
+				Name:     gatewayapiv1.SectionName("https"),
+				Hostname: new(gatewayapiv1.Hostname(ed.FQDN)),
 				Protocol: gatewayapiv1.HTTPSProtocolType,
 				Port:     443,
 				AllowedRoutes: &gatewayapiv1.AllowedRoutes{
@@ -212,11 +210,11 @@ func (deploy *Deployment) createOrUpdateListenerSetForExternalDns(ctx context.Co
 	})
 
 	if err != nil {
-		return ls, fmt.Errorf("failed to create or update XListenerSet '%s': %w", ls.Name, err)
+		return ls, fmt.Errorf("failed to create or update ListenerSet '%s': %w", ls.Name, err)
 	}
 
 	if op != controllerutil.OperationResultNone {
-		logger.Info().Str("xlistenerset", ls.Name).Str("op", string(op)).Msg("reconcile XListenerSet")
+		logger.Info().Str("listenerset", ls.Name).Str("op", string(op)).Msg("reconcile ListenerSet")
 	}
 
 	return ls, nil
@@ -326,31 +324,36 @@ func (deploy *Deployment) garbageCollectExternalDnsCertificate(ctx context.Conte
 }
 
 func (deploy *Deployment) createOrUpdateExternalDnsCertificate(ctx context.Context, externalDns radixv1.RadixDeployExternalDNS) error {
-	if len(deploy.config.CertificateAutomation.GatewayClusterIssuer) == 0 {
-		return errors.New("gateway cluster issuer not set in certificate automation config")
+	if len(deploy.config.Common.CertificateAutomation.Issuers) == 0 {
+		return fmt.Errorf("external DNS %s: list of issuers is empty in certificate automation config", externalDns.FQDN)
+	}
+	if externalDns.CertificateAutomation == nil && deploy.config.Common.CertificateAutomation.DefaultIssuer == "" {
+		return fmt.Errorf("external DNS %s: issuer is not set and no default issuer is available in certificate automation config", externalDns.FQDN)
 	}
 
-	duration := deploy.config.CertificateAutomation.Duration
-	if duration < minCertDuration {
-		duration = minCertDuration
+	issuer := deploy.config.Common.CertificateAutomation.DefaultIssuer
+	if externalDns.CertificateAutomation != nil {
+		issuer = externalDns.CertificateAutomation.Issuer
 	}
-	renewBefore := deploy.config.CertificateAutomation.RenewBefore
-	if renewBefore < minCertRenewBefore {
-		renewBefore = minCertRenewBefore
+
+	selectedIssuer, ok := deploy.config.Common.CertificateAutomation.Issuers[issuer]
+	if !ok {
+		return fmt.Errorf("external DNS %s: selected issuer %q is not found in the list of issuers in certificate automation config", externalDns.FQDN, issuer)
 	}
+
+	duration := max(selectedIssuer.Duration, minCertDuration)
+	renewBefore := max(selectedIssuer.RenewBefore, minCertRenewBefore)
 
 	certificate := &cmv1.Certificate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      externalDns.FQDN,
-			Namespace: deploy.radixDeployment.Namespace,
-			Labels:    labels.ForExternalDNSResource(deploy.registration.Name, externalDns),
-		},
+		Name:      externalDns.FQDN,
+		Namespace: deploy.radixDeployment.Namespace,
+		Labels:    labels.ForExternalDNSResource(deploy.registration.Name, externalDns),
 		Spec: cmv1.CertificateSpec{
 			DNSNames: []string{externalDns.FQDN},
-			IssuerRef: cmmeta.ObjectReference{
+			IssuerRef: cmmeta.IssuerReference{
 				Group: cm.GroupName,
 				Kind:  cmv1.ClusterIssuerKind,
-				Name:  deploy.config.CertificateAutomation.GatewayClusterIssuer,
+				Name:  selectedIssuer.ClusterIssuerName,
 			},
 			Duration:    &metav1.Duration{Duration: duration},
 			RenewBefore: &metav1.Duration{Duration: renewBefore},
@@ -417,11 +420,9 @@ func (deploy *Deployment) createOrUpdateExternalDnsTlsSecret(ctx context.Context
 			return fmt.Errorf("failed to get current external DNS secret: %w", err)
 		}
 		desiredSecret = &corev1.Secret{
-			Type: corev1.SecretTypeTLS,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: ns,
-			},
+			Type:      corev1.SecretTypeTLS,
+			Name:      secretName,
+			Namespace: ns,
 			Data: map[string][]byte{
 				corev1.TLSCertKey:       nil,
 				corev1.TLSPrivateKeyKey: nil,

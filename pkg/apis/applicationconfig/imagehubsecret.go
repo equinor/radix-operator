@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-common/pkg/docker"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/docker"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) error {
@@ -37,7 +36,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) er
 		return fmt.Errorf("failed to grant reader access to private image hub secret: %w", err)
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(ctx, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppAdminAccessToSecret(ctx, app.cfg, app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		return fmt.Errorf("failed to grant access to private image hub secret: %w", err)
 	}
@@ -46,18 +45,16 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets(ctx context.Context) er
 }
 
 func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Context) (current, desired *corev1.Secret, err error) {
-	ns := utils.GetAppNamespace(app.config.Name)
+	ns := utils.GetAppNamespace(app.application.Name)
 	currentInternal, err := app.kubeutil.GetSecret(ctx, ns, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		if !kubeerrors.IsNotFound(err) {
 			return nil, nil, fmt.Errorf("failed to get private image hub secret: %w", err)
 		}
 		desired = &corev1.Secret{
-			Type: corev1.SecretTypeDockerConfigJson,
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.PrivateImageHubSecretName,
-				Namespace: ns,
-			},
+			Type:      corev1.SecretTypeDockerConfigJson,
+			Name:      defaults.PrivateImageHubSecretName,
+			Namespace: ns,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -65,16 +62,16 @@ func (app *ApplicationConfig) getCurrentAndDesiredImageHubSecret(ctx context.Con
 	}
 
 	desired.Labels = map[string]string{
-		kube.RadixAppLabel: app.config.Name,
+		kube.RadixAppLabel: app.application.Name,
 	}
 	if desired.Annotations == nil {
 		desired.Annotations = map[string]string{}
 	}
 
 	// Set annotation for Kubernetes Replicator
-	desired.Annotations["replicator.v1.mittwald.de/replicate-to-matching"] = fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, app.config.Name)
+	desired.Annotations["replicator.v1.mittwald.de/replicate-to-matching"] = fmt.Sprintf("%s-sync=%s", defaults.PrivateImageHubSecretName, app.application.Name)
 
-	if err := setPrivateImageHubSecretData(desired, app.config.Spec.PrivateImageHubs); err != nil {
+	if err := setPrivateImageHubSecretData(desired, app.application.Spec.PrivateImageHubs); err != nil {
 		return nil, nil, fmt.Errorf("failed to set private image hub data: %w", err)
 	}
 

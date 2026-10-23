@@ -6,15 +6,13 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-common/utils/slice"
 	deployMock "github.com/equinor/radix-operator/api-server/api/deployments/mock"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +27,7 @@ import (
 
 type JobHandlerTestSuite struct {
 	suite.Suite
-	accounts             models.Accounts
+	accounts             accounts.Accounts
 	kubeClient           *kubefake.Clientset
 	radixClient          *radixfake.Clientset
 	secretProviderClient *secretproviderfake.Clientset
@@ -77,7 +75,7 @@ func (s *JobHandlerTestSuite) SetupTest() {
 
 func (s *JobHandlerTestSuite) setupTest() {
 	s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.certClient, s.tektonClient = s.getUtils()
-	accounts := models.NewAccounts(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient, s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient)
+	accounts := accounts.NewAccounts(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient, s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.tektonClient, s.certClient)
 	s.accounts = accounts
 }
 
@@ -98,17 +96,15 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 	step2Name := "step2_name"
 
 	rj := &radixv1.RadixJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: utils.GetAppNamespace(appName),
-		},
+		Name:      jobName,
+		Namespace: utils.GetAppNamespace(appName),
 		Spec: radixv1.RadixJobSpec{
 			Build: radixv1.RadixBuildSpec{
 				GitRef:                someTag,
 				GitRefType:            radixv1.GitRefTag,
 				CommitID:              commitId,
-				OverrideUseBuildCache: pointers.Ptr(true),
-				RefreshBuildCache:     pointers.Ptr(true),
+				OverrideUseBuildCache: new(true),
+				RefreshBuildCache:     new(true),
 			},
 			PipeLineType: pipeline,
 			TriggeredBy:  triggeredBy,
@@ -140,9 +136,7 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 			{Name: comp1Name, Image: comp1Image, Type: comp1Type},
 			{Name: comp2Name, Image: comp2Image, Type: comp2Type},
 		},
-		DeploymentSummaryPipelineJobInfo: deploymentModels.DeploymentSummaryPipelineJobInfo{
-			CreatedByJob: "any_job",
-		},
+		CreatedByJob: "any_job",
 	}
 
 	s.Run("radixjob does not exist", func() {
@@ -188,8 +182,8 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 		s.NotNil(actualJob.RefreshBuildCache)
 		s.True(*actualJob.RefreshBuildCache)
 		s.Equal(triggeredBy, actualJob.TriggeredBy)
-		s.Equal(radixutils.FormatTime(&started), actualJob.Started)
-		s.Equal(radixutils.FormatTime(&ended), actualJob.Ended)
+		s.Equal(started.Format(time.RFC3339), actualJob.Started)
+		s.Equal(ended.Format(time.RFC3339), actualJob.Ended)
 		s.Equal(string(pipeline), actualJob.Pipeline)
 		s.ElementsMatch(deployList, actualJob.Deployments)
 
@@ -210,7 +204,7 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 }
 
 func (s *JobHandlerTestSuite) Test_GetApplicationJob_Created() {
-	appName, emptyTime := "any_app", metav1.Time{}
+	appName := "any_app"
 	scenarios := []jobCreatedScenario{
 		{scenarioName: "both creation time and status.Created is empty", jobName: "job1", expectedCreated: ""},
 		{scenarioName: "use CreationTimeStamp", jobName: "job2", expectedCreated: "2020-01-01T00:00:00Z", creationTimestamp: metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))},
@@ -225,8 +219,8 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob_Created() {
 			dh := deployMock.NewMockDeployHandler(ctrl)
 			dh.EXPECT().GetDeploymentsForPipelineJob(context.Background(), gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 			h := Init(s.accounts, dh)
-			rj := radixv1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: scenario.jobName, Namespace: utils.GetAppNamespace(appName), CreationTimestamp: scenario.creationTimestamp}}
-			if scenario.jobStatusCreated != emptyTime {
+			rj := radixv1.RadixJob{Name: scenario.jobName, Namespace: utils.GetAppNamespace(appName), CreationTimestamp: scenario.creationTimestamp}
+			if !scenario.jobStatusCreated.IsZero() {
 				rj.Status.Created = &scenario.jobStatusCreated
 			}
 			_, err := s.radixClient.RadixV1().RadixJobs(rj.Namespace).Create(context.Background(), &rj, metav1.CreateOptions{})
@@ -257,9 +251,9 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob_Status() {
 			dh.EXPECT().GetDeploymentsForPipelineJob(context.Background(), gomock.Any(), gomock.Any()).Return(nil, nil).Times(1)
 			h := Init(s.accounts, dh)
 			rj := radixv1.RadixJob{
-				ObjectMeta: metav1.ObjectMeta{Name: scenario.jobName, Namespace: utils.GetAppNamespace(appName)},
-				Spec:       radixv1.RadixJobSpec{Stop: scenario.stop},
-				Status:     radixv1.RadixJobStatus{Condition: scenario.condition},
+				Name: scenario.jobName, Namespace: utils.GetAppNamespace(appName),
+				Spec:   radixv1.RadixJobSpec{Stop: scenario.stop},
+				Status: radixv1.RadixJobStatus{Condition: scenario.condition},
 			}
 
 			_, err := s.radixClient.RadixV1().RadixJobs(rj.Namespace).Create(context.Background(), &rj, metav1.CreateOptions{})
@@ -294,15 +288,19 @@ func (s *JobHandlerTestSuite) TestJobHandler_RerunJob() {
 
 			if tt.existingJob != nil {
 				_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixJobs(namespace).Create(context.Background(), &radixv1.RadixJob{
-					ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: tt.existingJob.name},
-					Spec:       radixv1.RadixJobSpec{Stop: tt.existingJob.stop},
-					Status:     radixv1.RadixJobStatus{Condition: tt.existingJob.condition},
+					Namespace: namespace, Name: tt.existingJob.name,
+					Spec:   radixv1.RadixJobSpec{Stop: tt.existingJob.stop},
+					Status: radixv1.RadixJobStatus{Condition: tt.existingJob.condition},
 				}, metav1.CreateOptions{})
 				s.NoError(err)
 			}
 
-			err := jh.RerunJob(context.Background(), appName, tt.jobNameToRerun)
+			jobSummary, err := jh.RerunJob(context.Background(), appName, tt.jobNameToRerun)
 			s.Equal(tt.expectedError, err)
+			if tt.expectedError == nil {
+				s.NotNil(jobSummary)
+				s.NotEmpty(jobSummary.Name)
+			}
 		})
 	}
 }
@@ -330,9 +328,9 @@ func (s *JobHandlerTestSuite) TestJobHandler_StopJob() {
 			jh := s.getJobHandler(dh)
 			if tt.existingJob != nil {
 				_, err := s.accounts.UserAccount.RadixClient.RadixV1().RadixJobs(namespace).Create(context.Background(), &radixv1.RadixJob{
-					ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: tt.existingJob.name},
-					Spec:       radixv1.RadixJobSpec{Stop: tt.existingJob.stop},
-					Status:     radixv1.RadixJobStatus{Condition: tt.existingJob.condition},
+					Namespace: namespace, Name: tt.existingJob.name,
+					Spec:   radixv1.RadixJobSpec{Stop: tt.existingJob.stop},
+					Status: radixv1.RadixJobStatus{Condition: tt.existingJob.condition},
 				}, metav1.CreateOptions{})
 				s.NoError(err)
 			}

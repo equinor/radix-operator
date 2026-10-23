@@ -21,8 +21,8 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 
 	networkPolicies := []*v1.NetworkPolicy{
-		defaultIngressNetworkPolicy(appName, env, owner, deploy.config.Gateway.Name),
-		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.DeploymentSyncer.KubernetesAPIPort),
+		defaultIngressNetworkPolicy(appName, env, owner, deploy.config.Operator.Gateway.Name),
+		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.config.Operator.KubernetesAPIPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
 	}
 
@@ -40,14 +40,12 @@ func (deploy *Deployment) setDefaultNetworkPolicies(ctx context.Context) error {
 // ref https://github.com/ahmetb/kubernetes-network-policy-recipes/blob/master/04-deny-traffic-from-other-namespaces.md
 func defaultIngressNetworkPolicy(appName, env string, owner []metav1.OwnerReference, gatewayName string) *v1.NetworkPolicy {
 	np := v1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "radix-deny-traffic-from-other-ns",
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-				kube.RadixEnvLabel: env,
-			},
-			OwnerReferences: owner,
+		Name: "radix-deny-traffic-from-other-ns",
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+			kube.RadixEnvLabel: env,
 		},
+		OwnerReferences: owner,
 		Spec: v1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{},
 			Ingress: []v1.NetworkPolicyIngressRule{
@@ -106,14 +104,12 @@ func allowEgressNetworkByPortPolicy(policyName string, targetLabelKey string, ta
 	}
 
 	np := v1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: policyName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-				kube.RadixEnvLabel: env,
-			},
-			OwnerReferences: owner,
+		Name: policyName,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+			kube.RadixEnvLabel: env,
 		},
+		OwnerReferences: owner,
 		Spec: v1.NetworkPolicySpec{
 			PolicyTypes: []v1.PolicyType{v1.PolicyTypeEgress},
 			PodSelector: metav1.LabelSelector{

@@ -37,7 +37,7 @@ type externalDnsTestSuite struct {
 	suite.Suite
 	tlsValidator         *tlsvalidationmock.MockValidator
 	commonTestUtils      *commontest.Utils
-	environmentTestUtils *controllertest.Utils
+	environmentTestUtils *controllertest.TestUtils
 	kubeClient           kubernetes.Interface
 	certClient           *certclientfake.Clientset
 	appName              string
@@ -126,9 +126,7 @@ func (s *externalDnsTestSuite) Test_ExternalDNS_Consistent() {
 
 	_, err := s.kubeClient.CoreV1().Secrets(s.appName+"-"+s.environmentName).Create(context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: s.alias,
-			},
+			Name: s.alias,
 			Data: map[string][]byte{
 				corev1.TLSPrivateKeyKey: keyBytes,
 				corev1.TLSCertKey:       certBytes,
@@ -167,9 +165,7 @@ func (s *externalDnsTestSuite) Test_ExternalDNS_MissingPrivateKeyData() {
 
 	_, err := s.kubeClient.CoreV1().Secrets(s.appName+"-"+s.environmentName).Create(context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: s.alias,
-			},
+			Name: s.alias,
 			Data: map[string][]byte{
 				corev1.TLSPrivateKeyKey: nil,
 				corev1.TLSCertKey:       certBytes,
@@ -197,9 +193,7 @@ func (s *externalDnsTestSuite) Test_ExternalDNS_MissingCertData() {
 
 	_, err := s.kubeClient.CoreV1().Secrets(s.appName+"-"+s.environmentName).Create(context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: s.alias,
-			},
+			Name: s.alias,
 			Data: map[string][]byte{
 				corev1.TLSPrivateKeyKey: keyBytes,
 				corev1.TLSCertKey:       nil,
@@ -234,9 +228,7 @@ func (s *externalDnsTestSuite) Test_ExternalDNS_CertDataValidationError() {
 
 	_, err := s.kubeClient.CoreV1().Secrets(s.appName+"-"+s.environmentName).Create(context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: s.alias,
-			},
+			Name: s.alias,
 			Data: map[string][]byte{
 				corev1.TLSPrivateKeyKey: keyBytes,
 				corev1.TLSCertKey:       certBytes,

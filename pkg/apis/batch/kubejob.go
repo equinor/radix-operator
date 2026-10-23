@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/numbers"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -106,7 +104,7 @@ func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *r
 
 func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) error {
 	for _, jobToDelete := range jobsToDelete {
-		err := s.kubeClient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(ctx, jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
+		err := s.kubeClient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(ctx, jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: new(metav1.DeletePropagationBackground)})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -136,7 +134,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	if batchJob.SafeToRestart != nil {
 		safeToRestart = batchJob.SafeToRestart
 	}
-	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config.SafeToRestartBatchJobThreshold)
+	podAnnotations := getSafeToRestartAnnotations(safeToRestart, timeLimitSeconds, s.config.Operator.BatchSafeToRestartJobThreshold)
 
 	node := jobComponent.GetNode()
 	if batchJob.Node != nil { // nolint:staticcheck // SA1019: Ignore linting deprecated fields
@@ -154,7 +152,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 		backoffLimit = batchJob.BackoffLimit
 	}
 	if backoffLimit == nil {
-		backoffLimit = numbers.Int32Ptr(0)
+		backoffLimit = new(int32(0))
 	}
 
 	failurePolicy := operatorUtils.GetPodFailurePolicy(jobComponent.FailurePolicy)
@@ -166,15 +164,14 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	volumes = s.appendPayloadSecretVolumes(batchJob, jobComponent, volumes)
 
 	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            kubeJobName,
-			Labels:          jobLabels,
-			OwnerReferences: ownerReference(s.radixBatch),
-			Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
-		},
+		Name:            kubeJobName,
+		Labels:          jobLabels,
+		OwnerReferences: ownerReference(s.radixBatch),
+		Annotations:     annotations.ForKubernetesDeploymentObservedGeneration(rd),
 		Spec: batchv1.JobSpec{
-			BackoffLimit:     backoffLimit,
-			PodFailurePolicy: failurePolicy,
+			BackoffLimit:            backoffLimit,
+			TTLSecondsAfterFinished: new(int32(86400)),
+			PodFailurePolicy:        failurePolicy,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
@@ -193,16 +190,19 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),
 				},
 			},
-			TTLSecondsAfterFinished: pointers.Ptr(int32(86400)), // delete completed job after 24 hours
 		},
 	}
 	return job, nil
 }
 
 func (s *syncer) getJobPodImagePullSecrets(rd *radixv1.RadixDeployment) []corev1.LocalObjectReference {
+	if s.config.Common.ExternalRegistryAuthSecret == "" {
+		return rd.Spec.ImagePullSecrets
+	}
+
 	return append(
 		rd.Spec.ImagePullSecrets,
-		s.config.ContainerRegistryConfig.ImagePullSecretsFromExternalRegistryAuth()...,
+		corev1.LocalObjectReference{Name: s.config.Common.ExternalRegistryAuthSecret},
 	)
 }
 
@@ -212,12 +212,10 @@ func (s *syncer) appendPayloadSecretVolumes(batchJob *radixv1.RadixBatchJob, rad
 	}
 	return append(volumes, corev1.Volume{
 		Name: jobPayloadVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: batchJob.PayloadSecretRef.Name,
-				Items: []corev1.KeyToPath{
-					{Key: batchJob.PayloadSecretRef.Key, Path: "payload"},
-				},
+		Secret: &corev1.SecretVolumeSource{
+			SecretName: batchJob.PayloadSecretRef.Name,
+			Items: []corev1.KeyToPath{
+				{Key: batchJob.PayloadSecretRef.Key, Path: "payload"},
 			},
 		},
 	})
@@ -304,7 +302,7 @@ func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv
 }
 
 func (s *syncer) getContainerEnvironmentVariables(ctx context.Context, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob, kubeJobName string) ([]corev1.EnvVar, error) {
-	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, &s.config, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
+	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(ctx, s.kubeUtil, s.config, rd.Spec.AppName, rd, jobComponent) //nolint:staticcheck
 	if err != nil {
 		return nil, err
 	}
@@ -321,6 +319,7 @@ func applyBatchJobEnvironmentVariables(batchJob *radixv1.RadixBatchJob, componen
 	for i, componentEnvVar := range componentEnvVars {
 		if jobEnvVarValue, ok := batchJob.Variables[componentEnvVar.Name]; ok {
 			componentEnvVars[i].Value = jobEnvVarValue
+			componentEnvVars[i].ValueFrom = nil
 			appliedJobEnvVarNames[componentEnvVar.Name] = struct{}{}
 		}
 	}
@@ -334,10 +333,10 @@ func applyBatchJobEnvironmentVariables(batchJob *radixv1.RadixBatchJob, componen
 
 func (s *syncer) getContainerResources(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) (corev1.ResourceRequirements, error) {
 	if batchJob.Resources != nil {
-		return operatorUtils.BuildResourceRequirement(batchJob.Resources)
+		return operatorUtils.BuildResourceRequirement(s.config, batchJob.Resources)
 	}
 
-	return operatorUtils.GetResourceRequirements(jobComponent)
+	return operatorUtils.GetResourceRequirements(s.config, jobComponent)
 }
 
 func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []corev1.ContainerPort {

@@ -36,7 +36,7 @@ func ConstructForTargetEnvironment(ctx context.Context, pipelineInfo *model.Pipe
 	}
 	componentImages := pipelineInfo.DeployEnvironmentComponentImages[targetEnv.Environment]
 
-	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, targetEnv.ActiveRadixDeployment, targetEnv.Environment, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents)
+	deployComponents, err := deployment.GetRadixComponentsForEnv(ctx, pipelineInfo.RadixApplication, targetEnv.ActiveRadixDeployment, targetEnv.Environment, componentImages, defaultEnvVars, preservingDeployComponents.DeployComponents, pipelineInfo.Cfg.Common.CertificateAutomation.DefaultIssuer)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +78,26 @@ func GetGitRefNameFromDeployment(rd *radixv1.RadixDeployment) string {
 	return rd.Annotations[kube.RadixBranchAnnotation]
 }
 
+func GetGitRefTypeFromDeployment(rd *radixv1.RadixDeployment) string {
+	if rd == nil {
+		return ""
+	}
+
+	if refType, ok := rd.Annotations[kube.RadixGitRefTypeAnnotation]; ok && len(refType) > 0 {
+		return refType
+	}
+
+	return string(radixv1.GitRefBranch)
+}
+
+func GetGitTagsFromDeployment(rd *radixv1.RadixDeployment) string {
+	if rd == nil {
+		return ""
+	}
+
+	return rd.Annotations[kube.RadixGitTagsAnnotation]
+}
+
 func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, gitTags string, components []radixv1.RadixDeployComponent, jobs []radixv1.RadixDeployJobComponent, radixConfigHash, buildSecretHash string) *radixv1.RadixDeployment {
 	radixApplication := pipelineInfo.RadixApplication
 	appName := radixApplication.GetName()
@@ -96,25 +116,22 @@ func constructRadixDeployment(pipelineInfo *model.PipelineInfo, env, commitID, g
 		kube.RadixCommitAnnotation:     commitID,
 		kube.RadixBuildSecretHash:      buildSecretHash,
 		kube.RadixConfigHash:           radixConfigHash,
-		kube.RadixUseBuildKit:          strconv.FormatBool(pipelineInfo.IsUsingBuildKit()),
 		kube.RadixUseBuildCache:        strconv.FormatBool(pipelineInfo.IsUsingBuildCache()),
 		kube.RadixRefreshBuildCache:    strconv.FormatBool(pipelineInfo.IsRefreshingBuildCache()),
 	}
 
 	radixDeployment := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deployName,
-			Namespace: utils.GetEnvironmentNamespace(appName, env),
-			Labels: map[string]string{
-				kube.RadixAppLabel:     appName,
-				kube.RadixEnvLabel:     env,
-				kube.RadixCommitLabel:  commitID,
-				kube.RadixJobNameLabel: jobName,
-			},
-			Annotations: deploymentAnnotations,
+		Name:      deployName,
+		Namespace: utils.GetEnvironmentNamespace(appName, env),
+		Labels: map[string]string{
+			kube.RadixAppLabel:     appName,
+			kube.RadixEnvLabel:     env,
+			kube.RadixCommitLabel:  commitID,
+			kube.RadixJobNameLabel: jobName,
 		},
+		Annotations: deploymentAnnotations,
 		Spec: radixv1.RadixDeploymentSpec{
-			AppName:          appName,
+			AppName:          appName, //nolint:staticcheck
 			Environment:      env,
 			Components:       components,
 			Jobs:             jobs,

@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/equinor/radix-common/utils"
 )
 
 // GetLogParams Gets parameters for a log output
@@ -21,7 +19,7 @@ func GetLogParams(r *http.Request) (since time.Time, asFile bool, asFollow bool,
 
 	if !strings.EqualFold(strings.TrimSpace(sinceTime), "") {
 		var err error
-		since, err = utils.ParseTimestamp(sinceTime)
+		since, err = time.Parse(time.RFC3339, sinceTime)
 		if err != nil {
 			errs = append(errs, err)
 		}

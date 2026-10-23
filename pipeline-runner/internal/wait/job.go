@@ -47,7 +47,7 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 	jobsInformer := kubeInformerFactory.Batch().V1().Jobs().Informer()
 
 	_, _ = jobsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			currJob, success := cur.(*batchv1.Job)
 			if success && currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
 				switch {
@@ -58,7 +58,7 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 				}
 			}
 		},
-		DeleteFunc: func(old interface{}) {
+		DeleteFunc: func(old any) {
 			currJob, converted := old.(*batchv1.Job)
 			if !converted {
 				log.Ctx(ctx).Error().Msg("Job object cast failed during deleted event received.")
@@ -72,7 +72,7 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 
 	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
 	_, _ = podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
+		UpdateFunc: func(old, cur any) {
 			pod, success := cur.(*corev1.Pod)
 			if success && job.GetNamespace() == pod.GetNamespace() &&
 				pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() &&
@@ -83,7 +83,7 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 				}
 			}
 		},
-		DeleteFunc: func(old interface{}) {
+		DeleteFunc: func(old any) {
 			pod, converted := old.(*corev1.Pod)
 			if !converted {
 				log.Ctx(ctx).Error().Msg("Pod object cast failed during deleted event received.")

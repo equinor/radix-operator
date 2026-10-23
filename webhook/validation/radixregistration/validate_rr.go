@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -11,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -25,22 +25,14 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*radixv1.RadixRegistration] = &Validator{}
 
-func CreateOnlineValidator(client client.Client, requireAdGroups, requireConfigurationItem bool) *Validator {
+func CreateOnlineValidator(client client.Client, cfg config.Config) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
+			createAppNameLengthValidator(),
 			createRequireUniqueAppIdValidator(client),
-			createRequireAdGroupsValidator(requireAdGroups),
-			CreateRequireConfigurationItemValidator(requireConfigurationItem),
+			createRequireGroupsValidator(cfg.Webhook.RequireGroups),
+			CreateRequireConfigurationItemValidator(cfg.Webhook.RequireConfigurationItem),
 			createNamespaceUsableValidator(client),
-		},
-	}
-}
-
-func CreateOfflineValidator(requireAdGroups, requireConfigurationItem bool) Validator {
-	return Validator{
-		validators: []validatorFunc{
-			createRequireAdGroupsValidator(requireAdGroups),
-			CreateRequireConfigurationItemValidator(requireConfigurationItem),
 		},
 	}
 }
@@ -61,15 +53,25 @@ func (validator *Validator) Validate(ctx context.Context, rr *radixv1.RadixRegis
 	return wrns, errors.Join(errs...)
 }
 
-// RequireAdGroups validates that AdGroups contains minimum one item
-func createRequireAdGroupsValidator(required bool) validatorFunc {
+func createAppNameLengthValidator() validatorFunc {
+	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
+		const maxApplicationNameLength = 40
+		if len(rr.Name) > maxApplicationNameLength {
+			return "", ErrAppNameTooLong
+		}
+
+		return "", nil
+	}
+}
+
+func createRequireGroupsValidator(required bool) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		if len(rr.Spec.AdGroups) == 0 && required {
-			return "", ErrAdGroupIsRequired
+			return "", ErrGroupIsRequired
 		}
 
 		if len(rr.Spec.AdGroups) == 0 && !required {
-			return WarningAdGroupsShouldHaveAtleastOneItem, nil
+			return WarningGroupsShouldHaveAtleastOneItem, nil
 		}
 
 		return "", nil
@@ -112,8 +114,7 @@ func createRequireUniqueAppIdValidator(client client.Client) validatorFunc {
 func createNamespaceUsableValidator(kubeClient client.Client) validatorFunc {
 	return func(ctx context.Context, rr *radixv1.RadixRegistration) (string, error) {
 		envNs := utils.GetEnvironmentNamespace(rr.Name, "app")
-
-		existingNamespace := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: envNs}}
+		existingNamespace := &corev1.Namespace{Name: envNs}
 		if err := kubeClient.Get(ctx, client.ObjectKeyFromObject(existingNamespace), existingNamespace); err != nil {
 			if k8sErrors.IsNotFound(err) {
 				return "", nil // Namespace does not exist, so it is usable

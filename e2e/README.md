@@ -2,6 +2,16 @@
 
 This directory contains end-to-end (e2e) integration tests for the Radix Operator. These tests create a Kind cluster, build and load Docker images, install the Helm chart, and run integration tests against it.
 
+## Updating charts:
+
+```shell
+curl https://github.com/prometheus-operator/prometheus-operator/releases/download/v0.82.0/stripped-down-crds.yaml -L 
+ > internal/prometheus-operator-stripped-down-crds.yaml
+
+curl https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml -L > ../internal/g
+ateway-api-standard-install.yaml
+```
+
 ## Features
 
 - **Automated Image Building**: Builds `radix-operator`, `radix-webhook`, and `radix-job-scheduler` images with unique tags

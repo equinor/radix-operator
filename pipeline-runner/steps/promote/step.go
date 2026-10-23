@@ -56,18 +56,18 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 		return err
 	}
 
-	log.Ctx(ctx).Info().Msgf("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
+	log.Ctx(ctx).Info().Msgf("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.PromoteDeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.PromoteFromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
 	err = areArgumentsValid(pipelineInfo.PipelineArguments)
 	if err != nil {
 		return err
 	}
 
-	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
+	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.PromoteFromEnvironment)
 	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
 	_, err = cli.GetKubeClient().CoreV1().Namespaces().Get(ctx, fromNs, metav1.GetOptions{})
 	if err != nil {
-		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
+		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.PromoteFromEnvironment)
 	}
 
 	_, err = cli.GetKubeClient().CoreV1().Namespaces().Get(ctx, toNs, metav1.GetOptions{})
@@ -75,9 +75,9 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
 
-	rd, err := cli.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	rd, err := cli.GetRadixClient().RadixV1().RadixDeployments(fromNs).Get(ctx, pipelineInfo.PipelineArguments.PromoteDeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
+		return NonExistingDeployment(pipelineInfo.PipelineArguments.PromoteDeploymentName)
 	}
 
 	radixDeployment = rd.DeepCopy()
@@ -93,7 +93,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	}
 
 	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation] = rd.GetName()
-	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.FromEnvironment
+	radixDeployment.Annotations[kube.RadixDeploymentPromotedFromEnvironmentAnnotation] = pipelineInfo.PipelineArguments.PromoteFromEnvironment
 
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
@@ -101,7 +101,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment])
+	err = mergeWithRadixApplication(ctx, radixApplication, activeRadixDeployment, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.DeployEnvironmentComponentImages[pipelineInfo.PipelineArguments.ToEnvironment], pipelineInfo.Cfg.Common.CertificateAutomation.DefaultIssuer)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (cli *PromoteStepImplementation) Run(ctx context.Context, pipelineInfo *mod
 }
 
 func areArgumentsValid(arguments model.PipelineArguments) error {
-	if arguments.FromEnvironment == "" {
+	if arguments.PromoteFromEnvironment == "" {
 		return EmptyArgument("From environment")
 	}
 
@@ -122,7 +122,7 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 		return EmptyArgument("To environment")
 	}
 
-	if arguments.DeploymentName == "" {
+	if arguments.PromoteDeploymentName == "" {
 		return EmptyArgument("Deployment name")
 	}
 
@@ -137,9 +137,9 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 	return nil
 }
 
-func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages) error {
+func mergeWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, componentImages pipeline.DeployComponentImages, defaultIssuer string) error {
 	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
-	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages); err != nil {
+	if err := mergeComponentsWithRadixApplication(ctx, radixConfig, activeRadixDeployment, radixDeployment, environment, defaultEnvVars, componentImages, defaultIssuer); err != nil {
 		return err
 	}
 
@@ -177,8 +177,8 @@ func mergeJobComponentsWithRadixApplication(ctx context.Context, radixConfig *v1
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil)
+func mergeComponentsWithRadixApplication(ctx context.Context, radixConfig *v1.RadixApplication, activeRadixDeployment, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap, componentImages pipeline.DeployComponentImages, defaultIssuer string) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(ctx, radixConfig, activeRadixDeployment, environment, componentImages, defaultEnvVars, nil, defaultIssuer)
 	if err != nil {
 		return err
 	}

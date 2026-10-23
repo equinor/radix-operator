@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs"
 	"github.com/equinor/radix-operator/job-scheduler/api/v1/handlers/jobs/mock"
 	"github.com/equinor/radix-operator/job-scheduler/internal/test"
@@ -33,8 +32,8 @@ func TestGetJobs(t *testing.T) {
 		jobHandler := mock.NewMockJobHandler(ctrl)
 		jobState := modelsV1.JobStatus{
 			Name:    "jobname",
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		ctx := context.Background()
@@ -99,8 +98,8 @@ func TestGetJob(t *testing.T) {
 		jobHandler := mock.NewMockJobHandler(ctrl)
 		jobState := modelsV1.JobStatus{
 			Name:    jobName,
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		ctx := context.Background()
@@ -192,15 +191,15 @@ func TestCreateJob(t *testing.T) {
 		jobScheduleDescription := models.JobScheduleDescription{}
 		createdJob := modelsV1.JobStatus{
 			Name:    "newjob",
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		jobHandler := mock.NewMockJobHandler(ctrl)
 		ctx := context.Background()
 		jobHandler.
 			EXPECT().
-			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, false).
+			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, "").
 			Return(&createdJob, nil).
 			Times(1)
 		controllerTestUtils := setupTest(jobHandler)
@@ -226,34 +225,32 @@ func TestCreateJob(t *testing.T) {
 		defer ctrl.Finish()
 		jobScheduleDescription := models.JobScheduleDescription{
 			Payload: "a_payload",
-			RadixJobComponentConfig: models.RadixJobComponentConfig{
-				Resources: &models.Resources{
-					Requests: models.ResourceList{
-						"cpu":    "20m",
-						"memory": "256M",
-					},
-					Limits: models.ResourceList{
-						"cpu":    "10m",
-						"memory": "128M",
-					},
+			Resources: &models.Resources{
+				Requests: models.ResourceList{
+					"cpu":    "20m",
+					"memory": "256M",
 				},
-				Node: &models.Node{
-					Gpu:      "nvidia",
-					GpuCount: "6",
+				Limits: models.ResourceList{
+					"cpu":    "10m",
+					"memory": "128M",
 				},
+			},
+			Node: &models.Node{ //nolint:staticcheck
+				Gpu:      "nvidia",
+				GpuCount: "6",
 			},
 		}
 		createdJob := modelsV1.JobStatus{
 			Name:    "newjob",
-			Started: pointers.Ptr(time.Now()),
-			Ended:   pointers.Ptr(time.Now().Add(1 * time.Minute)),
+			Started: new(time.Now()),
+			Ended:   new(time.Now().Add(1 * time.Minute)),
 			Status:  "jobstatus",
 		}
 		jobHandler := mock.NewMockJobHandler(ctrl)
 		ctx := context.Background()
 		jobHandler.
 			EXPECT().
-			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, false).
+			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, "").
 			Return(&createdJob, nil).
 			Times(1)
 		controllerTestUtils := setupTest(jobHandler)
@@ -282,10 +279,10 @@ func TestCreateJob(t *testing.T) {
 		ctx := context.Background()
 		jobHandler.
 			EXPECT().
-			CreateJob(test.RequestContextMatcher{}, gomock.Any(), false).
+			CreateJob(test.RequestContextMatcher{}, gomock.Any(), "").
 			Times(0)
 		controllerTestUtils := setupTest(jobHandler)
-		responseChannel := controllerTestUtils.ExecuteRequestWithBody(ctx, http.MethodPost, "/api/v1/jobs", struct{ Payload interface{} }{Payload: struct{}{}})
+		responseChannel := controllerTestUtils.ExecuteRequestWithBody(ctx, http.MethodPost, "/api/v1/jobs", struct{ Payload any }{Payload: struct{}{}})
 		response := <-responseChannel
 		assert.NotNil(t, response)
 
@@ -310,7 +307,7 @@ func TestCreateJob(t *testing.T) {
 		ctx := context.Background()
 		jobHandler.
 			EXPECT().
-			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, false).
+			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, "").
 			Return(nil, apiErrors.NewNotFound(anyKind, anyName)).
 			Times(1)
 		controllerTestUtils := setupTest(jobHandler)
@@ -338,7 +335,7 @@ func TestCreateJob(t *testing.T) {
 		ctx := context.Background()
 		jobHandler.
 			EXPECT().
-			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, false).
+			CreateJob(test.RequestContextMatcher{}, &jobScheduleDescription, "").
 			Return(nil, errors.New("any error")).
 			Times(1)
 		controllerTestUtils := setupTest(jobHandler)

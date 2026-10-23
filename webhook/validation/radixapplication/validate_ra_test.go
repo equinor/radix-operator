@@ -8,8 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -19,14 +18,42 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var scheme = runtime.NewScheme()
+var (
+	scheme = runtime.NewScheme()
+	cfg    = config.Config{
+		Common: config.CommonConfig{
+			OAuth2Proxy: config.OAuth2ProxyConfig{
+				ProxyDefaults: radixv1.OAuth2{
+					Scope:                  "openid profile email",
+					ProxyPrefix:            "/oauth2",
+					SetXAuthRequestHeaders: new(false),
+					SetAuthorizationHeader: new(false),
+					SessionStoreType:       radixv1.SessionStoreCookie,
+					Cookie: &radixv1.OAuth2Cookie{
+						Name:     "_oauth2_proxy",
+						Expire:   "168h0m0s",
+						Refresh:  "60m0s",
+						SameSite: radixv1.SameSiteLax,
+					},
+					OIDC: &radixv1.OAuth2OIDC{
+						IssuerURL:     "https://issuers.com",
+						SkipDiscovery: new(false),
+					},
+				},
+			},
+		},
+		Webhook: config.WebhookConfig{
+			ReservedDNSAppAliases: map[string]string{"console": "radix-web-console"},
+			ReservedDNSAliases:    []string{"grafana"},
+		},
+	}
+)
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -39,7 +66,7 @@ func Test_ParseRadixApplication_LimitMemoryIsTakenFromRequestsMemory(t *testing.
 	radixClient := test.CreateClient("testdata/radixregistration.yaml")
 	ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
-	validator := radixapplication.CreateOnlineValidator(radixClient, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+	validator := radixapplication.CreateOnlineValidator(radixClient, cfg)
 	wnrs, err := validator.Validate(context.Background(), ra)
 	assert.NoError(t, err)
 	assert.Empty(t, wnrs)
@@ -69,8 +96,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 			ra: &radixv1.RadixApplication{
 				Spec: radixv1.RadixApplicationSpec{
 					Jobs: []radixv1.RadixJobComponent{
-						{Name: "job1"},
-						{Name: "job2"},
+						{Name: "job1", SchedulerPort: new(int32(8080))},
+						{Name: "job2", SchedulerPort: new(int32(8080))},
 					},
 				},
 			},
@@ -85,8 +112,8 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 						{Name: "component2"},
 					},
 					Jobs: []radixv1.RadixJobComponent{
-						{Name: "job1"},
-						{Name: "job2"},
+						{Name: "job1", SchedulerPort: new(int32(8080))},
+						{Name: "job2", SchedulerPort: new(int32(8080))},
 					},
 				},
 			},
@@ -146,7 +173,7 @@ func Test_ComponentJobNameValidator(t *testing.T) {
 func Test_valid_ra_returns_true(t *testing.T) {
 	client := test.CreateClient("testdata/radixregistration.yaml")
 	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
-	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+	validator := radixapplication.CreateOnlineValidator(client, cfg)
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
 	assert.NoError(t, err)
@@ -157,11 +184,65 @@ func Test_missing_rr(t *testing.T) {
 	client := test.CreateClient()
 	validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 
-	validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+	validator := radixapplication.CreateOnlineValidator(client, cfg)
 	wnrs, err := validator.Validate(context.Background(), validRA)
 
 	assert.Error(t, err)
 	assert.Empty(t, wnrs)
+}
+
+func Test_RadixApplicationNameValidation(t *testing.T) {
+	t.Run("name length 40 is valid", func(t *testing.T) {
+		validRA := &radixv1.RadixApplication{}
+		validRA.Name = strings.Repeat("a", 40)
+
+		validator := radixapplication.CreateOfflineValidator()
+		wnrs, err := validator.Validate(context.Background(), validRA)
+
+		assert.NoError(t, err)
+		assert.Empty(t, wnrs)
+	})
+
+	t.Run("name length 41 is invalid", func(t *testing.T) {
+		validRA := &radixv1.RadixApplication{}
+		validRA.Name = strings.Repeat("a", 41)
+
+		validator := radixapplication.CreateOfflineValidator()
+		_, err := validator.Validate(context.Background(), validRA)
+
+		assert.ErrorIs(t, err, radixapplication.ErrApplicationNameTooLong)
+	})
+}
+
+func Test_ComponentHostnameValidation(t *testing.T) {
+	newRadixApplication := func(componentName string) *radixv1.RadixApplication {
+		return &radixv1.RadixApplication{
+			Name: "app",
+			Spec: radixv1.RadixApplicationSpec{
+				Environments: []radixv1.Environment{{Name: "dev"}},
+				Components:   []radixv1.RadixComponent{{Name: componentName, Public: true}},
+			},
+		}
+	}
+
+	t.Run("hostname length 63 is valid", func(t *testing.T) {
+		ra := newRadixApplication(strings.Repeat("c", 55))
+
+		validator := radixapplication.CreateOfflineValidator()
+		warnings, err := validator.Validate(context.Background(), ra)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, warnings)
+	})
+
+	t.Run("hostname length 64 is invalid", func(t *testing.T) {
+		ra := newRadixApplication(strings.Repeat("c", 56))
+
+		validator := radixapplication.CreateOfflineValidator()
+		_, err := validator.Validate(context.Background(), ra)
+
+		assert.ErrorIs(t, err, radixapplication.ErrInvalidHostnameLength)
+	})
 }
 
 func Test_invalid_ra(t *testing.T) {
@@ -231,10 +312,10 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].EnvironmentConfig = nil
 		}},
 		{"invalid number of replicas in an environment", radixapplication.ErrInvalidNumberOfReplicas, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = pointers.Ptr(radixapplication.MaxReplica + 1)
+			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = new(radixapplication.MaxReplica + 1)
 		}},
 		{"invalid number of replicas in a component", radixapplication.ErrInvalidNumberOfReplicas, func(ra *radixv1.RadixApplication) {
-			ra.Spec.Components[0].Replicas = pointers.Ptr(radixapplication.MaxReplica + 1)
+			ra.Spec.Components[0].Replicas = new(radixapplication.MaxReplica + 1)
 		}},
 		{"invalid branch name", radixapplication.ErrInvalidBranchName, func(ra *radixv1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = invalidBranchName
@@ -465,7 +546,7 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"no error when skipDiscovery=true and login, redeem and jwks urls set", nil, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 				JWKSURL:       "jwksurl",
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
@@ -473,30 +554,30 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when skipDiscovery=true and missing loginUrl", radixapplication.ErrOAuthLoginUrlEmpty, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 				JWKSURL:       "jwksurl",
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
 		}},
 		{"error when skipDiscovery=true and missing redeemUrl", radixapplication.ErrOAuthRedeemUrlEmpty, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 				JWKSURL:       "jwksurl",
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
 		}},
 		{"error when skipDiscovery=true and missing redeemUrl", radixapplication.ErrOAuthOidcJwksUrlEmpty, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &radixv1.OAuth2OIDC{
-				SkipDiscovery: commonUtils.BoolPtr(true),
+				SkipDiscovery: new(true),
 			}
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
 		}},
 		{"valid OAuth configuration for session store cookie and cookieStore.minimal=true", nil, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(false)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "0s",
@@ -504,9 +585,9 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when cookieStore.minimal=true and SetAuthorizationHeader=true", radixapplication.ErrOAuthCookieStoreMinimalIncorrectSetAuthorizationHeader, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(true)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(false)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "0s",
@@ -514,9 +595,9 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when cookieStore.minimal=true and SetXAuthRequestHeaders=true", radixapplication.ErrOAuthCookieStoreMinimalIncorrectSetXAuthRequestHeaders, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(true)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "0s",
@@ -524,9 +605,9 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"error when cookieStore.minimal=true and Cookie.Refresh>0", radixapplication.ErrOAuthCookieStoreMinimalIncorrectCookieRefreshInterval, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = radixv1.SessionStoreCookie
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
-			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &radixv1.OAuth2CookieStore{Minimal: new(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = new(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = new(false)
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &radixv1.OAuth2Cookie{
 				Expire:  "1h",
 				Refresh: "1s",
@@ -573,34 +654,26 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid healthchecks are invalid", radixapplication.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+					TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 				},
 				ReadinessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+					TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 				},
 				StartupProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-						Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
-						TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
-					},
+					HTTPGet:   &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
+					Exec:      &radixv1.RadixProbeExecAction{Command: []string{"/bin/sh", "-c", "/healthz"}},
+					TCPSocket: &radixv1.RadixProbeTCPSocketAction{Port: 5000},
 				},
 			}
 		}},
 		{"invalid healthchecks are invalid", radixapplication.ErrSuccessThresholdMustBeOne, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{
-					RadixProbeHandler: radixv1.RadixProbeHandler{
-						HTTPGet: &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
-					},
+					HTTPGet:          &radixv1.RadixProbeHTTPGetAction{Port: 5000, Path: "/healthz"},
 					SuccessThreshold: 5,
 				},
 			}
@@ -630,7 +703,7 @@ func Test_invalid_ra(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectedError != nil {
@@ -682,7 +755,7 @@ func Test_RA_WithWarnings(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wrns, err := validator.Validate(context.Background(), validRA)
 			assert.NoError(t, err)
 
@@ -772,7 +845,7 @@ func Test_MemoryBelowMinimum_ProducesWarning(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wrns, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err, "Should not return an error for memory below 20M")
@@ -840,7 +913,7 @@ func Test_MemoryAtOrAboveMinimum_NoWarning(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wrns, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err, "Should not return an error")
@@ -913,7 +986,7 @@ func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err)
@@ -974,7 +1047,7 @@ func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			assert.NoError(t, err)
@@ -1011,7 +1084,7 @@ func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			assert.Error(t, err, "Expected error for invalid resource format")
@@ -1047,7 +1120,7 @@ func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			assert.Error(t, err, "Expected error for invalid resource format")
@@ -1154,7 +1227,7 @@ func Test_PublicPort(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -1219,22 +1292,6 @@ func Test_Variables(t *testing.T) {
 			isValid:    false,
 			isErrorNil: false,
 		},
-		{
-			name: "check that user defined variable with illegal prefix fails",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[1].Variables["RADIXOPERATOR_SOMETHING"] = "any value"
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
-		{
-			name: "check that user defined variable with illegal prefix fails",
-			updateRA: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Components[1].Variables["RADIXOPERATOR_"] = "any value"
-			},
-			isValid:    false,
-			isErrorNil: false,
-		},
 	}
 
 	client := test.CreateClient("testdata/radixregistration.yaml")
@@ -1242,7 +1299,7 @@ func Test_Variables(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -1552,7 +1609,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							ResourceGroup:    resourceGroup1,
 							TenantId:         tenantId1,
@@ -1573,7 +1630,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							SubscriptionId:   subscriptionId1,
 							ResourceGroup:    resourceGroup1,
 							TenantId:         tenantId1,
@@ -1594,7 +1651,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							SubscriptionId:   subscriptionId1,
 							TenantId:         tenantId1,
@@ -1615,7 +1672,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							SubscriptionId:   subscriptionId1,
 							ResourceGroup:    resourceGroup1,
@@ -1636,7 +1693,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
-							UseAzureIdentity: pointers.Ptr(true),
+							UseAzureIdentity: new(true),
 							StorageAccount:   storageAccountName1,
 							SubscriptionId:   subscriptionId1,
 							ResourceGroup:    resourceGroup1,
@@ -1668,7 +1725,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](0),
+							PrefetchCount: new(uint32(0)),
 						},
 					},
 				}}
@@ -1684,7 +1741,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](11),
+							PrefetchCount: new(uint32(11)),
 						},
 					},
 				}}
@@ -1700,7 +1757,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](1),
+							PrefetchCount: new(uint32(1)),
 						},
 					},
 				}}
@@ -1716,7 +1773,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 						Container: "anycontainer",
 						BlockCacheOptions: &radixv1.BlobFuse2BlockCacheOptions{
-							PrefetchCount: pointers.Ptr[uint32](10),
+							PrefetchCount: new(uint32(10)),
 						},
 					},
 				}}
@@ -1770,7 +1827,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 				volumes := scenario.volumeMounts()
 				ra(validRA, volumes)
-				validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+				validator := radixapplication.CreateOnlineValidator(client, cfg)
 				wnrs, err := validator.Validate(context.Background(), validRA)
 				if scenario.expectedError == nil {
 					assert.NoError(t, err)
@@ -1792,6 +1849,167 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						assert.Failf(t, "expected warning '%s' not found in '%s'", scenario.expectedWarning, strings.Join(wnrs, ", "))
 					}
 				}
+			}
+		})
+	}
+}
+
+func Test_ValidationOfSecretRefsAzureIdentity(t *testing.T) {
+	const clientId = "11111111-2222-3333-4444-555555555555"
+
+	boolPtr := func(b bool) *bool { return &b }
+	azureKeyVaults := func(useAzureIdentity *bool) radixv1.RadixSecretRefs {
+		return radixv1.RadixSecretRefs{
+			AzureKeyVaults: []radixv1.RadixAzureKeyVault{
+				{
+					Name:             "my-key-vault",
+					UseAzureIdentity: useAzureIdentity,
+					Items:            []radixv1.RadixAzureKeyVaultItem{{Name: "secret1"}},
+				},
+			},
+		}
+	}
+	getComponent := func(ra *radixv1.RadixApplication, name string) *radixv1.RadixComponent {
+		for i := range ra.Spec.Components {
+			if ra.Spec.Components[i].Name == name {
+				return &ra.Spec.Components[i]
+			}
+		}
+		require.FailNowf(t, "component not found", "component %s", name)
+		return nil
+	}
+	getEnvConfig := func(component *radixv1.RadixComponent, environment string) *radixv1.RadixEnvironmentConfig {
+		for i := range component.EnvironmentConfig {
+			if component.EnvironmentConfig[i].Environment == environment {
+				return &component.EnvironmentConfig[i]
+			}
+		}
+		require.FailNowf(t, "environment config not found", "environment %s", environment)
+		return nil
+	}
+	azureIdentity := &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: clientId}}
+
+	// The "redis" component in testdata has no identity and is enabled in both dev and prod.
+	var testScenarios = map[string]struct {
+		updateRA      func(ra *radixv1.RadixApplication)
+		expectedError error
+	}{
+		"common useAzureIdentity without any identity fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				getComponent(ra, "redis").SecretRefs = azureKeyVaults(boolPtr(true))
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"common useAzureIdentity with identity only in one environment fails for the other": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "prod").Identity = azureIdentity
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"common useAzureIdentity with common identity succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				component.Identity = azureIdentity
+			},
+			expectedError: nil,
+		},
+		"common useAzureIdentity with identity in all environments succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "dev").Identity = azureIdentity
+				getEnvConfig(component, "prod").Identity = azureIdentity
+			},
+			expectedError: nil,
+		},
+		"useAzureIdentity disabled without identity succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				getComponent(ra, "redis").SecretRefs = azureKeyVaults(boolPtr(false))
+			},
+			expectedError: nil,
+		},
+		"environment useAzureIdentity with identity in the same environment succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				envConfig := getEnvConfig(component, "dev")
+				envConfig.SecretRefs = azureKeyVaults(boolPtr(true))
+				envConfig.Identity = azureIdentity
+			},
+			expectedError: nil,
+		},
+		"environment useAzureIdentity with empty Azure clientId fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				envConfig := getEnvConfig(component, "dev")
+				envConfig.SecretRefs = azureKeyVaults(boolPtr(true))
+				envConfig.Identity = &radixv1.Identity{Azure: &radixv1.AzureIdentity{}}
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"environment useAzureIdentity with identity in another environment fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				getEnvConfig(component, "dev").SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "prod").Identity = azureIdentity
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"job environment useAzureIdentity with identity in another environment fails": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				ra.Spec.Jobs = append(ra.Spec.Jobs, utils.AnApplicationJobComponent().
+					WithName("azure-identity-job").
+					WithSchedulerPort(new(int32(8888))).
+					WithEnvironmentConfigs(
+						utils.AJobComponentEnvironmentConfig().
+							WithEnvironment("dev").
+							WithSecretRefs(azureKeyVaults(boolPtr(true))),
+						utils.AJobComponentEnvironmentConfig().
+							WithEnvironment("prod").
+							WithIdentity(azureIdentity),
+					).
+					BuildJobComponent())
+			},
+			expectedError: radixapplication.ErrMissingAzureIdentityForAzureKeyVault,
+		},
+		"job environment useAzureIdentity with identity in the same environment succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				ra.Spec.Jobs = append(ra.Spec.Jobs, utils.AnApplicationJobComponent().
+					WithName("azure-identity-job").
+					WithSchedulerPort(new(int32(8888))).
+					WithEnvironmentConfig(
+						utils.AJobComponentEnvironmentConfig().
+							WithEnvironment("prod").
+							WithSecretRefs(azureKeyVaults(boolPtr(true))).
+							WithIdentity(azureIdentity)).
+					BuildJobComponent())
+			},
+			expectedError: nil,
+		},
+		"environment useAzureIdentity overriding common useAzureIdentity to false, succeeds": {
+			updateRA: func(ra *radixv1.RadixApplication) {
+				component := getComponent(ra, "redis")
+				component.SecretRefs = azureKeyVaults(boolPtr(true))
+				getEnvConfig(component, "dev").SecretRefs = azureKeyVaults(boolPtr(false))
+				getEnvConfig(component, "prod").SecretRefs = azureKeyVaults(boolPtr(false))
+			},
+			expectedError: nil,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for name, scenario := range testScenarios {
+		t.Run(name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			scenario.updateRA(validRA)
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
+			_, err := validator.Validate(context.Background(), validRA)
+			if scenario.expectedError == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, scenario.expectedError)
 			}
 		})
 	}
@@ -2200,11 +2418,11 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 			"Component with Trigger config and Resource config should fail",
 			func(ra *radixv1.RadixApplication) {
 				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &radixv1.RadixHorizontalScaling{
-					MinReplicas: pointers.Ptr(int32(2)),
+					MinReplicas: new(int32(2)),
 					MaxReplicas: 4,
 					RadixHorizontalScalingResources: &radixv1.RadixHorizontalScalingResources{
-						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
-						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: pointers.Ptr(int32(80))},
+						Cpu:    &radixv1.RadixHorizontalScalingResource{AverageUtilization: new(int32(80))},
+						Memory: &radixv1.RadixHorizontalScalingResource{AverageUtilization: new(int32(80))},
 					},
 					Triggers: []radixv1.RadixHorizontalScalingTrigger{
 						{Name: "cpu", Cpu: &radixv1.RadixHorizontalScalingCPUTrigger{Value: 99}},
@@ -2282,7 +2500,7 @@ func Test_HorizontalScaling_Validation(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isErrors == nil {
@@ -2462,7 +2680,7 @@ func Test_EgressConfig(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRA(validRA)
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.isValid {
@@ -2490,27 +2708,27 @@ func Test_validateNotificationsRA(t *testing.T) {
 		},
 		{name: "valid webhook with http", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook with https", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("https://api:8090/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("https://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook in environment", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook to job component", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8099/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8099/abc")}
 			},
 		},
 		{name: "valid webhook to job component in environment", expectedError: nil,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8099/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8099/abc")}
 			},
 		},
 		{name: "Invalid webhook URL", expectedError: radixapplication.ErrInvalidWebhookUrl,
@@ -2525,62 +2743,62 @@ func Test_validateNotificationsRA(t *testing.T) {
 		},
 		{name: "Not allowed scheme ftp", expectedError: radixapplication.ErrNotAllowedSchemeInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("ftp://api:8090")}
 			},
 		},
 		{name: "Not allowed scheme ftp in environment", expectedError: radixapplication.ErrNotAllowedSchemeInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("ftp://api:8090")}
 			},
 		},
 		{name: "missing port in the webhook", expectedError: radixapplication.ErrMissingPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://api/abc")}
 			},
 		},
 		{name: "missing port in the webhook in environment", expectedError: radixapplication.ErrMissingPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://api/abc")}
 			},
 		},
 		{name: "webhook can only reference to an application component or job", expectedError: radixapplication.ErrOnlyAppComponentAllowedInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://notexistingcomponent:8090/abc")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://notexistingcomponent:8090/abc")}
 			},
 		},
 		{name: "webhook can only reference to an application component or job in environment", expectedError: radixapplication.ErrOnlyAppComponentAllowedInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://notexistingcomponent:8090/abc")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://notexistingcomponent:8090/abc")}
 			},
 		},
 		{name: "webhook port does not exist in an application component", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8077")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8077")}
 			},
 		},
 		{name: "webhook port does not exist in an application component in environment", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://api:8077")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://api:8077")}
 			},
 		},
 		{name: "webhook port does not exist in an application job component", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8077")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8077")}
 			},
 		},
 		{name: "webhook port does not exist in an application job component in environment", expectedError: radixapplication.ErrInvalidPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://job3:8077")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://job3:8077")}
 			},
 		},
 		{name: "not allowed to use in the webhook a public port of an application component", expectedError: radixapplication.ErrInvalidUseOfPublicPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://app:8080")}
+				ra.Spec.Jobs[0].Notifications = &radixv1.Notifications{Webhook: new("http://app:8080")}
 			},
 		},
 		{name: "not allowed to use in the webhook a public port of an application component in environment", expectedError: radixapplication.ErrInvalidUseOfPublicPortInWebhookUrl,
 			updateRa: func(ra *radixv1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: pointers.Ptr("http://app:8080")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &radixv1.Notifications{Webhook: new("http://app:8080")}
 			},
 		},
 	}
@@ -2591,7 +2809,7 @@ func Test_validateNotificationsRA(t *testing.T) {
 			ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			testcase.updateRa(ra)
 
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), ra)
 
 			if testcase.expectedError == nil && err != nil {
@@ -2605,6 +2823,103 @@ func Test_validateNotificationsRA(t *testing.T) {
 			}
 			assert.Nil(t, testcase.expectedError)
 			assert.Nil(t, err)
+		})
+	}
+}
+
+func Test_ValidateApplicationCanBeAppliedWithCertificateAutomation(t *testing.T) {
+	validIssuers := map[string]config.CertificateIssuerConfig{
+		"digicert":    {ClusterIssuerName: "digicert-http01-gateway"},
+		"letsencrypt": {ClusterIssuerName: "letsencrypt-http01"},
+	}
+	externalAlias := func(useAutomation bool, certAutomation *radixv1.CertificateAutomation) updateRAFunc {
+		return func(ra *radixv1.RadixApplication) {
+			ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{
+				{
+					Alias:                    "some.alias.com",
+					Component:                ra.Spec.Components[0].Name,
+					Environment:              ra.Spec.Environments[0].Name,
+					UseCertificateAutomation: useAutomation,
+					CertificateAutomation:    certAutomation,
+				},
+			}
+		}
+	}
+
+	var testScenarios = []struct {
+		name                  string
+		certificateAutomation config.CertificateAutomationConfig
+		updateRA              updateRAFunc
+		expectedError         error
+	}{
+		{
+			name:                  "no external alias, no error even without configured issuers",
+			certificateAutomation: config.CertificateAutomationConfig{},
+			updateRA:              func(ra *radixv1.RadixApplication) {},
+			expectedError:         nil,
+		},
+		{
+			name:                  "no issuers configured for the cluster",
+			certificateAutomation: config.CertificateAutomationConfig{},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "digicert"}),
+			expectedError:         radixapplication.ErrMissingConfiguredCertificateAutomationIssuers,
+		},
+		{
+			name:                  "no issuers configured for the cluster, automation disabled",
+			certificateAutomation: config.CertificateAutomationConfig{},
+			updateRA:              externalAlias(false, nil),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation disabled, issuer not required",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(false, nil),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation enabled with an explicit valid issuer",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "letsencrypt"}),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation enabled, no issuer specified, falls back to default issuer",
+			certificateAutomation: config.CertificateAutomationConfig{DefaultIssuer: "digicert", Issuers: validIssuers},
+			updateRA:              externalAlias(true, nil),
+			expectedError:         nil,
+		},
+		{
+			name:                  "automation enabled, no issuer specified and no default issuer configured",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(true, nil),
+			expectedError:         radixapplication.ErrMissingCertificateAutomationIssuer,
+		},
+		{
+			name:                  "automation enabled with an unknown issuer",
+			certificateAutomation: config.CertificateAutomationConfig{Issuers: validIssuers},
+			updateRA:              externalAlias(true, &radixv1.CertificateAutomation{Issuer: "unknown-issuer"}),
+			expectedError:         radixapplication.ErrInvalidCertificateAutomationIssuer,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			ra := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			testcase.updateRA(ra)
+
+			testCfg := cfg
+			testCfg.Common.CertificateAutomation = testcase.certificateAutomation
+
+			validator := radixapplication.CreateOnlineValidator(client, testCfg)
+			_, err := validator.Validate(context.Background(), ra)
+
+			if testcase.expectedError == nil {
+				assert.NoError(t, err)
+				return
+			}
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, testcase.expectedError), "Expected error is not contained in list of errors: %v", err)
 		})
 	}
 }
@@ -2680,7 +2995,7 @@ func Test_ValidateApplicationCanBeAppliedWithDNSAliases(t *testing.T) {
 
 			ra := ts.applicationBuilder.BuildRA()
 
-			validator := radixapplication.CreateOnlineValidator(client, []string{"grafana"}, map[string]string{"console": "radix-web-console"})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			wnrs, actualValidationErr := validator.Validate(context.Background(), ra)
 
 			if ts.expectedValidationError == nil {
@@ -2713,10 +3028,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with correct radix-app label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 			},
 			expectError: false,
@@ -2725,16 +3038,12 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "all environment namespaces with correct label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-prod",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-prod",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 			},
 			expectError: false,
@@ -2743,9 +3052,7 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists without radix-app label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "testapp-dev",
-					},
+					Name: "testapp-dev",
 				},
 			},
 			expectError: true,
@@ -2755,10 +3062,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with empty labels",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{},
 				},
 			},
 			expectError: true,
@@ -2768,10 +3073,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with different radix-app label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectError: true,
@@ -2781,16 +3084,12 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "one namespace correct, one with wrong label",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "testapp"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "testapp"},
 				},
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-prod",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "testapp-prod",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectError: true,
@@ -2800,10 +3099,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "unrelated namespace does not affect validation",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "otherapp-dev",
-						Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
-					},
+					Name:   "otherapp-dev",
+					Labels: map[string]string{kube.RadixAppLabel: "otherapp"},
 				},
 			},
 			expectError: false,
@@ -2812,10 +3109,8 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 			name: "namespace exists with other labels but not radix-app",
 			namespaces: []client.Object{
 				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "testapp-dev",
-						Labels: map[string]string{"some-other-label": "some-value"},
-					},
+					Name:   "testapp-dev",
+					Labels: map[string]string{"some-other-label": "some-value"},
 				},
 			},
 			expectError: true,
@@ -2830,7 +3125,7 @@ func Test_NamespaceUsableValidator(t *testing.T) {
 				require.NoError(t, c.Create(context.Background(), ns))
 			}
 
-			validator := radixapplication.CreateOnlineValidator(c, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(c, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if tt.expectError {
@@ -2936,10 +3231,10 @@ func Test_CronScheduleValidator(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, Concurrency: "Allow"}).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -2993,12 +3288,12 @@ func Test_CronScheduleValidator_EnvironmentConfig(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
 					WithEnvironment("dev").
 					WithCron(&radixv1.CronSchedule{Schedules: testcase.schedule, TimeZone: testcase.timeZone, Concurrency: "Allow"})).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -3055,10 +3350,10 @@ func Test_CronTimeZoneValidator(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{TimeZone: testcase.timeZone, Schedules: []string{"* * * * *"}, Concurrency: "Allow"}).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
@@ -3115,15 +3410,148 @@ func Test_CronConcurrencyValidator(t *testing.T) {
 			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
 			validRA.Spec.Jobs = append(validRA.Spec.Jobs, utils.AnApplicationJobComponent().
 				WithName("cronjob").
-				WithSchedulerPort(8888).
+				WithSchedulerPort(new(int32(8888))).
 				WithCron(&radixv1.CronSchedule{Schedules: []string{"* * * * *"}, Concurrency: testcase.concurrency}).
 				BuildJobComponent())
-			validator := radixapplication.CreateOnlineValidator(client, []string{}, map[string]string{})
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
 			_, err := validator.Validate(context.Background(), validRA)
 
 			if testcase.expectError {
 				assert.Error(t, err)
 				assert.ErrorIs(t, err, radixapplication.ErrCronConcurrencyInvalid)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_JobSchedulerConfigValidator(t *testing.T) {
+	validCron := func() *radixv1.CronSchedule {
+		return &radixv1.CronSchedule{Schedules: []string{"* * * * *"}, Concurrency: "Allow"}
+	}
+
+	var testScenarios = []struct {
+		name        string
+		buildJob    func() utils.RadixApplicationJobComponentBuilder
+		expectError bool
+	}{
+		{
+			name: "schedulerPort only is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("schedjob").
+					WithSchedulerPort(new(int32(8888)))
+			},
+			expectError: false,
+		},
+		{
+			name: "job-level cron only is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("cronjob").
+					WithCron(validCron())
+			},
+			expectError: false,
+		},
+		{
+			name: "env-level cron for all environments is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("envcronjob").
+					WithEnvironmentConfigs(
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("dev").WithCron(validCron()),
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("prod").WithCron(validCron()),
+					)
+			},
+			expectError: false,
+		},
+		{
+			name: "env-level cron for only some environments is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("partialcronjob").
+					WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("dev").
+						WithCron(validCron()))
+			},
+			expectError: true,
+		},
+		{
+			name: "env-level cron only, disabled in other environments is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("scopedcronjob").
+					WithEnvironmentConfigs(
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("dev").WithCron(validCron()),
+						utils.AJobComponentEnvironmentConfig().WithEnvironment("prod").WithEnabled(false),
+					)
+			},
+			expectError: false,
+		},
+		{
+			name: "job disabled everywhere but one env with cron is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("disabledjob").
+					WithEnabled(false).
+					WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("dev").
+						WithEnabled(true).
+						WithCron(validCron()))
+			},
+			expectError: false,
+		},
+		{
+			name: "both schedulerPort and cron is valid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("bothjob").
+					WithSchedulerPort(new(int32(8888))).
+					WithCron(validCron())
+			},
+			expectError: false,
+		},
+		{
+			name: "neither schedulerPort nor cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("nojob")
+			},
+			expectError: true,
+		},
+		{
+			name: "job disabled everywhere without schedulerPort or cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("disablednojob").
+					WithEnabled(false)
+			},
+			expectError: true,
+		},
+		{
+			name: "no schedulerPort and env config without cron is invalid",
+			buildJob: func() utils.RadixApplicationJobComponentBuilder {
+				return utils.AnApplicationJobComponent().
+					WithName("noconfigjob").
+					WithEnvironmentConfig(utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("dev"))
+			},
+			expectError: true,
+		},
+	}
+
+	client := test.CreateClient("testdata/radixregistration.yaml")
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := test.Load[*radixv1.RadixApplication]("./testdata/radixconfig.yaml")
+			validRA.Spec.Jobs = append(validRA.Spec.Jobs, testcase.buildJob().BuildJobComponent())
+			validator := radixapplication.CreateOnlineValidator(client, cfg)
+			_, err := validator.Validate(context.Background(), validRA)
+
+			if testcase.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, radixapplication.ErrSchedulerPortOrCronRequiredForJob)
 			} else {
 				assert.NoError(t, err)
 			}

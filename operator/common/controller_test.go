@@ -294,7 +294,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	maxThreadsCh <- 0
 	defer close(maxThreadsCh)
 	testItems := make([]cache.ObjectName, 0, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		testItems = append(testItems, cache.NewObjectName("ns", strconv.Itoa(i)))
 	}
 	var active, iteration int32
@@ -324,10 +324,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 			n := atomic.AddInt32(&active, 1)
 
 			// Set new number of active threads if it exceeds previous value
-			t := <-maxThreadsCh
-			if n > t {
-				t = n
-			}
+			t := max(n, <-maxThreadsCh)
 			maxThreadsCh <- t
 
 			time.Sleep(1 * time.Millisecond) // Sleep to give other goroutines a chance to increment active.
@@ -343,10 +340,7 @@ func (s *commonControllerTestSuite) Test_ProcessParallell() {
 	case <-doneCh:
 		// Check if max number of goroutines didn't exceed threadiness
 		actualMax := <-maxThreadsCh
-		expectedMax := threadiness
-		if len(testItems) < threadiness {
-			expectedMax = len(testItems)
-		}
+		expectedMax := min(len(testItems), threadiness)
 		s.Equal(int(actualMax), expectedMax)
 	case <-time.NewTimer(5 * time.Second).C:
 		s.FailNow("timeout waiting for controller to process items")

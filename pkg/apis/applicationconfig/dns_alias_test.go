@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -389,6 +389,9 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 		adminUsers            = []string{"adminuser1", "adminuser2"}
 		readerGroups          = []string{"readergroup1", "readergroup2"}
 		readerUsers           = []string{"readeruser1", "readeruser2"}
+		cfg                   = config.Config{
+			Operator: config.OperatorConfig{DefaultAppAdminGroups: adminGroups},
+		}
 	)
 	tu, kubeClient, kubeUtil, radixClient := setupTest(t)
 	rrBuilder := utils.NewRegistrationBuilder().
@@ -409,7 +412,7 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 	ra, err := tu.ApplyApplication(raBuilder)
 	require.NoError(t, err)
 
-	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 
 	// Test cluster roles
@@ -430,8 +433,8 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 		Kind:               "RadixRegistration",
 		Name:               appName,
 		UID:                rrUID,
-		Controller:         pointers.Ptr(true),
-		BlockOwnerDeletion: pointers.Ptr(true),
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
 	}}
 	assert.ElementsMatch(t, expectedClusterRoleOwners, adminClusterRole.OwnerReferences)
 	assert.ElementsMatch(t, expectedClusterRoleOwners, readerClusterRole.OwnerReferences)
@@ -463,13 +466,13 @@ func Test_DNSAlias_ClusterRolesAndBinding_Spec(t *testing.T) {
 		Kind:               "RadixRegistration",
 		Name:               appName,
 		UID:                rrUID,
-		Controller:         pointers.Ptr(true),
-		BlockOwnerDeletion: pointers.Ptr(true),
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
 	}}
 	assert.ElementsMatch(t, expectedClusterRoleBindingOwners, adminClusterRoleBinding.OwnerReferences)
 	assert.ElementsMatch(t, expectedClusterRoleBindingOwners, readerClusterRoleBinding.OwnerReferences)
 
-	assert.ElementsMatch(t, utils.GetAppAdminRbacSubjects(rr), adminClusterRoleBinding.Subjects)
+	assert.ElementsMatch(t, utils.GetAppAdminRbacSubjects(cfg, rr), adminClusterRoleBinding.Subjects)
 	assert.ElementsMatch(t, utils.GetAppReaderRbacSubjects(rr), readerClusterRoleBinding.Subjects)
 
 	expectedAdminClusterRoleBindingRef := rbacv1.RoleRef{
@@ -507,14 +510,14 @@ func Test_DNSAlias_ClusterRolesAndBinding_DNSAliasCleared(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fixture - create initial cluster roles and bindings
-	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 
 	// Empty DNSAlias should delete existing cluster roles and bindings
 	raBuilder = raBuilder.WithDNSAlias()
 	ra, err = tu.ApplyApplication(raBuilder)
 	require.NoError(t, err)
-	sut = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 	clusterRoles, _ := kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
 	require.Len(t, clusterRoles.Items, 0)
@@ -545,7 +548,7 @@ func Test_DNSAlias_ClusterRolesAndBinding_DNSAliasChanged(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fixture - create initial cluster roles and bindings
-	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 
 	// Update DNSAlias should update cluster role rules
@@ -555,7 +558,7 @@ func Test_DNSAlias_ClusterRolesAndBinding_DNSAliasChanged(t *testing.T) {
 	)
 	ra, err = tu.ApplyApplication(raBuilder)
 	require.NoError(t, err)
-	sut = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 	clusterRoles, _ := kubeClient.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
 	require.Len(t, clusterRoles.Items, 2)
@@ -594,7 +597,7 @@ func Test_DNSAlias_ClusterRolesAndBinding_AdminAndReadersChanged(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fixture - create initial cluster roles and bindings
-	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut := applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 
 	// Update DNSAlias should update cluster role rules
@@ -604,12 +607,12 @@ func Test_DNSAlias_ClusterRolesAndBinding_AdminAndReadersChanged(t *testing.T) {
 		WithReaderAdGroups([]string{"readergroup1", "readergroup3"}).
 		WithReaderAdUsers([]string{"readeruser1", "readeruser3"})
 	rr = rrBuilder.BuildRR()
-	sut = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra)
+	sut = applicationconfig.NewApplicationConfig(kubeClient, kubeUtil, radixClient, rr, ra, config.Config{})
 	require.NoError(t, sut.OnSync(context.Background()))
 	clusterRoleBindings, _ := kubeClient.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
 	require.Len(t, clusterRoleBindings.Items, 2)
 	adminClusterRoleBinding, _ := slice.FindFirst(clusterRoleBindings.Items, func(crb rbacv1.ClusterRoleBinding) bool { return crb.Name == adminClusterRoleName })
-	assert.ElementsMatch(t, utils.GetAppAdminRbacSubjects(rr), adminClusterRoleBinding.Subjects)
+	assert.ElementsMatch(t, utils.GetAppAdminRbacSubjects(config.Config{}, rr), adminClusterRoleBinding.Subjects)
 	readerClusterRoleBinding, _ := slice.FindFirst(clusterRoleBindings.Items, func(crb rbacv1.ClusterRoleBinding) bool { return crb.Name == readerClusterRoleName })
 	assert.ElementsMatch(t, utils.GetAppReaderRbacSubjects(rr), readerClusterRoleBinding.Subjects)
 }

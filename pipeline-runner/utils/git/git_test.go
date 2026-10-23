@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		tmpDir := path.Join("/", os.TempDir(), uuid.New().String())
 		_, err := os.Stat(tmpDir)
 		if err != nil {

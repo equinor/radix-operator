@@ -8,6 +8,7 @@ import (
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -17,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -32,7 +32,7 @@ type testEnvProps struct {
 	kubeUtil             *kube.Kube
 	testUtil             *test.Utils
 	kedaClient           kedav2.Interface
-	cfg                  *config.Config
+	cfg                  config.Config
 }
 
 func Test_order_of_env_variables(t *testing.T) {
@@ -48,7 +48,7 @@ func Test_order_of_env_variables(t *testing.T) {
 	envVarsConfigMap := &corev1.ConfigMap{Data: data}
 
 	envVars := getEnvVars(envVarsConfigMap, nil)
-	assert.Len(t, envVars, len(data))
+	require.Len(t, envVars, len(data))
 	assert.Equal(t, "a_key", envVars[0].Name)
 	assert.Equal(t, "b_key", envVars[1].Name)
 	assert.Equal(t, "c_key", envVars[2].Name)
@@ -68,7 +68,6 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 	t.Run("static env vars are set", func(t *testing.T) {
 		testEnv := setupTestEnv(t)
-		defer TeardownTest()
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
@@ -86,16 +85,15 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 		assert.Equal(t, appName, resultEnvVarsMap[defaults.RadixAppEnvironmentVariable].Value)
 		assert.Equal(t, envName, resultEnvVarsMap[defaults.EnvironmentnameEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.ClusterName, resultEnvVarsMap[defaults.ClusternameEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.ClusterType, resultEnvVarsMap[defaults.RadixClusterTypeEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.Common.ClusterName, resultEnvVarsMap[envvars.ComponentClusterName].Value)
+		assert.Equal(t, testEnv.cfg.Common.ClusterType, resultEnvVarsMap[envvars.ComponentClusterType].Value)
 		assert.Equal(t, componentName, resultEnvVarsMap[defaults.RadixComponentEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.ContainerRegistryName, resultEnvVarsMap[defaults.ContainerRegistryEnvironmentVariable].Value)
-		assert.Equal(t, testEnv.cfg.DNSZone, resultEnvVarsMap[defaults.RadixDNSZoneEnvironmentVariable].Value)
+		assert.Equal(t, testEnv.cfg.PipelineRunner.ContainerRegistry, resultEnvVarsMap[envvars.ComponentContainerRegistry].Value)
+		assert.Equal(t, testEnv.cfg.Common.DNSZone, resultEnvVarsMap[envvars.ComponentDNSZone].Value)
 	})
 
 	t.Run("custom env vars from radix config", func(t *testing.T) {
 		testEnv := setupTestEnv(t)
-		defer TeardownTest()
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.WithEnvironmentVariables(map[string]string{
@@ -124,7 +122,6 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 
 	t.Run("secrets are mapped as SecretKeyRef", func(t *testing.T) {
 		testEnv := setupTestEnv(t)
-		defer TeardownTest()
 
 		rd := testEnv.applyRdComponent(t, appName, envName, componentName, func(componentBuilder utils.DeployComponentBuilder) {
 			componentBuilder.
@@ -166,16 +163,16 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	namespace := utils.GetEnvironmentNamespace(appName, envName)
 	componentName := "any-component"
 	testEnv := setupTestEnv(t)
-	defer TeardownTest()
+
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
 		//goland:noinspection GoUnhandledErrorResult
-		_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
+		_, err := testEnv.kubeUtil.CreateConfigMap(context.Background(), namespace, &corev1.ConfigMap{Name: kube.GetEnvVarsConfigMapName(componentName), Data: map[string]string{
 			"VAR1":          "val1",
 			"OUTDATED_VAR1": "val1z",
 		}})
 		require.NoError(t, err)
 
-		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}}
+		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}
 		//goland:noinspection GoUnhandledErrorResult
 		err = kube.SetEnvVarsMetadataMapToConfigMap(&existingEnvVarsMetadataConfigMap,
 			map[string]kube.EnvVarMetadata{
@@ -243,9 +240,9 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 				Items: []v1.RadixAzureKeyVaultItem{
 					{Name: "secret1", EnvVar: "SECRET_REF_1"},
 					{Name: "secret1", EnvVar: "SECRET_REF_2"},
-					{Name: "secret3", EnvVar: "SECRET_REF_3", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
-					{Name: "key1", EnvVar: "KEY_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
-					{Name: "cert1", EnvVar: "CERT_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+					{Name: "secret3", EnvVar: "SECRET_REF_3", Type: new(v1.RadixAzureKeyVaultObjectTypeSecret)},
+					{Name: "key1", EnvVar: "KEY_REF_1", Type: new(v1.RadixAzureKeyVaultObjectTypeKey)},
+					{Name: "cert1", EnvVar: "CERT_REF_1", Type: new(v1.RadixAzureKeyVaultObjectTypeCert)},
 				},
 			},
 		},
@@ -270,9 +267,9 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 					Items: []v1.RadixAzureKeyVaultItem{
 						{Name: "secret1", EnvVar: "SECRET_REF_1"},
 						{Name: "secret1", EnvVar: "SECRET_REF_2"},
-						{Name: "secret3", EnvVar: "SECRET_REF_3", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
-						{Name: "key1", EnvVar: "KEY_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
-						{Name: "cert1", EnvVar: "CERT_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+						{Name: "secret3", EnvVar: "SECRET_REF_3", Type: new(v1.RadixAzureKeyVaultObjectTypeSecret)},
+						{Name: "key1", EnvVar: "KEY_REF_1", Type: new(v1.RadixAzureKeyVaultObjectTypeKey)},
+						{Name: "cert1", EnvVar: "CERT_REF_1", Type: new(v1.RadixAzureKeyVaultObjectTypeCert)},
 					},
 				},
 				{
@@ -280,9 +277,9 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 					Items: []v1.RadixAzureKeyVaultItem{
 						{Name: "secret1", EnvVar: "SECRET_REF_21"},
 						{Name: "secret1", EnvVar: "SECRET_REF_22"},
-						{Name: "secret3", EnvVar: "SECRET_REF_23", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
-						{Name: "key1", EnvVar: "KEY_REF_21", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
-						{Name: "cert1", EnvVar: "CERT_REF_21", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+						{Name: "secret3", EnvVar: "SECRET_REF_23", Type: new(v1.RadixAzureKeyVaultObjectTypeSecret)},
+						{Name: "key1", EnvVar: "KEY_REF_21", Type: new(v1.RadixAzureKeyVaultObjectTypeKey)},
+						{Name: "cert1", EnvVar: "CERT_REF_21", Type: new(v1.RadixAzureKeyVaultObjectTypeCert)},
 					},
 				},
 			},
@@ -422,11 +419,15 @@ func (testEnv *testEnvProps) applyRdJobComponent(t *testing.T, appName string, e
 func setupTestEnv(t *testing.T) *testEnvProps {
 	testEnv := testEnvProps{}
 	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.kedaClient, testEnv.dynamicClient, testEnv.secretproviderclient, testEnv.certClient = SetupTest(t)
-	testEnv.cfg = &config.Config{
-		ClusterName:           testClusterName,
-		ClusterType:           "development",
-		DNSZone:               "test.radix.equinor.com",
-		ContainerRegistryName: "testcr.azurecr.io",
+	testEnv.cfg = config.Config{
+		Common: config.CommonConfig{
+			DNSZone:     "test.radix.equinor.com",
+			ClusterName: testClusterName,
+			ClusterType: "development",
+		},
+		PipelineRunner: config.PipelineRunnerConfig{
+			ContainerRegistry: "testcr.azurecr.io",
+		},
 	}
 	return &testEnv
 }

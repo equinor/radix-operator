@@ -6,11 +6,11 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 // reconcileAppNamespace creates an app namespace with RadixRegistration as owner
@@ -52,9 +52,7 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 		}
 
 		desired = &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
+			Name: name,
 		}
 	} else {
 		desired = currentInternal.DeepCopy()
@@ -66,7 +64,7 @@ func (app *Application) getCurrentAndDesiredNamespace(ctx context.Context) (curr
 		kube.RadixAppLabel: registration.Name,
 		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
 	})
-	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, kube.NewAppNamespacePodSecurityStandardFromEnv().Labels())
+	desired.ObjectMeta.Labels = labels.Merge(desired.ObjectMeta.Labels, labels.PodSecurityStandardFromConfig(app.cfg.Operator.PodSecurityStandard.AppNamespace))
 
 	// We don't use snyk anymore, remove line if no more namespaces contains this label
 	delete(desired.Labels, "snyk-service-account-sync")

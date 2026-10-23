@@ -89,13 +89,8 @@ spec:
                     type: object
                   useBuildCache:
                     description: |-
-                      Defaults to true and requires useBuildKit to have an effect.
+                      Defaults to true.
                       Note: All layers will be cached and can be available for other Radix Apps. Do not add secrets to a Dockerfile layer.
-                    type: boolean
-                  useBuildKit:
-                    description: |-
-                      Enables BuildKit when building Dockerfile.
-                      More info about BuildKit: https://docs.docker.com/build/buildkit/
                     type: boolean
                   variables:
                     additionalProperties:
@@ -3210,6 +3205,16 @@ spec:
                       minLength: 4
                       pattern: ^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
                       type: string
+                    certificateAutomation:
+                      description: Certificate issuer properties
+                      properties:
+                        issuer:
+                          description: Certificate issuer
+                          minLength: 1
+                          type: string
+                      required:
+                      - issuer
+                      type: object
                     component:
                       description: Name of the component that shall receive the incoming
                         requests.
@@ -4877,7 +4882,6 @@ spec:
                       type: array
                   required:
                   - name
-                  - schedulerPort
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:

@@ -7,13 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 func Test_GetEvents(t *testing.T) {
-	matched := corev1.Event{ObjectMeta: metav1.ObjectMeta{Name: "event1", Namespace: "app1-dev"}}
-	unmatched := corev1.Event{ObjectMeta: metav1.ObjectMeta{Name: "event2", Namespace: "app2-dev"}}
+	matched := corev1.Event{Name: "event1", Namespace: "app1-dev"}
+	unmatched := corev1.Event{Name: "event2", Namespace: "app2-dev"}
 	client := kubefake.NewSimpleClientset(&matched, &unmatched) //nolint:staticcheck
 
 	// Get existing events

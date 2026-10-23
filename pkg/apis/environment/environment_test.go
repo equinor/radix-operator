@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -35,15 +36,48 @@ const (
 	egressRuleEnvConfigFileName = "./testdata/re_egress.yaml"
 	regConfigFileName           = "./testdata/rr.yaml"
 	namespaceName               = "testapp-testenv"
-
-	limitDefaultReqestCPU    = "234m" // 0.234
-	limitDefaultMemory       = "321M" // 321'000'000
-	limitDefaultReqestMemory = "123M" // 123'000'000
 )
 
-var testCfg config.Config = config.Config{
-	Gateway: config.GatewayConfig{
-		Name: "any-gateway-name",
+var testCfg2 config.Config = config.Config{
+	Operator: config.OperatorConfig{
+		EnvNsLimitRange: config.LimitRangeConfig{
+			DefaultMemory:        new(resource.MustParse("321M")),
+			DefaultRequestCPU:    new(resource.MustParse("234m")),
+			DefaultRequestMemory: new(resource.MustParse("123M")),
+		},
+		PodSecurityStandard: config.PodSecurityStandardConfig{
+			AppNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
+					Level:   "app-enforce-level",
+					Version: "app-enforce-version",
+				},
+				Audit: config.PodSecurityStandardModeConfig{
+					Level:   "app-audit-level",
+					Version: "app-audit-version",
+				},
+				Warn: config.PodSecurityStandardModeConfig{
+					Level:   "app-warn-level",
+					Version: "app-warn-version",
+				},
+			},
+			EnvNamespace: config.PodSecurityStandardPolicyConfig{
+				Enforce: config.PodSecurityStandardModeConfig{
+					Level:   "env-enforce-level",
+					Version: "env-enforce-version",
+				},
+				Audit: config.PodSecurityStandardModeConfig{
+					Level:   "env-audit-level",
+					Version: "env-audit-version",
+				},
+				Warn: config.PodSecurityStandardModeConfig{
+					Level:   "env-warn-level",
+					Version: "env-warn-version",
+				},
+			},
+		},
+		Gateway: config.GatewayConfig{
+			Name: "any-gateway-name",
+		},
 	},
 }
 
@@ -54,20 +88,17 @@ func setupTest(t *testing.T) (test.Utils, *fake.Clientset, *kube.Kube, *radix.Cl
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(fakekube, fakeradix, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites("AnyClusterName", "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 
-	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestCPUEnvironmentVariable, limitDefaultReqestCPU)
-	_ = os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
-	_ = os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*radixv1.RadixRegistration, *radixv1.RadixEnvironment, Environment, error) {
 	rr := test.Load[*radixv1.RadixRegistration](regConfigFileName)
 	re := test.Load[*radixv1.RadixEnvironment](radixEnvFileName)
-	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg)
-	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, &nw)
+	nw := networkpolicy.NewNetworkPolicy(client, kubeUtil, testCfg2)
+	env := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, testCfg2, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	if _, err := radixclient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{}); err != nil {
 		return nil, nil, env, err
@@ -81,8 +112,8 @@ func Test_ReconcileStatus(t *testing.T) {
 	rr := &radixv1.RadixRegistration{}
 	ra := &radixv1.RadixApplication{}
 	re := &radixv1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42},
-		Spec:       radixv1.RadixEnvironmentSpec{AppName: "any-app", EnvName: "any-env"},
+		Name: "any-name", Generation: 42,
+		Spec: radixv1.RadixEnvironmentSpec{AppName: "any-app", EnvName: "any-env"},
 	}
 	np := networkpolicy.NewNetworkPolicy(client, kubeUtil, config.Config{})
 	re, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
@@ -90,7 +121,7 @@ func Test_ReconcileStatus(t *testing.T) {
 
 	// First sync sets status
 	expectedGen := re.Generation
-	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
+	sut := NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -103,7 +134,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -120,7 +151,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	re.Generation++
 	expectedGen = re.Generation
-	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, &np)
+	sut = NewEnvironment(client, kubeUtil, radixClient, re, rr, ra, config.Config{}, &np)
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	re, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
@@ -149,22 +180,21 @@ func Test_Create_Namespace(t *testing.T) {
 	expected := map[string]string{
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
-		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
-		kube.RadixAppLabel: env.config.Spec.AppName,
-		kube.RadixEnvLabel: env.config.Spec.EnvName,
+		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.environment.Spec.AppName,
+		kube.RadixAppLabel:                           env.environment.Spec.AppName,
+		kube.RadixEnvLabel:                           env.environment.Spec.EnvName,
+		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
+		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
+		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
+		"pod-security.kubernetes.io/audit-version":   testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Version,
+		"pod-security.kubernetes.io/warn":            testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Level,
+		"pod-security.kubernetes.io/warn-version":    testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Version,
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
 
 func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest(t)
-	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
-	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
-	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
-	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "auditVer")
-	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
-	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
-	defer os.Clearenv()
 	rr, _, env, err := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 	require.NoError(t, err)
 
@@ -180,15 +210,15 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	expected := map[string]string{
 		"sync":                "cluster-wildcard-tls-cert",
 		"radix-wildcard-sync": "radix-wildcard-tls-cert",
-		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
-		kube.RadixAppLabel:                           env.config.Spec.AppName,
-		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
-		"pod-security.kubernetes.io/enforce":         "enforceLvl",
-		"pod-security.kubernetes.io/enforce-version": "enforceVer",
-		"pod-security.kubernetes.io/audit":           "auditLvl",
-		"pod-security.kubernetes.io/audit-version":   "auditVer",
-		"pod-security.kubernetes.io/warn":            "warnLvl",
-		"pod-security.kubernetes.io/warn-version":    "warnVer",
+		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.environment.Spec.AppName,
+		kube.RadixAppLabel:                           env.environment.Spec.AppName,
+		kube.RadixEnvLabel:                           env.environment.Spec.EnvName,
+		"pod-security.kubernetes.io/enforce":         testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Level,
+		"pod-security.kubernetes.io/enforce-version": testCfg2.Operator.PodSecurityStandard.EnvNamespace.Enforce.Version,
+		"pod-security.kubernetes.io/audit":           testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Level,
+		"pod-security.kubernetes.io/audit-version":   testCfg2.Operator.PodSecurityStandard.EnvNamespace.Audit.Version,
+		"pod-security.kubernetes.io/warn":            testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Level,
+		"pod-security.kubernetes.io/warn-version":    testCfg2.Operator.PodSecurityStandard.EnvNamespace.Warn.Version,
 	}
 	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
@@ -207,7 +237,7 @@ func Test_Create_EgressRules(t *testing.T) {
 	})
 
 	t.Run("Egress rules are correct", func(t *testing.T) {
-		egressRules := env.config.Spec.Egress.Rules
+		egressRules := env.environment.Spec.Egress.Rules
 		assert.Len(t, egressRules, 1)
 		assert.Equal(t, string(egressRules[0].Destinations[0]), "195.88.55.16/32")
 		assert.Len(t, egressRules[0].Ports, 2)
@@ -229,13 +259,13 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader-envs")
 
-	// It contains the correct AD groups
+	// It contains the correct groups
 	subjects := rolebindings.Items[0].Subjects
 	require.Len(t, subjects, 2)
 	assert.Equal(t, rr.Spec.AdGroups[0], subjects[0].Name)
 	assert.Equal(t, rr.Spec.AdUsers[0], subjects[1].Name)
 
-	// It contains the correct reader AD groups
+	// It contains the correct reader groups
 	subjects = rolebindings.Items[1].Subjects
 	require.Len(t, subjects, 2)
 	assert.Equal(t, rr.Spec.ReaderAdGroups[0], subjects[0].Name)
@@ -258,9 +288,10 @@ func Test_Create_LimitRange(t *testing.T) {
 	t.Run("Received correct limitrange values", func(t *testing.T) {
 		limits := limitranges.Items[0].Spec.Limits[0]
 		assert.True(t, limits.Default.Cpu().IsZero())
-		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
-		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
-		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())
+
+		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultRequestCPU.String(), limits.DefaultRequest.Cpu().String())
+		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultMemory.String(), limits.Default.Memory().String())
+		assert.Equal(t, testCfg2.Operator.EnvNsLimitRange.DefaultRequestMemory.String(), limits.DefaultRequest.Memory().String())
 	})
 }
 
@@ -275,8 +306,8 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
-		assert.True(t, env.config.Status.Orphaned)
-		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.True(t, env.environment.Status.Orphaned)
+		assert.NotNil(t, env.environment.Status.OrphanedTimestamp)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
@@ -287,8 +318,8 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
-		assert.False(t, env.config.Status.Orphaned)
-		assert.Nil(t, env.config.Status.OrphanedTimestamp)
+		assert.False(t, env.environment.Status.Orphaned)
+		assert.Nil(t, env.environment.Status.OrphanedTimestamp)
 	})
 
 	env.appConfig = utils.NewRadixApplicationBuilder().
@@ -298,28 +329,24 @@ func Test_Orphaned_Status(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
-		assert.True(t, env.config.Status.Orphaned)
-		assert.NotNil(t, env.config.Status.OrphanedTimestamp)
+		assert.True(t, env.environment.Status.Orphaned)
+		assert.NotNil(t, env.environment.Status.OrphanedTimestamp)
 	})
 }
 
 // commonAsserts runs a generic set of assertions about resource creation
 func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, names ...string) {
-	t.Run("It creates a single resource", func(t *testing.T) {
-		assert.Len(t, resources, len(names))
-	})
+	t.Helper()
 
-	t.Run("Resource has a correct name", func(t *testing.T) {
-		for _, resource := range resources {
-			assert.Contains(t, names, resource.GetName())
-		}
-	})
+	assert.Len(t, resources, len(names), "It creates a single resource")
 
-	t.Run("Resource has a correct owner", func(t *testing.T) {
-		for _, resource := range resources {
-			assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences())
-		}
-	})
+	for _, resource := range resources {
+		assert.Contains(t, names, resource.GetName(), "Resource has a correct name")
+	}
+
+	for _, resource := range resources {
+		assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences(), "Resource has a correct owner")
+	}
 }
 
 // following code is necessary noise to account for the lack of covariance and overloading
@@ -328,7 +355,6 @@ func commonAsserts(t *testing.T, env Environment, resources []metav1.Object, nam
 func namespacesAsMeta(items []core.Namespace) []metav1.Object {
 	var slice []metav1.Object
 	for _, w := range items {
-		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -336,7 +362,6 @@ func namespacesAsMeta(items []core.Namespace) []metav1.Object {
 func roleBindingsAsMeta(items []rbac.RoleBinding) []metav1.Object {
 	var slice []metav1.Object
 	for _, w := range items {
-		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -344,7 +369,6 @@ func roleBindingsAsMeta(items []rbac.RoleBinding) []metav1.Object {
 func limitRangesAsMeta(items []core.LimitRange) []metav1.Object {
 	var slice []metav1.Object
 	for _, w := range items {
-		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice

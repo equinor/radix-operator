@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -45,5 +45,5 @@ func (kubeutil *Kube) ListRadixAlert(ctx context.Context, namespace string) ([]*
 		return nil, fmt.Errorf("failed to get all RadixAlerts: %w", err)
 	}
 
-	return slice.PointersOf(rds.Items).([]*v1.RadixAlert), nil
+	return slice.PointersOf(rds.Items), nil
 }

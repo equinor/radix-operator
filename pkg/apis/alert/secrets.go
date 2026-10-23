@@ -7,16 +7,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func (syncer *alertSyncer) reconcileSecret(ctx context.Context) error {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      GetAlertSecretName(syncer.radixAlert.Name),
-			Namespace: syncer.radixAlert.Namespace,
-		},
+		Name:      GetAlertSecretName(syncer.radixAlert.Name),
+		Namespace: syncer.radixAlert.Namespace,
 	}
 	op, err := controllerutil.CreateOrUpdate(ctx, syncer.dynamicClient, secret, func() error {
 		if secret.Labels == nil {
@@ -44,7 +41,7 @@ func (syncer *alertSyncer) reconcileSecret(ctx context.Context) error {
 }
 
 func (syncer *alertSyncer) removedOrphanedSecretKeys(secret *corev1.Secret) {
-	expectedKeys := map[string]interface{}{}
+	expectedKeys := map[string]any{}
 
 	// Secret keys related to receiver configuration
 	for receiverName := range syncer.radixAlert.Spec.Receivers {

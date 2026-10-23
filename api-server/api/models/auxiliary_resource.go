@@ -20,7 +20,6 @@ func getAuxiliaryResources(rd *radixv1.RadixDeployment, component radixv1.RadixC
 func getOAuth2AuxiliaryResource(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, deploymentList []appsv1.Deployment, podList []corev1.Pod, eventWarnings map[string]string) *deploymentModels.OAuth2AuxiliaryResource {
 	auxiliaryResource := deploymentModels.OAuth2AuxiliaryResource{}
 	oauthProxyDeployment := getAuxiliaryResourceDeployment(rd, component, radixv1.OAuthProxyAuxiliaryComponentType, deploymentList, podList, eventWarnings)
-	auxiliaryResource.Deployment = oauthProxyDeployment // for backward compatibility
 	auxiliaryResource.Deployments = append(auxiliaryResource.Deployments, oauthProxyDeployment)
 	if component.GetAuthentication().GetOAuth2().IsSessionStoreTypeSystemManaged() {
 		oauthRedisDeployment := getAuxiliaryResourceDeployment(rd, component, radixv1.OAuthRedisAuxiliaryComponentType, deploymentList, podList, eventWarnings)

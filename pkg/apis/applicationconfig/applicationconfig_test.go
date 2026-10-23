@@ -7,15 +7,15 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/equinor/radix-common/pkg/docker"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/docker"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
@@ -35,7 +35,6 @@ import (
 const (
 	sampleRegistration = "./testdata/sampleregistration.yaml"
 	sampleApp          = "./testdata/radixconfig.yaml"
-	clusterName        = "AnyClusterName"
 )
 
 func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *radixfake.Clientset) {
@@ -45,7 +44,7 @@ func setupTest(t *testing.T) (*test.Utils, *kubefake.Clientset, *kube.Kube, *rad
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "anysubid")
+	err := handlerTestUtils.CreateClusterPrerequisites()
 	require.NoError(t, err)
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
@@ -54,13 +53,13 @@ func Test_ReconcileStatus(t *testing.T) {
 	_, client, kubeUtil, radixClient := setupTest(t)
 
 	rr := &radixv1.RadixRegistration{}
-	ra := &radixv1.RadixApplication{ObjectMeta: metav1.ObjectMeta{Name: "any-name", Generation: 42}}
+	ra := &radixv1.RadixApplication{Name: "any-name", Generation: 42}
 	ra, err := radixClient.RadixV1().RadixApplications("any-ns").Create(context.Background(), ra, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	// First sync sets status
 	expectedGen := ra.Generation
-	sut := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	sut := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
@@ -73,7 +72,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	// Second sync with updated generation
 	ra.Generation++
 	expectedGen = ra.Generation
-	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.NoError(t, err)
 	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
@@ -90,7 +89,7 @@ func Test_ReconcileStatus(t *testing.T) {
 	})
 	ra.Generation++
 	expectedGen = ra.Generation
-	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	sut = applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, config.Config{})
 	err = sut.OnSync(context.Background())
 	require.ErrorContains(t, err, errorMsg)
 	ra, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Get(context.Background(), ra.Name, metav1.GetOptions{})
@@ -106,7 +105,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	radixRegistration := test.Load[*radixv1.RadixRegistration](sampleRegistration)
 	radixApp := test.Load[*radixv1.RadixApplication](sampleApp)
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, radixApp, config.Config{})
 	_, err := radixClient.RadixV1().RadixApplications(radixApp.Namespace).Create(context.Background(), radixApp, metav1.CreateOptions{})
 	require.NoError(t, err)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
@@ -141,10 +140,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, err := radixClient.RadixV1().RadixEnvironments().Create(
 		context.Background(),
 		&radixv1.RadixEnvironment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "any-app-qa",
-				Labels: labels.Set{kube.RadixAppLabel: "any-app"},
-			},
+			Name:   "any-app-qa",
+			Labels: labels.Set{kube.RadixAppLabel: "any-app"},
 		},
 		metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -152,10 +149,8 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, err = radixClient.RadixV1().RadixEnvironments().Create(
 		context.Background(),
 		&radixv1.RadixEnvironment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "any-app-prod",
-				Labels: labels.Set{kube.RadixAppLabel: "any-app"},
-			},
+			Name:   "any-app-prod",
+			Labels: labels.Set{kube.RadixAppLabel: "any-app"},
 		},
 		metav1.CreateOptions{})
 	assert.NoError(t, err)
@@ -174,7 +169,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, err = radixClient.RadixV1().RadixApplications(ra.Namespace).Create(context.Background(), ra, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, config.Config{})
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -198,10 +193,8 @@ func Test_Reconcile_Environment_With_Different_AppLabel_Fails(t *testing.T) {
 	_, err := radixClient.RadixV1().RadixEnvironments().Create(
 		context.Background(),
 		&radixv1.RadixEnvironment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "foo-bar-test",
-				Labels: labels.Set{kube.RadixAppLabel: "foo-bar"},
-			},
+			Name:   "foo-bar-test",
+			Labels: labels.Set{kube.RadixAppLabel: "foo-bar"},
 			Spec: radixv1.RadixEnvironmentSpec{
 				AppName: "foo-bar",
 				EnvName: "test",
@@ -224,7 +217,7 @@ func Test_Reconcile_Environment_With_Different_AppLabel_Fails(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to sync - should fail because the RadixEnvironment "foo-bar-test" has a different app label
-	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra)
+	app := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, rr, ra, config.Config{})
 	err = app.OnSync(context.Background())
 
 	// Verify error
@@ -422,8 +415,8 @@ func Test_TargetEnvironmentsForGitRefs(t *testing.T) {
 			raBuilder: func() utils.ApplicationBuilder {
 				return utils.NewRadixApplicationBuilder().
 					WithEnvironmentByBuild(env1, radixv1.EnvBuild{From: branch1}).
-					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(true)}).
-					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, WebhookEnabled: pointers.Ptr(false)})
+					WithEnvironmentByBuild(env2, radixv1.EnvBuild{From: branch1, WebhookEnabled: new(true)}).
+					WithEnvironmentByBuild(env3, radixv1.EnvBuild{From: branch1, WebhookEnabled: new(false)})
 			},
 			gitRef:                        branch1,
 			triggeredFromWebhook:          true,
@@ -777,7 +770,7 @@ func Test_PrivateImageHubSecret_KeepCustomAnnotations(t *testing.T) {
 	err := applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
 		radixv1.PrivateImageHubEntries{
 			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Username: "test-user",
 				Email:    "radix@equinor.com",
 			},
 		})
@@ -792,7 +785,7 @@ func Test_PrivateImageHubSecret_KeepCustomAnnotations(t *testing.T) {
 	err = applyRadixAppWithPrivateImageHub(tu, client, kubeUtil, radixClient,
 		radixv1.PrivateImageHubEntries{
 			"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-				Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+				Username: "test-user",
 				Email:    "radix@equinor.com",
 			},
 		})
@@ -1060,50 +1053,6 @@ func Test_RadixEnvironment(t *testing.T) {
 	})
 }
 
-func Test_UseBuildKit(t *testing.T) {
-	var testScenarios = []struct {
-		appName             string
-		useBuildKit         *bool
-		expectedUseBuildKit *bool
-	}{
-		{
-			appName:             "any-app1",
-			useBuildKit:         nil,
-			expectedUseBuildKit: nil,
-		},
-		{
-			appName:             "any-app2",
-			useBuildKit:         pointers.Ptr(false),
-			expectedUseBuildKit: pointers.Ptr(false),
-		},
-		{
-			appName:             "any-app3",
-			useBuildKit:         pointers.Ptr(true),
-			expectedUseBuildKit: pointers.Ptr(true),
-		},
-	}
-	tu, client, kubeUtil, radixClient := setupTest(t)
-
-	for _, testScenario := range testScenarios {
-		ra := utils.ARadixApplication().WithAppName(testScenario.appName)
-		if testScenario.useBuildKit != nil {
-			ra = ra.WithBuildKit(testScenario.useBuildKit)
-		}
-		err := applyApplicationWithSync(tu, client, kubeUtil, radixClient, ra)
-		require.NoError(t, err)
-
-		raAfterSync, _ := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.Background(), testScenario.appName, metav1.GetOptions{})
-
-		var useBuildKit *bool
-		if raAfterSync.Spec.Build == nil {
-			useBuildKit = nil
-		} else {
-			useBuildKit = raAfterSync.Spec.Build.UseBuildKit
-		}
-		assert.Equal(t, testScenario.expectedUseBuildKit, useBuildKit)
-	}
-}
-
 func Test_GetConfigBranch_notSet(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().
 		BuildRR()
@@ -1160,7 +1109,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, config.Config{})
 
 	err = applicationConfig.OnSync(context.Background())
 	if err != nil {

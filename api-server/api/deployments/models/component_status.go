@@ -1,12 +1,13 @@
 package models
 
 import (
-	commonutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
+	"time"
+
 	"github.com/equinor/radix-operator/api-server/api/utils/owner"
 	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 )
@@ -75,7 +76,8 @@ func isComponentRestarting(component radixv1.RadixCommonDeployComponent, rd *rad
 	if restarted == "" {
 		return false
 	}
-	restartedTime, err := commonutils.ParseTimestamp(restarted)
+
+	restartedTime, err := time.Parse(time.RFC3339, restarted)
 	if err != nil {
 		log.Logger.Warn().Err(err).Msgf("unable to parse restarted time %v, component: %s", restarted, component.GetName())
 		return false

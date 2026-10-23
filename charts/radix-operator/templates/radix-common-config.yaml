@@ -1,0 +1,66 @@
+{{- $_ := required "config.common.appAliasBaseURL is required" .Values.config.common.appAliasBaseURL -}}
+{{- $_ := required "config.common.dnsZone is required" .Values.config.common.dnsZone -}}
+{{- $_ := required "config.common.clusterName is required" .Values.config.common.clusterName -}}
+{{- $_ := required "config.common.clusterType is required" .Values.config.common.clusterType -}}
+{{- $_ := required "config.operator.azureKeyVaultTenantID is required" .Values.config.operator.azureKeyVaultTenantID -}}
+{{- $_ := required "config.operator.gateway.name is required" .Values.config.operator.gateway.name -}}
+{{- $_ := required "config.operator.gateway.namespace is required" .Values.config.operator.gateway.namespace -}}
+{{- $_ := required "config.pipelineRunner.cacheContainerRegistry is required" .Values.config.pipelineRunner.cacheContainerRegistry -}}
+{{- $_ := required "config.pipelineRunner.containerRegistry is required" .Values.config.pipelineRunner.containerRegistry -}}
+{{- $_ := required "config.apiServer.prometheusUrl is required" .Values.config.apiServer.prometheusUrl -}}
+{{- if le (len (.Values.config.apiServer.authenticators | default dict)) 0 }}
+{{- fail "apiServer.authenticators must have at least one entry" }}
+{{- end }}
+{{- with .Values.config.common.certificateAutomation.defaultIssuer }}
+{{- if not (hasKey ($.Values.config.common.certificateAutomation.issuers | default dict) (toString .)) }}
+{{- fail (printf "config.common.certificateAutomation.issuers must contain a key matching config.common.certificateAutomation.defaultIssuer (%q)" (toString .)) }}
+{{- end }}
+{{- end }}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "radix-common-config.name" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
+data:
+  configYaml: |
+    {{- $chartValues := dict
+      "pipelineRunner" (dict
+        "builder" (dict
+          "seccompProfileLocalhostProfile" (.Values.config.pipelineRunner.builder.seccompProfileLocalhostProfile | default .Values.seccompProfile.fileNameOnNode)
+        )
+      )
+      "operator" (dict
+        "metricsPort" (include "radix-operator.metricsPort" . | int)
+        "jobSchedulerImage" (dict
+          "tag" (.Values.config.operator.jobSchedulerImage.tag | default .Chart.AppVersion)
+        )
+      )
+      "webhook" (dict
+        "port" (include "radix-webhook.port" . | int)
+        "metricsPort" (include "radix-webhook.metricsPort" . | int)
+        "healthPort" (include "radix-webhook.healthPort" . | int)
+        "secretNamespace" .Release.Namespace
+        "secretName" (include "radix-webhook-certs.name" .)
+        "dnsName" ( printf "radix-webhook.%s.svc" .Release.Namespace )
+        "validatingWebhookConfigurationName" (include "radix-webhook-configuration.name" .)
+      )
+      "apiServer" (dict
+        "port" (include "radix-api-server.port" . | int)
+        "metricsPort" (include "radix-api-server.metricsPort" . | int)
+      )
+      "runtime" (dict
+        "oauth2ProxyTemplate" (dict
+          "base" (.Values.config.runtime.oauth2ProxyTemplate.base | default (tpl (.Files.Get "files/oauth2-proxy-base.yaml") . | fromYaml))
+        )
+        "oauth2SessionStoreTemplate" (dict
+          "base" (.Values.config.runtime.oauth2SessionStoreTemplate.base | default (tpl (.Files.Get "files/oauth2-session-store-base.yaml") . | fromYaml))
+        )
+        "pipelineRunnerTemplate" (dict
+          "base" (.Values.config.runtime.pipelineRunnerTemplate.base | default (tpl (.Files.Get "files/pipeline-runner-base.yaml") . | fromYaml))
+        )
+      )
+    -}}
+    {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}

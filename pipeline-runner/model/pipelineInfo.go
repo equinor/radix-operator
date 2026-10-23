@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,6 +20,7 @@ type PipelineInfo struct {
 	BuildSecret       *corev1.Secret
 	PipelineArguments PipelineArguments
 	Steps             []Step
+	Cfg               config.Config
 
 	// TargetEnvironments holds information about which environments to build and deploy.
 	// It is populated by the prepare-pipeline step by inspecting PipelineArguments
@@ -76,14 +78,6 @@ type EnvironmentSubPipelineToRun struct {
 	PipelineFile string
 }
 
-// Builder Holds info about the builder arguments
-type Builder struct {
-	ResourcesLimitsMemory   string
-	ResourcesLimitsCPU      string
-	ResourcesRequestsCPU    string
-	ResourcesRequestsMemory string
-}
-
 type ApplyConfigOptions struct {
 	DeployExternalDNS bool
 }
@@ -92,6 +86,11 @@ type ApplyConfigOptions struct {
 type PipelineArguments struct {
 	PipelineType string
 	JobName      string
+
+	ConfigMapName      string
+	ConfigMapNamespace string
+	ConfigMapKey       string
+
 	// Deprecated: use GitRef instead
 	Branch string
 	// GitRef Branch or tag to build from
@@ -114,48 +113,22 @@ type PipelineArguments struct {
 	// OverrideUseBuildCache override default or configured build cache option
 	OverrideUseBuildCache *bool
 	// RefreshBuildCache forces to rebuild cache when UseBuildCache is true in the RadixApplication or OverrideUseBuildCache is true
-	RefreshBuildCache    *bool
-	PushImage            bool
-	DeploymentName       string
-	FromEnvironment      string
-	ToEnvironment        string
-	ComponentsToDeploy   []string
-	TriggeredFromWebhook bool
-	RadixConfigFile      string
+	RefreshBuildCache      *bool
+	PushImage              bool
+	PromoteDeploymentName  string
+	PromoteFromEnvironment string
+	ToEnvironment          string
+	ComponentsToDeploy     []string
+	TriggeredFromWebhook   bool
+	RadixConfigFile        string
 
-	// ImageBuilder Points to the image builder (repository and tag only)
-	ImageBuilder string
-	// BuildKitImageBuilder Points to the BuildKit compliant image builder (repository and tag only)
-	BuildKitImageBuilder string
-	// GitCloneGitImage defines image containing git cli.
-	// Must support running as user 65534.
-	// Used as option to the CloneInitContainers function.
-	GitCloneGitImage string
-	// SeccompProfileFileName Filename of the seccomp profile injected by daemonset, relative to the /var/lib/kubelet/seccomp directory on node
-	SeccompProfileFileName string
-	// Used for tagging meta-information
-	Clustertype string
-	// RadixZone  The radix zone.
-	RadixZone string
-	// Clustername The name of the cluster
-	Clustername string
-	// ContainerRegistry The name of the container registry
-	ContainerRegistry string
-	// AppContainerRegistry the name of the app container registry
-	AppContainerRegistry string
-	// SubscriptionId Azure subscription ID
-	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
 	// Image tag names for components: component-name:image-tag
 	ImageTagNames map[string]string
 	LogLevel      string
 	AppName       string
-	Builder       Builder
 
-	// Name of secret with .dockerconfigjson key containing docker auths. Optional.
-	// Used to authenticate external container registries when using buildkit to build dockerfiles.
-	ExternalContainerRegistryDefaultAuthSecret string
 	// ApplyConfigOptions holds options for applying radixconfig
 	ApplyConfigOptions ApplyConfigOptions
 	// GitWorkspace is the path to the git workspace
@@ -163,7 +136,7 @@ type PipelineArguments struct {
 }
 
 // InitPipeline Initialize pipeline with step implementations
-func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *PipelineArguments, stepImplementations ...Step) (*PipelineInfo, error) {
+func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments PipelineArguments, cfg config.Config, stepImplementations ...Step) (*PipelineInfo, error) {
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
@@ -171,7 +144,8 @@ func InitPipeline(pipelineType *pipeline.Definition, pipelineArguments *Pipeline
 
 	return &PipelineInfo{
 		Definition:        pipelineType,
-		PipelineArguments: *pipelineArguments,
+		PipelineArguments: pipelineArguments,
+		Cfg:               cfg,
 		Steps:             stepImplementationsForType,
 	}, nil
 }
@@ -203,36 +177,13 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	return nil
 }
 
-// SetGitAttributes Set git attributes to be used later by other steps
-func (p *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
-	p.GitCommitHash = gitCommitHash
-	p.GitTags = gitTags
-}
-
 // IsPipelineType Check pipeline type
 func (p *PipelineInfo) IsPipelineType(pipelineType radixv1.RadixPipelineType) bool {
 	return p.GetRadixPipelineType() == pipelineType
 }
 
-// IsUsingBuildKit Check if buildkit should be used. Defaults to true if no build secrets is set.
-func (p *PipelineInfo) IsUsingBuildKit() bool {
-	if p.RadixApplication == nil || p.RadixApplication.Spec.Build == nil {
-		return true
-	}
-
-	if p.RadixApplication.Spec.Build.UseBuildKit != nil {
-		return *p.RadixApplication.Spec.Build.UseBuildKit
-	}
-
-	// If build secrets are empty, BuildKit is used; otherwise, use ACR Run Tasks for backwards compatibility.
-	return len(p.RadixApplication.Spec.Build.Secrets) == 0
-}
-
 // IsUsingBuildCache Check if build cache should be used
 func (p *PipelineInfo) IsUsingBuildCache() bool {
-	if !p.IsUsingBuildKit() {
-		return false
-	}
 	if p.PipelineArguments.OverrideUseBuildCache != nil {
 		return *p.PipelineArguments.OverrideUseBuildCache
 	}
@@ -250,7 +201,7 @@ func (p *PipelineInfo) IsUsingBuildCache() bool {
 
 // IsRefreshingBuildCache Check if build cache should be refreshed
 func (p *PipelineInfo) IsRefreshingBuildCache() bool {
-	if !p.IsUsingBuildKit() || p.PipelineArguments.RefreshBuildCache == nil {
+	if p.PipelineArguments.RefreshBuildCache == nil {
 		return false
 	}
 	return *p.PipelineArguments.RefreshBuildCache
@@ -308,12 +259,12 @@ func (p *PipelineInfo) GetRadixDeployToEnvironment() string {
 
 // GetRadixPromoteDeployment Get radix promote deployment
 func (p *PipelineInfo) GetRadixPromoteDeployment() string {
-	return p.PipelineArguments.DeploymentName
+	return p.PipelineArguments.PromoteDeploymentName
 }
 
 // GetRadixPromoteFromEnvironment Get radix promote from environment
 func (p *PipelineInfo) GetRadixPromoteFromEnvironment() string {
-	return p.PipelineArguments.FromEnvironment
+	return p.PipelineArguments.PromoteFromEnvironment
 }
 
 // GetGitRefType Get git event ref type

@@ -2,10 +2,12 @@ package privateimagehubs_test
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 
 	"github.com/equinor/radix-operator/api-server/api/privateimagehubs/internal"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -21,10 +23,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
-)
-
-const (
-	clusterName = "AnyClusterName"
 )
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
@@ -45,7 +43,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 	kubeUtil, err := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
-			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
+			Username: "test-user",
 			Email:    "radix@equinor.com",
 		},
 	})
@@ -65,7 +63,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 	pendingSecrets, _ = internal.GetPendingPrivateImageHubSecrets(secret)
 
 	assert.Equal(t,
-		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"}}}",
+		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"test-user\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\""+base64.StdEncoding.EncodeToString([]byte("test-user:a-password"))+"\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 	assert.Equal(t, 0, len(pendingSecrets))
 }
@@ -95,7 +93,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	kedaClient := kedafake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeClient, radixClient, kedaClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, kedaClient, secretproviderclient)
-	if err := handlerTestUtils.CreateClusterPrerequisites(clusterName, "anysubid"); err != nil {
+	if err := handlerTestUtils.CreateClusterPrerequisites(); err != nil {
 		return nil, nil, nil, nil, err
 	}
 	return &handlerTestUtils, kubeClient, kubeUtil, radixClient, nil
@@ -114,7 +112,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra)
+	applicationConfig := applicationconfig.NewApplicationConfig(client, kubeUtil, radixClient, radixRegistration, ra, config.Config{})
 
 	err = applicationConfig.OnSync(context.Background())
 	if err != nil {

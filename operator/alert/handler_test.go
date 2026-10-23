@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/alert"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -56,8 +57,8 @@ func (s *handlerTestSuite) TearDownTest() {
 }
 
 func (s *handlerTestSuite) Test_RadixAlertNotFound() {
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, WithAlertSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateAlertSyncer(gomock.Any(), gomock.Any()).Times(0)
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, config.Config{}, WithAlertSyncerFactory(s.syncerFactory))
+	s.syncerFactory.EXPECT().CreateAlertSyncer(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Times(0)
 	err := sut.Sync(context.Background(), "any-ns", "any-alert")
 	s.Nil(err)
@@ -65,12 +66,12 @@ func (s *handlerTestSuite) Test_RadixAlertNotFound() {
 
 func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnError() {
 	alertName, namespace := "alert", "ns"
-	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
+	alert := &v1.RadixAlert{Name: alertName}
 	alert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
 	expectedError := fmt.Errorf("error")
 
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, WithAlertSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateAlertSyncer(s.dynamicClient, alert).Return(s.syncer).Times(1)
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, config.Config{}, WithAlertSyncerFactory(s.syncerFactory))
+	s.syncerFactory.EXPECT().CreateAlertSyncer(gomock.Any(), s.dynamicClient, alert).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(expectedError).Times(1)
 	actualError := sut.Sync(context.Background(), namespace, alertName)
 	s.Equal(expectedError, actualError)
@@ -78,11 +79,11 @@ func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnError() {
 
 func (s *handlerTestSuite) Test_RadixAlertExist_AlertSyncerReturnNil() {
 	alertName, namespace := "alert", "ns"
-	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
+	alert := &v1.RadixAlert{Name: alertName}
 	alert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
 
-	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, WithAlertSyncerFactory(s.syncerFactory))
-	s.syncerFactory.EXPECT().CreateAlertSyncer(s.dynamicClient, alert).Return(s.syncer).Times(1)
+	sut := NewHandler(s.kubeClient, s.kubeUtil, s.dynamicClient, s.eventRecorder, config.Config{}, WithAlertSyncerFactory(s.syncerFactory))
+	s.syncerFactory.EXPECT().CreateAlertSyncer(gomock.Any(), s.dynamicClient, alert).Return(s.syncer).Times(1)
 	s.syncer.EXPECT().OnSync(gomock.Any()).Return(nil).Times(1)
 	err := sut.Sync(context.Background(), namespace, alertName)
 	s.Nil(err)

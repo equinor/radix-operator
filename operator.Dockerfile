@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM docker.io/golang:1.26.3-alpine3.23 AS builder
+FROM --platform=$BUILDPLATFORM docker.io/golang:1.27.3-alpine3.24 AS builder
 ARG TARGETARCH
 ENV CGO_ENABLED=0 \
     GOOS=linux \
@@ -10,6 +10,7 @@ COPY ./go.mod ./go.sum ./
 RUN go mod download
 COPY ./operator ./operator
 COPY ./pkg ./pkg
+COPY ./pipeline-runner/flags ./pipeline-runner/flags
 WORKDIR /src/operator
 RUN go build -ldflags="-s -w" -o /build/radix-operator
 

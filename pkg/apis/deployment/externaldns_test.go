@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"testing"
+	"time"
 
 	certfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/config"
@@ -22,7 +23,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -42,23 +42,11 @@ type ExternalDNSTestSuite struct {
 	dynamicClient client.Client
 	certClient    *certfake.Clientset
 	testUtils     *test.Utils
-	cfg           *config.Config
+	cfg           config.Config
 }
 
 func TestExternalDNSTestSuite(t *testing.T) {
 	suite.Run(t, new(ExternalDNSTestSuite))
-}
-
-func (s *ExternalDNSTestSuite) SetupSuite() {
-	s.T().Setenv(defaults.OperatorDNSZoneEnvironmentVariable, testDNSZone)
-	s.T().Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, testAppAliasBaseURL)
-	s.T().Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	s.T().Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	s.T().Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	s.T().Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	s.T().Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
-	s.T().Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 }
 
 func (s *ExternalDNSTestSuite) SetupTest() {
@@ -79,14 +67,18 @@ func (s *ExternalDNSTestSuite) setupTest() {
 	s.certClient = certfake.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, radixClient, kedaClient, secretProviderClient)
 	handlerTestUtils := test.NewTestUtils(s.kubeClient, radixClient, kedaClient, secretProviderClient)
-	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites(testClusterName, "anysubid"))
+	s.Require().NoError(handlerTestUtils.CreateClusterPrerequisites())
 	s.testUtils = &handlerTestUtils
-	s.cfg = &config.Config{
-		DeploymentSyncer:      testConfig.DeploymentSyncer,
-		CertificateAutomation: testConfig.CertificateAutomation,
-		Gateway: config.GatewayConfig{
-			Name:      edTestGatewayName,
-			Namespace: edTestGatewayNamespace,
+	s.cfg = config.Config{
+		Common: config.CommonConfig{
+			AppAliasBaseURL:       testAppAliasBaseURL,
+			CertificateAutomation: testConfig.Common.CertificateAutomation,
+		},
+		Operator: config.OperatorConfig{
+			Gateway: config.GatewayConfig{
+				Name:      edTestGatewayName,
+				Namespace: edTestGatewayNamespace,
+			},
 		},
 	}
 }
@@ -116,14 +108,14 @@ func (s *ExternalDNSTestSuite) getHTTPRoute(ctx context.Context, name, namespace
 	return route, err
 }
 
-func (s *ExternalDNSTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapixv1alpha1.XListenerSet, error) {
-	ls := &gatewayapixv1alpha1.XListenerSet{}
+func (s *ExternalDNSTestSuite) getListenerSet(ctx context.Context, name, namespace string) (*gatewayapiv1.ListenerSet, error) {
+	ls := &gatewayapiv1.ListenerSet{}
 	err := s.dynamicClient.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ls)
 	return ls, err
 }
 
-func (s *ExternalDNSTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapixv1alpha1.XListenerSetList, error) {
-	lsList := &gatewayapixv1alpha1.XListenerSetList{}
+func (s *ExternalDNSTestSuite) listListenerSets(ctx context.Context, namespace string) (*gatewayapiv1.ListenerSetList, error) {
+	lsList := &gatewayapiv1.ListenerSetList{}
 	err := s.dynamicClient.List(ctx, lsList, client.InNamespace(namespace))
 	return lsList, err
 }
@@ -171,8 +163,8 @@ func (s *ExternalDNSTestSuite) TestHTTPRouteAndListenerSetCreated_ForExternalDNS
 	s.Require().NotNil(listenerSetParentRef.Group)
 	s.Require().NotNil(listenerSetParentRef.Kind)
 	s.Require().NotNil(listenerSetParentRef.Namespace)
-	s.Equal(gatewayapiv1.Group(gatewayapixv1alpha1.GroupName), *listenerSetParentRef.Group)
-	s.Equal(gatewayapiv1.Kind("XListenerSet"), *listenerSetParentRef.Kind)
+	s.Equal(gatewayapiv1.Group(gatewayapiv1.GroupName), *listenerSetParentRef.Group)
+	s.Equal(gatewayapiv1.Kind("ListenerSet"), *listenerSetParentRef.Kind)
 	s.Equal(gatewayapiv1.ObjectName(externalDNSFQDN), listenerSetParentRef.Name)
 	s.Equal(gatewayapiv1.Namespace(ns), *listenerSetParentRef.Namespace)
 
@@ -207,9 +199,9 @@ func (s *ExternalDNSTestSuite) TestHTTPRouteAndListenerSetCreated_ForExternalDNS
 
 	// Verify listener configuration
 	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.SectionName("https"), ls.Spec.Listeners[0].Name)
+	s.Equal(gatewayapiv1.SectionName("https"), ls.Spec.Listeners[0].Name)
 	s.NotNil(ls.Spec.Listeners[0].Hostname)
-	s.Equal(gatewayapixv1alpha1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
 	s.Equal(gatewayapiv1.HTTPSProtocolType, ls.Spec.Listeners[0].Protocol)
 	s.Equal(gatewayapiv1.PortNumber(443), ls.Spec.Listeners[0].Port)
 
@@ -303,13 +295,13 @@ func (s *ExternalDNSTestSuite) TestMultipleExternalDNS_EachGetOwnResources() {
 	s.Require().NoError(err)
 	s.Equal(fqdn1, ls1.Name)
 	s.Require().Len(ls1.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(fqdn1), *ls1.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(fqdn1), *ls1.Spec.Listeners[0].Hostname)
 
 	ls2, err := s.getListenerSet(ctx, fqdn2, ns)
 	s.Require().NoError(err)
 	s.Equal(fqdn2, ls2.Name)
 	s.Require().Len(ls2.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(fqdn2), *ls2.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(fqdn2), *ls2.Spec.Listeners[0].Hostname)
 
 	// Each FQDN should have its own HTTPRoute
 	route1, err := s.getHTTPRoute(ctx, fqdn1, ns)
@@ -386,7 +378,7 @@ func (s *ExternalDNSTestSuite) TestResourcesUpdated_WhenExternalDNSChanged() {
 	ls, err := s.getListenerSet(ctx, updatedFQDN, ns)
 	s.Require().NoError(err, "ListenerSet for updated FQDN should exist")
 	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(updatedFQDN), *ls.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(updatedFQDN), *ls.Spec.Listeners[0].Hostname)
 
 	route, err := s.getHTTPRoute(ctx, updatedFQDN, ns)
 	s.Require().NoError(err, "HTTPRoute for updated FQDN should exist")
@@ -708,7 +700,7 @@ func (s *ExternalDNSTestSuite) TestBackendRefUpdated_WhenExternalDNSMovedBetween
 	ls, err := s.getListenerSet(ctx, externalDNSFQDN, ns)
 	s.Require().NoError(err)
 	s.Require().Len(ls.Spec.Listeners, 1)
-	s.Equal(gatewayapixv1alpha1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
+	s.Equal(gatewayapiv1.Hostname(externalDNSFQDN), *ls.Spec.Listeners[0].Hostname)
 }
 
 // Test that backend ref switches from OAuth2 proxy to direct component service when OAuth2 is removed
@@ -803,4 +795,98 @@ func (s *ExternalDNSTestSuite) TestOAuth2BackendRef_WhenOAuth2Enabled() {
 	expectedOAuthServiceName := utils.GetAuxOAuthProxyComponentServiceName(edTestComponentName)
 	s.Equal(gatewayapiv1.ObjectName(expectedOAuthServiceName), route.Spec.Rules[0].BackendRefs[0].Name)
 	s.Equal(gatewayapiv1.PortNumber(defaults.OAuthProxyPortNumber), *route.Spec.Rules[0].BackendRefs[0].Port)
+}
+
+func (s *ExternalDNSTestSuite) deploymentWithCertificateAutomation(certAutomation config.CertificateAutomationConfig) *Deployment {
+	cfg := s.cfg
+	cfg.Common.CertificateAutomation = certAutomation
+
+	return &Deployment{
+		kubeclient:      s.kubeClient,
+		radixclient:     s.radixClient,
+		kubeutil:        s.kubeUtil,
+		dynamicClient:   s.dynamicClient,
+		certClient:      s.certClient,
+		registration:    &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: edTestAppName}},
+		radixDeployment: &radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: s.namespace()}},
+		config:          cfg,
+	}
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerListIsEmpty() {
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{DefaultIssuer: "digicert"})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: "app.example.com", UseCertificateAutomation: true})
+	s.EqualError(err, "external DNS app.example.com: list of issuers is empty in certificate automation config")
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerAndDefaultIssuerNotSet() {
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert": {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: "app.example.com", UseCertificateAutomation: true})
+	s.EqualError(err, "external DNS app.example.com: issuer is not set and no default issuer is available in certificate automation config")
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_ErrorWhenIssuerNotInIssuerList() {
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		DefaultIssuer: "digicert",
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert": {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{
+		FQDN:                     "app.example.com",
+		UseCertificateAutomation: true,
+		CertificateAutomation:    &radixv1.CertificateAutomation{Issuer: "nonexisting"},
+	})
+	s.EqualError(err, "external DNS app.example.com: selected issuer \"nonexisting\" is not found in the list of issuers in certificate automation config")
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesDefaultIssuerWhenIssuerNotSet() {
+	const fqdn = "app.example.com"
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		DefaultIssuer: "digicert",
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert":    {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{FQDN: fqdn, UseCertificateAutomation: true})
+	s.Require().NoError(err)
+
+	cert, err := s.certClient.CertmanagerV1().Certificates(s.namespace()).Get(context.Background(), fqdn, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal("digicert-http01-gateway", cert.Spec.IssuerRef.Name)
+	s.Equal(10000*time.Hour, cert.Spec.Duration.Duration)
+	s.Equal(5000*time.Hour, cert.Spec.RenewBefore.Duration)
+}
+
+func (s *ExternalDNSTestSuite) TestCreateOrUpdateExternalDnsCertificate_UsesIssuerFromExternalDns() {
+	const fqdn = "app.example.com"
+	deploy := s.deploymentWithCertificateAutomation(config.CertificateAutomationConfig{
+		DefaultIssuer: "digicert",
+		Issuers: map[string]config.CertificateIssuerConfig{
+			"digicert":    {ClusterIssuerName: "digicert-http01-gateway", Duration: 10000 * time.Hour, RenewBefore: 5000 * time.Hour},
+			"letsencrypt": {ClusterIssuerName: "letsencrypt-http01", Duration: 11000 * time.Hour, RenewBefore: 6000 * time.Hour},
+		},
+	})
+
+	err := deploy.createOrUpdateExternalDnsCertificate(context.Background(), radixv1.RadixDeployExternalDNS{
+		FQDN:                     fqdn,
+		UseCertificateAutomation: true,
+		CertificateAutomation:    &radixv1.CertificateAutomation{Issuer: "letsencrypt"},
+	})
+	s.Require().NoError(err)
+
+	cert, err := s.certClient.CertmanagerV1().Certificates(s.namespace()).Get(context.Background(), fqdn, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal("letsencrypt-http01", cert.Spec.IssuerRef.Name)
+	s.Equal(11000*time.Hour, cert.Spec.Duration.Duration)
+	s.Equal(6000*time.Hour, cert.Spec.RenewBefore.Duration)
 }

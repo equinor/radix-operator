@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 )
 
 func MultipleAlertingConfigurationsError() error {

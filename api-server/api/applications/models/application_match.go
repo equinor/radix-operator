@@ -1,7 +1,7 @@
 package models
 
 import (
-	"strings"
+	"slices"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -21,24 +21,7 @@ func filterByNames(rr *v1.RadixRegistration, names []string) bool {
 		return false
 	}
 
-	for _, name := range names {
-		if name == rr.Name {
-			return true
-		}
-	}
-
-	return false
-}
-
-// MatchByNamesFunc returns a ApplicationMatch that checks if the CloneURL of a RadixRegistration matches sshRepo argument
-func MatchBySSHRepoFunc(sshRepo string) ApplicationMatch {
-	return func(rr *v1.RadixRegistration) bool {
-		return filterBySSHRepo(rr, sshRepo)
-	}
-}
-
-func filterBySSHRepo(rr *v1.RadixRegistration, sshRepo string) bool {
-	return strings.EqualFold(rr.Spec.CloneURL, sshRepo)
+	return slices.Contains(names, rr.Name)
 }
 
 // MatchAll returns a ApplicationMatch that always returns true

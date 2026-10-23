@@ -5,30 +5,31 @@ import (
 	"net/http"
 
 	environmentModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
 const rootPath = "/applications/{appName}"
 
 type privateImageHubController struct {
-	*models.DefaultController
+	*controller.DefaultController
 }
 
 // NewPrivateImageHubController Constructor
-func NewPrivateImageHubController() models.Controller {
+func NewPrivateImageHubController() controller.Controller {
 	return &privateImageHubController{}
 }
 
 // GetRoutes List the supported routes of this handler
-func (dc *privateImageHubController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (dc *privateImageHubController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/privateimagehubs",
 			Method:      "GET",
 			HandlerFunc: dc.GetPrivateImageHubs,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/privateimagehubs/{serverName}",
 			Method:      "PUT",
 			HandlerFunc: dc.ChangePrivateImageHubSecret,
@@ -39,7 +40,7 @@ func (dc *privateImageHubController) GetRoutes() models.Routes {
 }
 
 // GetPrivateImageHubs Lists private image hubs
-func (dc *privateImageHubController) GetPrivateImageHubs(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *privateImageHubController) GetPrivateImageHubs(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/privateimagehubs application getPrivateImageHubs
 	// ---
 	// summary: Lists the application private image hubs
@@ -84,7 +85,7 @@ func (dc *privateImageHubController) GetPrivateImageHubs(accounts models.Account
 }
 
 // ChangePrivateImageHubSecret Modifies an application private image hub secret
-func (dc *privateImageHubController) ChangePrivateImageHubSecret(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *privateImageHubController) ChangePrivateImageHubSecret(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName}/privateimagehubs/{serverName} application updatePrivateImageHubsSecretValue
 	// ---
 	// summary: Update an application private image hub secret

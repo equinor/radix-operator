@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"
@@ -68,7 +68,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 			azureKeyVaults: []v1.RadixAzureKeyVault{
 				{
 					Name:  "kv1",
-					Path:  utils.StringPtr("/mnt/customPath"),
+					Path:  new("/mnt/customPath"),
 					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
 				},
 				{
@@ -142,7 +142,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				continue
 			}
 
-			for i := 0; i < len(volumes); i++ {
+			for i := range volumes {
 				volume := volumes[i]
 				assert.Less(t, len(volume.Name), 64, "volume name is too long")
 				assert.NotNil(t, volume.CSI, "CSI should ne not nil")
@@ -191,7 +191,7 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				continue
 			}
 
-			for i := 0; i < len(volumeMounts); i++ {
+			for i := range volumeMounts {
 				volumeMount := volumeMounts[i]
 				volumeProp := scenario.expectedVolumeProps[i]
 				assert.Less(t, len(volumeMount.Name), 64, "volumemount name is too long")
@@ -209,7 +209,7 @@ func getDeployment(t *testing.T, deploymentBuilder utils.DeploymentBuilder) *Dep
 	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient,
 		deploymentBuilder)
 	require.NoError(t, err)
-	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, config: &testConfig}
+	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, config: testConfig}
 }
 
 func getRdBuilderWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) utils.DeploymentBuilder {

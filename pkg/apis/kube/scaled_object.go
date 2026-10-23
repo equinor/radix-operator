@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -98,7 +98,7 @@ func (kubeutil *Kube) ListScaledObjectWithSelector(ctx context.Context, namespac
 		if err != nil {
 			return nil, err
 		}
-		return slice.PointersOf(list.Items).([]*v1alpha1.ScaledObject), nil
+		return slice.PointersOf(list.Items), nil
 	}
 	selector, err := labels.Parse(labelSelectorString)
 	if err != nil {

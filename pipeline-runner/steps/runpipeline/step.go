@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -169,15 +168,13 @@ func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev
 	}
 
 	pipelineRun := pipelinev1.PipelineRun{
-		ObjectMeta: v1.ObjectMeta{
-			Name:   pipelineRunName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv, step.GetAppID()),
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
-				kube.RadixGitRefAnnotation:              pipelineInfo.PipelineArguments.GitRef,
-				kube.RadixGitRefTypeAnnotation:          pipelineInfo.PipelineArguments.GitRefType,
-				operatorDefaults.PipelineNameAnnotation: originalPipelineName,
-			},
+		Name:   pipelineRunName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv, step.GetAppID()),
+		Annotations: map[string]string{
+			kube.RadixBranchAnnotation:              pipelineInfo.PipelineArguments.Branch, //nolint:staticcheck
+			kube.RadixGitRefAnnotation:              pipelineInfo.PipelineArguments.GitRef,
+			kube.RadixGitRefTypeAnnotation:          pipelineInfo.PipelineArguments.GitRefType,
+			operatorDefaults.PipelineNameAnnotation: originalPipelineName,
 		},
 		Spec: pipelinev1.PipelineRunSpec{
 			PipelineRef: &pipelinev1.PipelineRef{Name: pipeline.GetName()},
@@ -209,14 +206,14 @@ func (step *RunPipelinesStepImplementation) buildPipelineRunPodTemplate(pipeline
 	if ra != nil && len(ra.Spec.PrivateImageHubs) > 0 {
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: operatorDefaults.PrivateImageHubSecretName})
 	}
-	if pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret != "" {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: pipelineInfo.PipelineArguments.ExternalContainerRegistryDefaultAuthSecret})
+	if pipelineInfo.Cfg.Common.ExternalRegistryAuthSecret != "" {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: pipelineInfo.Cfg.Common.ExternalRegistryAuthSecret})
 	}
 
 	return &pod.Template{
 		ImagePullSecrets: imagePullSecrets,
 		SecurityContext: &corev1.PodSecurityContext{
-			RunAsNonRoot: pointers.Ptr(true),
+			RunAsNonRoot: new(true),
 		},
 		NodeSelector: map[string]string{
 			corev1.LabelArchStable: "amd64",

@@ -33,16 +33,22 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
 	token "github.com/equinor/radix-operator/api-server/api/utils/token"
 	_ "github.com/equinor/radix-operator/api-server/docs"
-	"github.com/equinor/radix-operator/api-server/internal/config"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/event"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-//go:generate swagger generate spec
 func main() {
-	c := config.MustParse()
-	setupLogger(c.LogLevel, c.LogPrettyPrint)
+	c := loadConfig(context.Background())
+
+	setupLogger(c.ApiServer.LogLevel, c.ApiServer.LogPrettyPrint)
+
 	log.Info().Any("config", c).Msg("Starting radix api-server")
 
 	servers := []*http.Server{
@@ -50,9 +56,10 @@ func main() {
 		initializeMetricsServer(c),
 	}
 
-	if c.UseProfiler {
-		log.Info().Msgf("Initializing profile server on port %d", c.ProfilePort)
-		servers = append(servers, &http.Server{Addr: fmt.Sprintf("localhost:%d", c.ProfilePort)})
+	if c.ApiServer.UseProfiler {
+		const profilerAddr = "localhost:7070"
+		log.Info().Msgf("Initializing profile server on address %s", profilerAddr)
+		servers = append(servers, &http.Server{Addr: profilerAddr})
 	}
 
 	startServers(servers...)
@@ -61,46 +68,57 @@ func main() {
 
 func initializeServer(c config.Config) *http.Server {
 	jwtValidator := initializeTokenValidator(c)
-	controllers, err := getControllers(c)
+	kubeUtil := utils.NewKubeUtil()
+	controllers, err := getControllers(c, kubeUtil)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("failed to initialize controllers: %v", err)
 	}
 
-	handler := router.NewAPIHandler(jwtValidator, utils.NewKubeUtil(), controllers...)
+	handler := router.NewAPIHandler(jwtValidator, kubeUtil, controllers...)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", c.Port),
+		Addr:    fmt.Sprintf(":%d", c.ApiServer.Port),
 		Handler: handler,
 	}
 
 	return srv
 }
 
+func loadConfig(ctx context.Context) config.Config {
+	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: scheme.NewScheme()})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create config reader client")
+	}
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	var cfg config.Config
+	configcodec.MustDecode(cfgYaml, &cfg)
+	return cfg
+}
+
 func initializeTokenValidator(c config.Config) token.ValidatorInterface {
-	azureValidator, err := token.NewValidator(c.AzureOidc.Issuer, c.AzureOidc.Audience)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating JWT Azure OIDC validator")
+	var validators []token.ValidatorInterface
+
+	for k, a := range c.ApiServer.Authenticators {
+		v, err := token.NewValidator(a.Issuer, a.Audience)
+		if err != nil {
+			log.Fatal().Err(err).Str("authenticator", k).Msg("Error creating JWT OIDC validator")
+		}
+		validators = append(validators, v)
 	}
 
-	kubernetesValidator, err := token.NewValidator(c.KubernetesOidc.Issuer, c.KubernetesOidc.Audience)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error creating JWT Kubernetes OIDC validator")
-	}
-
-	chainedValidator := token.NewChainedValidator(azureValidator, kubernetesValidator)
+	chainedValidator := token.NewChainedValidator(validators...)
 	return chainedValidator
 }
 
 func initializeMetricsServer(c config.Config) *http.Server {
-	log.Info().Msgf("Initializing metrics server on port %d", c.MetricsPort)
+	log.Info().Msgf("Initializing metrics server on port %d", c.ApiServer.MetricsPort)
 	return &http.Server{
-		Addr:    fmt.Sprintf(":%d", c.MetricsPort),
+		Addr:    fmt.Sprintf(":%d", c.ApiServer.MetricsPort),
 		Handler: router.NewMetricsHandler(),
 	}
 }
 
 func startServers(servers ...*http.Server) {
 	for _, srv := range servers {
-		srv := srv
 		go func() {
 			log.Info().Msgf("Starting server on address %s", srv.Addr)
 			if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
@@ -121,15 +139,12 @@ func shutdownServersGracefulOnSignal(servers ...*http.Server) {
 	var wg sync.WaitGroup
 
 	for _, srv := range servers {
-		srv := srv
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			log.Info().Msgf("Shutting down server on address %s", srv.Addr)
 			if err := srv.Shutdown(shutdownCtx); err != nil {
 				log.Warn().Err(err).Msgf("shutdown of server on address %s returned an error", srv.Addr)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -157,15 +172,22 @@ func setupLogger(logLevelStr string, prettyPrint bool) {
 	zerolog.DefaultContextLogger = &logger
 }
 
-func getControllers(config config.Config) ([]models.Controller, error) {
+func getControllers(config config.Config, kubeUtil utils.KubeUtil) ([]controller.Controller, error) {
 	buildStatus := buildModels.NewPipelineBadge()
 	applicationFactory := applications.NewApplicationHandlerFactory(config)
-	prometheusClient, err := prometheus.NewPrometheusClient(config.PrometheusUrl)
+	prometheusClient, err := prometheus.NewPrometheusClient(config.ApiServer.PrometheusUrl.String())
 	if err != nil {
 		return nil, err
 	}
 	metricsHandler := metrics.NewHandler(prometheusClient)
-	return []models.Controller{
+
+	inClusterClient, _, _, _, _, _ := kubeUtil.GetServerKubernetesClient()
+	eventRecorder, err := event.NewRecorder("radix-api-server", inClusterClient.CoreV1().Events(""))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create event recorder: %w", err)
+	}
+
+	return []controller.Controller{
 		applications.NewApplicationController(nil, applicationFactory, metricsHandler),
 		deployments.NewDeploymentController(),
 		jobs.NewJobController(),
@@ -177,6 +199,6 @@ func getControllers(config config.Config) ([]models.Controller, error) {
 		alerting.NewAlertingController(),
 		secrets.NewSecretController(tlsvalidation.DefaultValidator()),
 		configuration.NewConfigurationController(configuration.Init(config)),
-		githubwebhook.NewGithubWebhookController(),
+		githubwebhook.NewGithubWebhookController(eventRecorder),
 	}, nil
 }

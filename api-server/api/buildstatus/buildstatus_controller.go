@@ -6,7 +6,8 @@ import (
 	"time"
 
 	buildmodels "github.com/equinor/radix-operator/api-server/api/buildstatus/models"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
@@ -15,19 +16,19 @@ import (
 const rootPath = "/applications/{appName}/environments/{envName}"
 
 type buildStatusController struct {
-	*models.DefaultController
+	*controller.DefaultController
 	buildmodels.PipelineBadge
 }
 
 // NewBuildStatusController Constructor
-func NewBuildStatusController(status buildmodels.PipelineBadge) models.Controller {
+func NewBuildStatusController(status buildmodels.PipelineBadge) controller.Controller {
 	return &buildStatusController{PipelineBadge: status}
 }
 
 // GetRoutes List the supported routes of this handler
-func (bsc *buildStatusController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (bsc *buildStatusController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:                      rootPath + "/buildstatus",
 			Method:                    "GET",
 			HandlerFunc:               bsc.GetBuildStatus,
@@ -39,7 +40,7 @@ func (bsc *buildStatusController) GetRoutes() models.Routes {
 }
 
 // GetBuildStatus reveals build status for selected environment
-func (bsc *buildStatusController) GetBuildStatus(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (bsc *buildStatusController) GetBuildStatus(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/buildstatus buildstatus getBuildStatus
 	// ---
 	// summary: Show the application buildStatus

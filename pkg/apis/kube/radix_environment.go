@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -47,7 +47,7 @@ func (kubeutil *Kube) ListEnvironments(ctx context.Context) ([]*radixv1.RadixEnv
 			return nil, err
 		}
 
-		environments = slice.PointersOf(list.Items).([]*radixv1.RadixEnvironment)
+		environments = slice.PointersOf(list.Items)
 	}
 
 	return environments, nil

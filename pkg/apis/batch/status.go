@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -158,12 +157,12 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 
 	if condition, ok := slice.FindFirst(job.Status.Conditions, kube.JobHasOneOfConditionTypes(batchv1.JobComplete, batchv1.JobSuccessCriteriaMet)); ok {
 		status.Phase = radixv1.BatchJobPhaseSucceeded
-		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
+		status.EndTime = new(condition.LastTransitionTime)
 		status.Reason = condition.Reason
 		status.Message = condition.Message
 	} else if condition, ok := slice.FindFirst(job.Status.Conditions, kube.JobHasOneOfConditionTypes(batchv1.JobFailed)); ok {
 		status.Phase = radixv1.BatchJobPhaseFailed
-		status.EndTime = pointers.Ptr(condition.LastTransitionTime)
+		status.EndTime = new(condition.LastTransitionTime)
 		status.Reason = condition.Reason
 		status.Message = condition.Message
 	} else if kube.IsJobRunning(job.Status) {
@@ -212,7 +211,7 @@ func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJo
 		jobStatus.RadixBatchJobPodStatuses = append(jobStatus.RadixBatchJobPodStatuses, radixv1.RadixBatchJobPodStatus{
 			Name:         pod.GetName(),
 			Phase:        radixv1.RadixBatchJobPodPhase(pod.Status.Phase),
-			CreationTime: pointers.Ptr(pod.GetCreationTimestamp()),
+			CreationTime: new(pod.GetCreationTimestamp()),
 			PodIndex:     len(jobStatus.RadixBatchJobPodStatuses),
 		})
 		podStatus = &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]

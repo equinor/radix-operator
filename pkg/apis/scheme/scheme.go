@@ -12,7 +12,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayapixv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
@@ -43,7 +42,6 @@ func NewScheme() *runtime.Scheme {
 
 	// Gateway API
 	utilruntime.Must(gatewayapiv1.Install(scheme))
-	utilruntime.Must(gatewayapixv1alpha1.Install(scheme))
 
 	// Tekton
 	utilruntime.Must(tektonv1.AddToScheme(scheme))

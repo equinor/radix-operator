@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -14,7 +16,7 @@ import (
 func GetComponentSecretName(componentName string) string {
 	// include a hash so that users cannot get access to a secret they should not get
 	// by naming component the same as secret object
-	hash := strings.ToLower(RandStringStrSeed(8, componentName))
+	hash := strings.ToLower(random.RandStringStrSeed(8, componentName))
 	return strings.ToLower(fmt.Sprintf("%s-%s", componentName, hash))
 }
 
@@ -61,10 +63,8 @@ func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: secretName,
-				},
-				Key: envVarName,
+				Name: secretName,
+				Key:  envVarName,
 			},
 		},
 	}
@@ -88,7 +88,7 @@ func GrantAppReaderAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regi
 }
 
 // GrantAppAdminAccessToSecret grants access to a secret for app-admin groups
-func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
+func GrantAppAdminAccessToSecret(ctx context.Context, cfg config.Config, kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
 	namespace := GetAppNamespace(registration.Name)
 
 	// create role
@@ -99,7 +99,7 @@ func GrantAppAdminAccessToSecret(ctx context.Context, kubeutil *kube.Kube, regis
 	}
 
 	// create rolebinding
-	subjects := GetAppAdminRbacSubjects(registration)
+	subjects := GetAppAdminRbacSubjects(cfg, registration)
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return kubeutil.ApplyRoleBinding(ctx, namespace, rolebinding)
 }

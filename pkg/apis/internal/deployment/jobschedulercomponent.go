@@ -1,21 +1,21 @@
 package deployment
 
 import (
-	"os"
-
-	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 type JobSchedulerComponent struct {
+	cfg             config.Config
 	radixJob        *radixv1.RadixDeployJobComponent
 	radixDeployment *radixv1.RadixDeployment
 }
 
 // NewJobSchedulerComponent Constructor
-func NewJobSchedulerComponent(jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
+func NewJobSchedulerComponent(cfg config.Config, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) radixv1.RadixCommonDeployComponent {
 	return &JobSchedulerComponent{
+		cfg,
 		jobComponent,
 		rd,
 	}
@@ -30,18 +30,18 @@ func (js *JobSchedulerComponent) GetType() radixv1.RadixComponentType {
 }
 
 func (js *JobSchedulerComponent) GetImage() string {
-	return os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	return js.cfg.Operator.JobSchedulerImage.String()
 }
 
 func (js *JobSchedulerComponent) GetPorts() []radixv1.ComponentPort {
-	if js.radixJob.SchedulerPort == 0 {
+	if js.radixJob.SchedulerPort == nil || *js.radixJob.SchedulerPort == 0 {
 		return nil
 	}
 
 	return []radixv1.ComponentPort{
 		{
 			Name: defaults.RadixJobSchedulerPortName,
-			Port: js.radixJob.SchedulerPort,
+			Port: *js.radixJob.SchedulerPort,
 		},
 	}
 }
@@ -52,7 +52,6 @@ func (js *JobSchedulerComponent) GetEnvironmentVariables() radixv1.EnvVarsMap {
 		envVarsMap = radixv1.EnvVarsMap{}
 	}
 	envVarsMap[defaults.RadixDeploymentEnvironmentVariable] = js.radixDeployment.Name
-	envVarsMap[defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable] = os.Getenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 	return envVarsMap
 }
 
@@ -143,7 +142,7 @@ func (js *JobSchedulerComponent) GetIdentity() *radixv1.Identity {
 }
 
 func (js *JobSchedulerComponent) GetReadOnlyFileSystem() *bool {
-	return pointers.Ptr(true)
+	return new(true)
 }
 
 func (js *JobSchedulerComponent) GetRuntime() *radixv1.Runtime {
@@ -171,6 +170,6 @@ func (js *JobSchedulerComponent) GetRunAsUser() *int64 {
 
 // IsDeployComponentJobSchedulerDeployment Checks if deployComponent is a JobScheduler deployment
 func IsDeployComponentJobSchedulerDeployment(deployComponent radixv1.RadixCommonDeployComponent) bool {
-	_, isJobScheduler := interface{}(deployComponent).(*JobSchedulerComponent)
+	_, isJobScheduler := any(deployComponent).(*JobSchedulerComponent)
 	return isJobScheduler
 }

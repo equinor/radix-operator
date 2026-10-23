@@ -8,40 +8,41 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/api-server/api/utils/logs"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
 const rootPath = "/applications/{appName}"
 
 type deploymentController struct {
-	*models.DefaultController
+	*controller.DefaultController
 }
 
 // NewDeploymentController Constructor
-func NewDeploymentController() models.Controller {
+func NewDeploymentController() controller.Controller {
 	return &deploymentController{}
 }
 
 // GetRoutes List the supported routes of this handler
-func (dc *deploymentController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (dc *deploymentController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/deployments",
 			Method:      "GET",
 			HandlerFunc: dc.GetDeployments,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/deployments/{deploymentName}",
 			Method:      "GET",
 			HandlerFunc: dc.GetDeployment,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/deployments/{deploymentName}/components/{componentName}/replicas/{podName}/logs",
 			Method:      "GET",
 			HandlerFunc: dc.GetPodLog,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/deployments/{deploymentName}/components",
 			Method:      "GET",
 			HandlerFunc: dc.GetComponents,
@@ -52,7 +53,7 @@ func (dc *deploymentController) GetRoutes() models.Routes {
 }
 
 // GetDeployments Lists deployments
-func (dc *deploymentController) GetDeployments(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *deploymentController) GetDeployments(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/deployments application getDeployments
 	// ---
 	// summary: Lists the application deployments
@@ -119,7 +120,7 @@ func (dc *deploymentController) GetDeployments(accounts models.Accounts, w http.
 }
 
 // GetDeployment Get deployment details
-func (dc *deploymentController) GetDeployment(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *deploymentController) GetDeployment(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/deployments/{deploymentName} deployment getDeployment
 	// ---
 	// summary: Get deployment details
@@ -168,7 +169,7 @@ func (dc *deploymentController) GetDeployment(accounts models.Accounts, w http.R
 }
 
 // GetComponents for a deployment
-func (dc *deploymentController) GetComponents(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *deploymentController) GetComponents(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/deployments/{deploymentName}/components component components
 	// ---
 	// summary: Get components for a deployment
@@ -216,7 +217,7 @@ func (dc *deploymentController) GetComponents(accounts models.Accounts, w http.R
 }
 
 // GetPodLog Get logs of a single pod
-func (dc *deploymentController) GetPodLog(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (dc *deploymentController) GetPodLog(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/deployments/{deploymentName}/components/{componentName}/replicas/{podName}/logs component log
 	// ---
 	// summary: Get logs from a deployed pod

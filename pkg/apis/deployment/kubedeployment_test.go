@@ -2,15 +2,10 @@ package deployment
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
@@ -19,31 +14,41 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func teardownReadinessProbe() {
-	_ = os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
-	_ = os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-}
-
 func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
-	teardownReadinessProbe()
-
-	probe, err := getDefaultReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
-	assert.Error(t, err)
-	assert.Nil(t, probe)
+	probe := getDefaultReadinessProbeForComponent(testConfig, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
+	assert.NotNil(t, probe)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
+	probe := getDefaultReadinessProbeForComponent(testConfig, &v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
 
-	probe, err := getDefaultReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
-	assert.Nil(t, err)
-
-	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
-	assert.Equal(t, int32(10), probe.PeriodSeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
 	assert.Equal(t, int32(5000), probe.ProbeHandler.TCPSocket.Port.IntVal)
-
-	teardownReadinessProbe()
 }
+
+func TestDeploymentReadinessProbeUsesConfig(t *testing.T) {
+	tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
+	_, err := ApplyDeploymentWithSync(tu, kubeClient, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
+		utils.ARadixDeployment().
+			WithAppName("any-app").
+			WithEnvironment("test").
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1").
+				WithPorts([]v1.ComponentPort{{Name: "http", Port: 8000}})))
+	require.NoError(t, err, "failed to apply deployment")
+
+	deployment, err := kubeClient.AppsV1().Deployments("any-app-test").Get(context.Background(), "comp1", metav1.GetOptions{})
+	require.NoError(t, err, "failed to get deployment")
+
+	probe := deployment.Spec.Template.Spec.Containers[0].ReadinessProbe
+	require.NotNil(t, probe, "readiness probe should be set")
+	assert.Equal(t, testConfig.Operator.ReadinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, testConfig.Operator.ReadinessProbePeriodSeconds, probe.PeriodSeconds)
+	require.NotNil(t, probe.TCPSocket, "readiness probe should be tcp")
+	assert.Equal(t, int32(8000), probe.TCPSocket.Port.IntVal)
+}
+
 func TestComponentWithoutCustomHealthChecks(t *testing.T) {
 	tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, _, certClient := SetupTest(t)
 	rd, _ := ApplyDeploymentWithSync(tu, client, kubeUtil, radixclient, kedaClient, prometheusclient, certClient,
@@ -66,7 +71,6 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 			PeriodSeconds:       seconds + 2,
 			SuccessThreshold:    seconds + 3,
 			FailureThreshold:    seconds + 4,
-			// TerminationGracePeriodSeconds: pointers.Ptr(int64(seconds + 5)),
 		}
 	}
 
@@ -121,7 +125,7 @@ func TestComponentWithCustomHealthChecks(t *testing.T) {
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, "default readiness probe should be set")
 	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe, "liveness probe should not be set")
 	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe, "startup probe should not be set")
-	assert.Equal(t, int32(5), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
+	assert.Equal(t, testConfig.Operator.ReadinessProbeInitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds, "invalid default readiness probe initial delay")
 	assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket, "default readiness probe should be tcp")
 	assert.Equal(t, int32(8000), deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.TCPSocket.Port.IntVal, "invalid default readiness probe port")
 }
@@ -321,8 +325,8 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(context.Background(), &component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
-		assert.Equal(t, expectedRequests["cpu"], pointers.Ptr(desiredRes.Requests["cpu"]).String())
-		assert.Equal(t, expectedRequests["memory"], pointers.Ptr(desiredRes.Requests["memory"]).String())
+		assert.Equal(t, expectedRequests["cpu"], new(desiredRes.Requests["cpu"]).String())
+		assert.Equal(t, expectedRequests["memory"], new(desiredRes.Requests["memory"]).String())
 		assert.Equal(t, 0, len(desiredRes.Limits))
 	})
 	t.Run("remove requests and update limit", func(t *testing.T) {
@@ -445,21 +449,5 @@ func applyDeploymentWithSyncWithComponentResources(t *testing.T, origRequests, o
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: &testConfig}
-}
-
-func TestDeployment_createJobAuxDeployment(t *testing.T) {
-	deploy := &Deployment{radixDeployment: &v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "deployment1", UID: "uid1"}}, config: &config.Config{ContainerRegistryConfig: config.ContainerRegistryConfig{ExternalRegistryAuthSecret: "an-external-registry-secret"}}}
-	jobAuxDeployment := deploy.createJobAuxDeployment("job1", "job1-aux")
-	assert.Equal(t, "job1-aux", jobAuxDeployment.GetName())
-	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources
-	s := resources.Requests.Cpu().String()
-	assert.Equal(t, "1m", s)
-	assert.Equal(t, "20M", resources.Requests.Memory().String())
-	assert.Equal(t, "0", resources.Limits.Cpu().String())
-	assert.Equal(t, "20M", resources.Limits.Memory().String())
-	assert.Equal(t, "bash:alpine3.22", jobAuxDeployment.Spec.Template.Spec.Containers[0].Image)
-	assert.Equal(t, "an-external-registry-secret", jobAuxDeployment.Spec.Template.Spec.ImagePullSecrets[0].Name)
-	assert.Equal(t, `sh`, jobAuxDeployment.Spec.Template.Spec.Containers[0].Command[0])
-	assert.Equal(t, []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}, jobAuxDeployment.Spec.Template.Spec.Containers[0].Args)
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, registration: rr.BuildRR(), config: testConfig}
 }

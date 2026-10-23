@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"github.com/equinor/radix-common/utils/pointers"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,13 +25,12 @@ type KubeJobProps interface {
 // BuildKubeJob builds a Kubernetes job with properties defined by source argument
 func BuildKubeJob(props KubeJobProps) batchv1.Job {
 	return batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        props.JobName(),
-			Labels:      props.JobLabels(),
-			Annotations: props.JobAnnotations(),
-		},
+		Name:        props.JobName(),
+		Labels:      props.JobLabels(),
+		Annotations: props.JobAnnotations(),
 		Spec: batchv1.JobSpec{
-			BackoffLimit: pointers.Ptr[int32](0),
+			BackoffLimit:            new(int32(0)),
+			TTLSecondsAfterFinished: new(int32(86400)),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      props.PodLabels(),

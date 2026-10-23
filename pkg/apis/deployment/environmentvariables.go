@@ -2,13 +2,15 @@ package deployment
 
 import (
 	"context"
-	"fmt"
+	"maps"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
-	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/envvars"
 	internal "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,7 +21,7 @@ import (
 
 // GetEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
 // It requires service account having access to config map in default namespace.
-func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube.Kube, cfg *config.Config, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube.Kube, cfg config.Config, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(ctx, radixDeployment.GetNamespace(), appName, deployComponent.GetName())
 	if err != nil {
 		return nil, err
@@ -28,7 +30,7 @@ func GetEnvironmentVariablesForRadixOperator(ctx context.Context, kubeutil *kube
 	return getEnvironmentVariables(appName, cfg, radixDeployment, deployComponent, envVarsConfigMap), nil
 }
 
-func getEnvironmentVariables(appName string, cfg *config.Config, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, cfg config.Config, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
 		namespace          = radixDeployment.Namespace
 		currentEnvironment = radixDeployment.Spec.Environment
@@ -52,12 +54,11 @@ func getEnvironmentVariables(appName string, cfg *config.Config, radixDeployment
 
 func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
 	envVarConfigMapName := envVarConfigMap.GetName()
-	// map is not sorted, which lead to random order of env variable in deployment
-	// during stop/start/restart of a single component this lead to restart of other several components
-	envVarNames := getMapKeysSorted(envVarConfigMap.Data)
 	var resultEnvVars []corev1.EnvVar
 	usedConfigMapEnvVarNames := map[string]bool{}
-	for _, envVarName := range envVarNames {
+	// maps must be sorted to prevent random order of env variable in deployment
+	// during stop/start/restart of a single component to prevent restart of other components
+	for _, envVarName := range slices.Sorted(maps.Keys(envVarConfigMap.Data)) {
 		if utils.IsRadixEnvVar(envVarName) {
 			continue
 		}
@@ -79,8 +80,8 @@ func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.Env
 }
 
 func removeFromConfigMapEnvVarsNotExistingInRadixconfig(envVarsMap v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap) {
-	envVarCmRefs := radixmaps.GetKeysFromStringMap(envVarConfigMap.Data)
-	for _, envVarName := range envVarCmRefs {
+	envVarCmRefs := maps.Keys(envVarConfigMap.Data)
+	for envVarName := range envVarCmRefs {
 		if _, ok := envVarsMap[envVarName]; !ok {
 			delete(envVarConfigMap.Data, envVarName)
 		}
@@ -100,30 +101,28 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: envVarConfigMapName,
-				},
-				Key: envVarName,
+				Name: envVarConfigMapName,
+				Key:  envVarName,
 			},
 		},
 	}
 }
 
-func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg config.Config, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 
-	envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, cfg.ClusterType)
-	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, cfg.ContainerRegistryName)
-	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, cfg.DNSZone)
-	envVarSet.Add(defaults.ClusternameEnvironmentVariable, cfg.ClusterName)
+	envVarSet.Add(envvars.ComponentClusterType, cfg.Common.ClusterType)
+	envVarSet.Add(envvars.ComponentContainerRegistry, cfg.PipelineRunner.ContainerRegistry)
+	envVarSet.Add(envvars.ComponentDNSZone, cfg.Common.DNSZone)
+	envVarSet.Add(envvars.ComponentClusterName, cfg.Common.ClusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
 	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
 	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, deployComponent.GetName())
 
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
 	if isPortPublic {
-		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg.ClusterName)
-		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace)
+		canonicalHostName := getHostName(deployComponent.GetName(), namespace, cfg.Common.ClusterName, cfg.Common.DNSZone)
+		publicHostName := getActiveClusterHostName(deployComponent.GetName(), namespace, cfg.Common.DNSZone)
 		envVarSet.Add(defaults.PublicEndpointEnvironmentVariable, publicHostName)
 		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}
@@ -139,19 +138,25 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, cfg *config.Config, currentEn
 }
 
 func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
-	portNumbers := "("
-	portNames := "("
+	var portNumbers strings.Builder
+	var portNames strings.Builder
+	portNumbers.WriteString("(")
+	portNames.WriteString("(")
+
 	portsSize := len(ports)
 	for i, portObj := range ports {
+		portNumbers.WriteString(strconv.FormatInt(int64(portObj.Port), 10))
+		portNames.WriteString(portObj.Name)
+
 		if i < portsSize-1 {
-			portNumbers += fmt.Sprint(portObj.Port) + " "
-			portNames += fmt.Sprint(portObj.Name) + " "
-		} else {
-			portNumbers += fmt.Sprint(portObj.Port) + ")"
-			portNames += fmt.Sprint(portObj.Name) + ")"
+			portNumbers.WriteString(" ")
+			portNames.WriteString(" ")
 		}
 	}
-	return portNumbers, portNames
+
+	portNumbers.WriteString(")")
+	portNames.WriteString(")")
+	return portNumbers.String(), portNames.String()
 }
 
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
@@ -212,10 +217,4 @@ func buildEnvVarsFromRadixConfig(ctx context.Context, radixConfigEnvVars v1.EnvV
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)
-}
-
-func getMapKeysSorted(stringMap map[string]string) []string {
-	keys := radixmaps.GetKeysFromStringMap(stringMap)
-	sort.Strings(keys)
-	return keys
 }

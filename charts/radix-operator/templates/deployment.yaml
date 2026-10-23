@@ -14,6 +14,8 @@ spec:
       {{- include "radix-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/radix-common-config: {{ include (print $.Template.BasePath "/radix-common-config.yaml") . | sha256sum }}
       labels:
         {{- include "radix-operator.selectorLabels" . | nindent 8 }}
     spec:
@@ -28,155 +30,17 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
-              containerPort: {{ .Values.service.internalPort }}
+              containerPort: {{ include "radix-operator.metricsPort" . }}
               protocol: TCP
           env:
-            - name: DNS_ZONE
-              value: {{ .Values.dnsZone }}
-            - name: RADIX_ZONE
-              value: {{ .Values.radixZone }}
-            - name: RADIX_CLUSTERNAME
-              value: {{ .Values.clusterName }}
-            - name: APP_ALIAS_BASE_URL
-              value: {{ .Values.appAliasBaseURL }}
-            - name: RADIXOPERATOR_CLUSTER_TYPE
-              value: {{ .Values.clusterType }}
-            - name: RADIXOPERATOR_DEFAULT_APP_ADMIN_GROUPS
-              value: {{ .Values.rbac.createApp.groups | join "," | quote }}
-            # For configuring limit ranges on app namespaces
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
-              value: {{ .Values.app.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY
-              value: {{ .Values.app.limitrange.defaultRequest.memory | quote }}
-            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU
-              value: {{ .Values.app.limitrange.defaultRequest.cpu | quote }}
-            # For configuring limit ranges on env namespaces
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
-              value: {{ .Values.app.env.limitrange.default.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY
-              value: {{ .Values.app.env.limitrange.defaultRequest.memory | quote }}
-            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
-              value: {{ .Values.app.env.limitrange.defaultRequest.cpu | quote }}
-            # For configuring limit ranges on app namespaces
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_MEMORY
-              value: {{ .Values.app.builder.resources.limits.memory | quote }}
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_LIMITS_CPU
-              value: {{ .Values.app.builder.resources.limits.cpu | quote }}
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_MEMORY
-              value: {{ .Values.app.builder.resources.requests.memory | quote }}
-            - name: RADIXOPERATOR_APP_BUILDER_RESOURCES_REQUESTS_CPU
-              value: {{ .Values.app.builder.resources.requests.cpu | quote }}
-            # For configuring readiness probe
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
-              value: {{ .Values.app.readinessProbe.initialDelaySeconds | quote }}
-            - name: RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
-              value: {{ .Values.app.readinessProbe.periodSeconds | quote }}
-            # For configuring rolling update
-            - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE
-              value: {{ .Values.app.rollingUpdate.maxUnavailable | quote }}
-            - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE
-              value: {{ .Values.app.rollingUpdate.maxSurge | quote }}
-            # Maximum custom resources
-            - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
-              value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
-            - name: RADIX_PIPELINE_JOBS_HISTORY_LIMIT
-              value: {{ .Values.pipelineJobsHistoryLimit | quote }}
-            - name: RADIX_PIPELINE_JOBS_HISTORY_PERIOD_LIMIT
-              value: {{ .Values.pipelineJobsHistoryPeriodLimit | quote }}
-            - name: RADIX_IMAGE_BUILDER_IMAGE
-              value: {{ .Values.radixImageBuilder.image.repository }}:{{ .Values.radixImageBuilder.image.tag | default "master-latest" }}
-            - name: RADIXOPERATOR_JOB_SCHEDULER_IMAGE
-              value: {{ .Values.radixJobScheduler.image.repository }}:{{ .Values.radixJobScheduler.image.tag | default .Chart.AppVersion }}
-            - name: LOG_LEVEL
-              value: {{ .Values.logLevel }}
-            - name: LOG_PRETTY
-              value: {{ .Values.logPretty | quote }}
-            - name: RADIX_CONTAINER_REGISTRY
-              value: {{ .Values.containerRegistry }}
-            - name: RADIX_APP_CONTAINER_REGISTRY
-              value: {{ .Values.appContainerRegistry }}
-            - name: RADIXOPERATOR_TENANT_ID
-              value: {{ .Values.tenantId }}
-            - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
-              value: {{ .Values.oauthProxyDefaultIssuerUrl }}
-            - name: RADIX_OAUTH_PROXY_IMAGE
-              value: {{ .Values.oauth2proxy.image.repository }}:{{ .Values.oauth2proxy.image.tag }}
-            - name: RADIX_OAUTH_REDIS_IMAGE
-              value: {{ .Values.oauth2redis.image.repository }}:{{ .Values.oauth2redis.image.tag }}
-            - name: REGISTRATION_CONTROLLER_THREADS
-              value: {{ .Values.registrationControllerThreads | quote }}
-            - name: APPLICATION_CONTROLLER_THREADS
-              value: {{ .Values.applicationControllerThreads | quote }}
-            - name: ENVIRONMENT_CONTROLLER_THREADS
-              value: {{ .Values.environmentControllerThreads | quote }}
-            - name: DEPLOYMENT_CONTROLLER_THREADS
-              value: {{ .Values.deploymentControllerThreads | quote }}
-            - name: JOB_CONTROLLER_THREADS
-              value: {{ .Values.jobControllerThreads | quote }}
-            - name: ALERT_CONTROLLER_THREADS
-              value: {{ .Values.alertControllerThreads | quote }}
-            - name: KUBE_CLIENT_RATE_LIMIT_BURST
-              value: {{ .Values.kubeClientRateLimitBurst | quote }}
-            - name: KUBE_CLIENT_RATE_LIMIT_QPS
-              value: {{ .Values.kubeClientRateLimitQPS | quote }}
-            {{- if .Values.podSecurityStandard.enforce.level }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL
-              value: {{ .Values.podSecurityStandard.enforce.level }}
-            {{- end }}
-            {{- if .Values.podSecurityStandard.enforce.level }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_APP_NAMESPACE_ENFORCE_LEVEL
-              value: {{ .Values.podSecurityStandard.appNamespace.enforce.level }}
-            {{- end }}
-            {{- if .Values.podSecurityStandard.enforce.version }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION
-              value: {{ .Values.podSecurityStandard.enforce.version }}
-            {{- end }}
-            {{- if .Values.podSecurityStandard.audit.level }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL
-              value: {{ .Values.podSecurityStandard.audit.level }}
-            {{- end }}
-            {{- if .Values.podSecurityStandard.audit.version }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION
-              value: {{ .Values.podSecurityStandard.audit.version }}
-            {{- end }}
-            {{- if .Values.podSecurityStandard.warn.level }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL
-              value: {{ .Values.podSecurityStandard.warn.level }}
-            {{- end }}
-            {{- if .Values.podSecurityStandard.warn.version }}
-            - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION
-              value: {{ .Values.podSecurityStandard.warn.version }}
-            {{- end }}
-            - name: SECCOMP_PROFILE_FILENAME
-              value: {{ .Values.seccompProfile.fileNameOnNode }}
-            - name: RADIX_BUILDKIT_IMAGE_BUILDER_IMAGE
-              value: {{ .Values.radixBuildKitImageBuilder.image.repository }}:{{ .Values.radixBuildKitImageBuilder.image.tag | default "main-latest" }}
-            - name: RADIX_PIPELINE_GIT_CLONE_GIT_IMAGE
-              value: {{ .Values.gitClone.image.repository }}:{{ .Values.gitClone.image.tag | default "latest" }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_GATEWAY_CLUSTER_ISSUER
-              value: {{ .Values.ingress.certificate.automation.gatewayClusterIssuer }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_DURATION
-              value: {{ .Values.ingress.certificate.automation.duration }}
-            - name: RADIXOPERATOR_CERTIFICATE_AUTOMATION_RENEW_BEFORE
-              value: {{ .Values.ingress.certificate.automation.renewBefore }}
-            - name: RADIX_EXTERNAL_REGISTRY_DEFAULT_AUTH_SECRET
-              value: {{ .Values.externalRegistryDefaultAuthSecret }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_RETENTION_PERIOD
-              value: {{ .Values.task.orphanedEnvironmentsRetentionPeriod }}
-            - name: RADIXOPERATOR_ORPHANED_ENVIRONMENTS_CLEANUP_CRON
-              value: {{ .Values.task.orphanedEnvironmentsCleanupCron }}
-            - name: RADIXOPERATOR_PIPELINE_IMAGE
-              value: {{ .Values.radixPipelineRunner.image.repository }}:{{ .Values.radixPipelineRunner.image.tag | default .Chart.AppVersion }}
-
-            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAME
-              value: {{ required "gateway name is required to operate" .Values.ingress.gateway.name }}
-            - name: RADIXOPERATOR_INGRESS_GATEWAY_NAMESPACE
-              value: {{ required "gateway namespace is required to operate" .Values.ingress.gateway.namespace }}
-            - name: RADIXOPERATOR_INGRESS_GATEWAY_SECTION_NAME
-              value: {{ .Values.ingress.gateway.sectionName }}
-            - name: RADIXOPERATOR_SAFE_TO_RESTART_BATCH_JOB_THRESHOLD
-              value: {{ .Values.safeToRestartBatchJobThreshold | quote }}
-
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RADIX_COMMON_CONFIG_NAME
+              value: {{ include "radix-common-config.name" . }}
+            - name: RADIX_COMMON_CONFIG_KEY
+              value: "configYaml"
           livenessProbe:
             httpGet:
               path: /healthz

@@ -3,22 +3,18 @@ package volumemount_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_ComparePersistentVolumeClaims(t *testing.T) {
 	validPVC := func(modify func(pvc *corev1.PersistentVolumeClaim)) *corev1.PersistentVolumeClaim {
 		pvc := &corev1.PersistentVolumeClaim{
-			ObjectMeta: v1.ObjectMeta{
-				Namespace: "any",
-				Labels: map[string]string{
-					"any": "any",
-				},
+			Namespace: "any",
+			Labels: map[string]string{
+				"any": "any",
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				Resources: corev1.VolumeResourceRequirements{
@@ -26,7 +22,7 @@ func Test_ComparePersistentVolumeClaims(t *testing.T) {
 					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1")},
 				},
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				VolumeMode:  pointers.Ptr(corev1.PersistentVolumeFilesystem),
+				VolumeMode:  new(corev1.PersistentVolumeFilesystem),
 			},
 		}
 		if modify != nil {
@@ -142,10 +138,10 @@ func Test_ComparePersistentVolumeClaims(t *testing.T) {
 		},
 		"different volumemode": {
 			pvc1: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
-				pvc.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeBlock)
+				pvc.Spec.VolumeMode = new(corev1.PersistentVolumeBlock)
 			}),
 			pvc2: validPVC(func(pvc *corev1.PersistentVolumeClaim) {
-				pvc.Spec.VolumeMode = pointers.Ptr(corev1.PersistentVolumeFilesystem)
+				pvc.Spec.VolumeMode = new(corev1.PersistentVolumeFilesystem)
 			}),
 			expectEqual: false,
 		},

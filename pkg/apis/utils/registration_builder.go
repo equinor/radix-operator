@@ -15,7 +15,6 @@ type RegistrationBuilder interface {
 	WithAppID(string) RegistrationBuilder
 	WithName(name string) RegistrationBuilder
 	WithRepository(string) RegistrationBuilder
-	WithSharedSecret(string) RegistrationBuilder
 	WithAdGroups([]string) RegistrationBuilder
 	WithAdUsers([]string) RegistrationBuilder
 	WithCloneURL(string) RegistrationBuilder
@@ -38,7 +37,6 @@ type RegistrationBuilderStruct struct {
 	appID               string
 	name                string
 	repository          string
-	sharedSecret        string
 	adGroups            []string
 	adUsers             []string
 	cloneURL            string
@@ -58,7 +56,6 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithAppID(radixRegistration.Spec.AppID.String())
 	rb.WithName(radixRegistration.Name)
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
-	rb.WithSharedSecret(radixRegistration.Spec.SharedSecret)
 	rb.WithAdGroups(radixRegistration.Spec.AdGroups)
 	rb.WithAdUsers(radixRegistration.Spec.AdUsers)
 	rb.WithReaderAdGroups(radixRegistration.Spec.ReaderAdGroups)
@@ -112,13 +109,7 @@ func (rb *RegistrationBuilderStruct) WithCloneURL(cloneURL string) RegistrationB
 	return rb
 }
 
-// WithSharedSecret Sets shared secret
-func (rb *RegistrationBuilderStruct) WithSharedSecret(sharedSecret string) RegistrationBuilder {
-	rb.sharedSecret = sharedSecret
-	return rb
-}
-
-// WithAdGroups Sets ad group
+// WithAdGroups Sets group
 func (rb *RegistrationBuilderStruct) WithAdGroups(adGroups []string) RegistrationBuilder {
 	rb.adGroups = adGroups
 	return rb
@@ -130,7 +121,7 @@ func (rb *RegistrationBuilderStruct) WithAdUsers(adUsers []string) RegistrationB
 	return rb
 }
 
-// WithReaderAdGroups Sets reader ad group
+// WithReaderAdGroups Sets reader group
 func (rb *RegistrationBuilderStruct) WithReaderAdGroups(readerAdGroups []string) RegistrationBuilder {
 	rb.readerAdGroups = readerAdGroups
 	return rb
@@ -191,19 +182,14 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	}
 
 	radixRegistration := &v1.RadixRegistration{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1.SchemeGroupVersion.Identifier(),
-			Kind:       v1.KindRadixRegistration,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        rb.name,
-			UID:         rb.uid,
-			Annotations: rb.annotations,
-		},
+		APIVersion:  v1.SchemeGroupVersion.Identifier(),
+		Kind:        v1.KindRadixRegistration,
+		Name:        rb.name,
+		UID:         rb.uid,
+		Annotations: rb.annotations,
 		Spec: v1.RadixRegistrationSpec{
 			AppID:               v1.ULID{ULID: ulid.MustParse(appId)},
 			CloneURL:            cloneURL,
-			SharedSecret:        rb.sharedSecret,
 			AdGroups:            rb.adGroups,
 			AdUsers:             rb.adUsers,
 			ReaderAdGroups:      rb.readerAdGroups,
@@ -230,7 +216,6 @@ func ARadixRegistration() RegistrationBuilder {
 		WithAppID("00000000000000000000000001").
 		WithName("anyapp").
 		WithCloneURL("git@github.com:equinor/anyapp").
-		WithSharedSecret("NotSoSecret").
 		WithUID("1234-5678").
 		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"}).
 		WithReaderAdGroups([]string{"40edc80d-0047-450d-b71a-970e6bb61d64"}).

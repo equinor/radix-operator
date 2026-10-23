@@ -181,7 +181,6 @@ func (h *history) getRadixJobsMapToRadixDeployments(ctx context.Context, appName
 				return nil, fmt.Errorf("failed to get RadixDeployments from the environment %s: %w", env.Name, err)
 			}
 			for _, rd := range envRdList.Items {
-				rd := rd
 				if jobName, ok := rd.GetLabels()[kube.RadixJobNameLabel]; ok {
 					rdRadixJobs[jobName] = rd
 				}

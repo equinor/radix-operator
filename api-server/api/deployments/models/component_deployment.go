@@ -10,8 +10,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	runtimeUtils "github.com/equinor/radix-operator/pkg/apis/runtime"
 
-	radixutils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -67,6 +65,12 @@ type Component struct {
 	// required: false
 	// example: "/tmp/payload"
 	ScheduledJobPayloadPath string `json:"scheduledJobPayloadPath,omitempty"`
+
+	// NextRun is the next time the job component's cron schedule is due to run, if a cron schedule is configured.
+	// It is the earliest next run across all configured schedules, interpreted in the configured timezone and returned as a UTC timestamp.
+	// required: false
+	// swagger:strfmt date-time
+	NextRun time.Time `json:"nextRun,omitzero"`
 
 	// Component secret names. From radixconfig.yaml
 	//
@@ -143,6 +147,12 @@ type Component struct {
 
 	// Runtime requirements for the component or job
 	Runtime *Runtime `json:"runtime,omitempty"`
+
+	// Cron schedules defined for a job component
+	//
+	// required: false
+	// example: ["0 0 * * *", "*/5 * * * *"]
+	CronSchedules []string `json:"cronSchedules,omitzero"`
 }
 
 // ExternalDNS describes an external DNS entry for a component
@@ -211,12 +221,6 @@ type AuxiliaryResource struct {
 }
 
 type OAuth2AuxiliaryResource struct {
-	// Deprecated. Use Deployments instead
-	// Deployment describes the underlying Kubernetes deployment for the resource
-	//
-	// required: true
-	Deployment AuxiliaryResourceDeployment `json:"deployment,omitempty"`
-
 	// Deployments describes the underlying Kubernetes deployments for the resource
 	//
 	// required: false
@@ -399,7 +403,7 @@ type ReplicaSummary struct {
 	// Status describes the component container status
 	//
 	// required: false
-	Status ReplicaStatus `json:"replicaStatus,omitempty"`
+	Status ReplicaStatus `json:"replicaStatus"`
 
 	// StatusMessage provides message describing the status of a component container inside a pod
 	//
@@ -533,8 +537,8 @@ type Resources struct {
 
 // ResourceRequirements Requirements of resources for pods
 type ResourceRequirements struct {
-	Limits   Resources `json:"limits,omitempty"`
-	Requests Resources `json:"requests,omitempty"`
+	Limits   Resources `json:"limits"`
+	Requests Resources `json:"requests"`
 }
 
 // Runtime requirements for the component or job
@@ -593,7 +597,7 @@ func GetReplicaSummary(pod corev1.Pod, lastEventWarning string) ReplicaSummary {
 	}
 	terminated := containerStatus.LastTerminationState.Terminated
 	if terminated != nil {
-		compositeMessage := []string{fmt.Sprintf("Last time container was terminated at: %s, with code: %d", radixutils.FormatTime(&terminated.FinishedAt), terminated.ExitCode)}
+		compositeMessage := []string{fmt.Sprintf("Last time container was terminated at: %s, with code: %d", terminated.FinishedAt.Format(time.RFC3339), terminated.ExitCode)}
 		if terminated.Reason != "" {
 			compositeMessage = append(compositeMessage, fmt.Sprintf("reason: '%s'", terminated.Reason))
 		}
@@ -607,7 +611,7 @@ func GetReplicaSummary(pod corev1.Pod, lastEventWarning string) ReplicaSummary {
 	replicaSummary.Image = pod.Spec.Containers[0].Image
 	replicaSummary.ImageId = containerStatus.ImageID
 	if len(pod.Spec.Containers) > 0 {
-		replicaSummary.Resources = pointers.Ptr(ConvertResourceRequirements(pod.Spec.Containers[0].Resources))
+		replicaSummary.Resources = new(ConvertResourceRequirements(pod.Spec.Containers[0].Resources))
 	}
 	if len(replicaSummary.StatusMessage) == 0 && (replicaSummary.Status.Status == Failing || replicaSummary.Status.Status == Pending) {
 		replicaSummary.StatusMessage = lastEventWarning

@@ -1,3 +1,4 @@
+//nolint:staticcheck // RadixDeploymentSpec.AppName is deprecated but still validated by kubebuilder rules
 package e2e
 
 import (
@@ -7,54 +8,57 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // TestRadixDeploymentKubebuilderValidations tests that kubebuilder validation rules are applied
 func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
+	t.Parallel()
 	c := getClient(t)
 
 	t.Run("AppName validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
 		assert.NoError(t, err, "Valid appName should be accepted")
 
 		// Invalid case - violates pattern
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "MyApp", Environment: "dev"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "MyApp", Environment: "dev"},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
 		assert.Error(t, err, "Invalid appName should be rejected")
 	})
 
 	t.Run("Environment validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "myapp", Environment: "dev"},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
 		assert.NoError(t, err, "Valid environment should be accepted")
 
 		// Invalid case - violates pattern
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
-			Spec:       v1.RadixDeploymentSpec{AppName: "myapp", Environment: "Production"},
+			Name: "test-rd", Namespace: "default",
+			Spec: v1.RadixDeploymentSpec{AppName: "myapp", Environment: "Production"},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
 		assert.Error(t, err, "Invalid environment should be rejected")
 	})
 
 	t.Run("Component Name validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -66,7 +70,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - exceeds max length
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -78,9 +82,10 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component Image validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -92,7 +97,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - empty
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -104,15 +109,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component Replicas validation applied", func(t *testing.T) {
-		intPtr := func(i int) *int { return &i }
-
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", Replicas: intPtr(3)}},
+				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", Replicas: new(3)}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -120,11 +124,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - exceeds maximum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", Replicas: intPtr(65)}},
+				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", Replicas: new(65)}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -132,15 +136,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component ReplicasOverride validation applied", func(t *testing.T) {
-		intPtr := func(i int) *int { return &i }
-
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", ReplicasOverride: intPtr(5)}},
+				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", ReplicasOverride: new(5)}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -148,11 +151,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - negative
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", ReplicasOverride: intPtr(-1)}},
+				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", ReplicasOverride: new(-1)}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -160,15 +163,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Component RunAsUser validation applied", func(t *testing.T) {
-		int64Ptr := func(i int64) *int64 { return &i }
-
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", RunAsUser: int64Ptr(1000)}},
+				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", RunAsUser: new(int64(1000))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -176,11 +178,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", RunAsUser: int64Ptr(0)}},
+				Components:  []v1.RadixDeployComponent{{Name: "web", Image: "nginx", RunAsUser: new(int64(0))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -188,9 +190,10 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("ExternalDNS FQDN validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -208,7 +211,7 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - too short
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
@@ -226,13 +229,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job Name validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -240,11 +244,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - violates pattern
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "Compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "Compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -252,13 +256,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job Image validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -266,11 +271,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - empty
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -278,13 +283,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job SchedulerPort validation applied", func(t *testing.T) {
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -292,11 +298,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 1023}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(1023))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -304,15 +310,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job TimeLimitSeconds validation applied", func(t *testing.T) {
-		int64Ptr := func(i int64) *int64 { return &i }
-
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, TimeLimitSeconds: int64Ptr(3600)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), TimeLimitSeconds: new(int64(3600))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -320,11 +325,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, TimeLimitSeconds: int64Ptr(0)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), TimeLimitSeconds: new(int64(0))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -332,15 +337,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job BackoffLimit validation applied", func(t *testing.T) {
-		int32Ptr := func(i int32) *int32 { return &i }
-
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, BackoffLimit: int32Ptr(3)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), BackoffLimit: new(int32(3))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -348,11 +352,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, BackoffLimit: int32Ptr(-1)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), BackoffLimit: new(int32(-1))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -360,15 +364,14 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Job RunAsUser validation applied", func(t *testing.T) {
-		int64Ptr := func(i int64) *int64 { return &i }
-
+		t.Parallel()
 		// Valid case
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, RunAsUser: int64Ptr(1000)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), RunAsUser: new(int64(1000))}},
 			},
 		}
 		err := c.Create(t.Context(), rd, client.DryRunAll)
@@ -376,11 +379,11 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 
 		// Invalid case - below minimum
 		rd = &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-rd", Namespace: "default"},
+			Name: "test-rd", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "dev",
-				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: 8080, RunAsUser: int64Ptr(0)}},
+				Jobs:        []v1.RadixDeployJobComponent{{Name: "compute", Image: "python", SchedulerPort: new(int32(8080)), RunAsUser: new(int64(0))}},
 			},
 		}
 		err = c.Create(t.Context(), rd, client.DryRunAll)
@@ -388,12 +391,9 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 	})
 
 	t.Run("Complete valid RadixDeployment accepted", func(t *testing.T) {
-		int64Ptr := func(i int64) *int64 { return &i }
-		int32Ptr := func(i int32) *int32 { return &i }
-		intPtr := func(i int) *int { return &i }
-
+		t.Parallel()
 		rd := &v1.RadixDeployment{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-complete", Namespace: "default"},
+			Name: "test-complete", Namespace: "default",
 			Spec: v1.RadixDeploymentSpec{
 				AppName:     "myapp",
 				Environment: "production",
@@ -401,12 +401,12 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 					{
 						Name:             "frontend",
 						Image:            "myregistry/frontend:v1.2.3",
-						Replicas:         intPtr(3),
-						ReplicasOverride: intPtr(5),
-						RunAsUser:        int64Ptr(1000),
+						Replicas:         new(3),
+						ReplicasOverride: new(5),
+						RunAsUser:        new(int64(1000)),
 						PublicPort:       "8080",
 						ExternalDNS: []v1.RadixDeployExternalDNS{
-							{FQDN: "myapp.example.com", UseCertificateAutomation: true},
+							{FQDN: "myapp.example.com", UseCertificateAutomation: true, CertificateAutomation: &v1.CertificateAutomation{Issuer: e2eDefaultCertificateIssuer}},
 						},
 					},
 				},
@@ -414,10 +414,10 @@ func TestRadixDeploymentKubebuilderValidations(t *testing.T) {
 					{
 						Name:             "processor",
 						Image:            "myregistry/processor:v1.0.0",
-						SchedulerPort:    8080,
-						TimeLimitSeconds: int64Ptr(3600),
-						BackoffLimit:     int32Ptr(3),
-						RunAsUser:        int64Ptr(1002),
+						SchedulerPort:    new(int32(8080)),
+						TimeLimitSeconds: new(int64(3600)),
+						BackoffLimit:     new(int32(3)),
+						RunAsUser:        new(int64(1002)),
 					},
 				},
 				ImagePullSecrets: []corev1.LocalObjectReference{{Name: "my-secret"}},

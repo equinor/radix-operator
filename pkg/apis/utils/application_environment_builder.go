@@ -1,8 +1,8 @@
 package utils
 
 import (
-	commonUtils "github.com/equinor/radix-common/utils"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 )
 
 // ApplicationEnvironmentBuilder interface
@@ -68,7 +68,7 @@ func (b *applicationEnvironmentBuilder) Build() radixv1.Environment {
 			Variables:      b.envVars,
 		},
 	}
-	if !commonUtils.IsNil(b.subPipelineBuilder) {
+	if !pointers.IsNil(b.subPipelineBuilder) {
 		environment.SubPipeline = b.subPipelineBuilder.Build()
 	}
 	return environment

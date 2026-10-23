@@ -150,6 +150,10 @@ type RadixDeployExternalDNS struct {
 	// +kubebuilder:default:=false
 	// +optional
 	UseCertificateAutomation bool `json:"useCertificateAutomation,omitempty"`
+
+	// Certificate issuer properties
+	// +optional
+	CertificateAutomation *CertificateAutomation `json:"certificateAutomation,omitempty"`
 }
 
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service etc
@@ -592,10 +596,10 @@ type RadixDeployJobComponent struct {
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
-	// +kubebuilder:validation:Required
+	// +optional
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=65535
-	SchedulerPort int32 `json:"schedulerPort"`
+	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
 
 	// +optional
 	Payload *RadixJobComponentPayload `json:"payload,omitempty"`

@@ -3,7 +3,6 @@ package internal
 import (
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	modelsv1 "github.com/equinor/radix-operator/job-scheduler/models/v1"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -14,7 +13,7 @@ func GetPodStatusByRadixBatchJobPodStatus(radixBatch *radixv1.RadixBatch, podSta
 	return slice.Map(podStatuses, func(status radixv1.RadixBatchJobPodStatus) modelsv1.PodStatus {
 		var created, started, ended *time.Time
 		if status.CreationTime != nil {
-			created = pointers.Ptr(radixBatch.GetCreationTimestamp().Time)
+			created = new(radixBatch.GetCreationTimestamp().Time)
 		}
 		if status.StartTime != nil {
 			started = &status.StartTime.Time

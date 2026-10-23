@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	radixhttp "github.com/equinor/radix-common/net/http"
-	commonutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/api-server/api/deployments"
 	"github.com/equinor/radix-operator/api-server/api/kubequery"
@@ -17,11 +15,13 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/utils/predicate"
 	sortUtils "github.com/equinor/radix-operator/api-server/api/utils/sort"
 	"github.com/equinor/radix-operator/api-server/api/utils/tlsvalidation"
-	apiModels "github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +42,7 @@ type secretIdToPodNameToSecretVersionMap map[string]podNameToSecretVersionMap
 type SecretHandlerOptions func(*SecretHandler)
 
 // WithAccounts configures all SecretHandler fields
-func WithAccounts(accounts apiModels.Accounts) SecretHandlerOptions {
+func WithAccounts(accounts accounts.Accounts) SecretHandlerOptions {
 	return func(eh *SecretHandler) {
 		eh.userAccount = accounts.UserAccount
 		eh.serviceAccount = accounts.ServiceAccount
@@ -59,8 +59,8 @@ func WithTLSValidator(tlsValidator tlsvalidation.Validator) SecretHandlerOptions
 
 // SecretHandler Instance variables
 type SecretHandler struct {
-	userAccount    apiModels.Account
-	serviceAccount apiModels.Account
+	userAccount    accounts.Account
+	serviceAccount accounts.Account
 	deployHandler  deployments.DeployHandler
 	tlsValidator   tlsvalidation.Validator
 }
@@ -86,34 +86,34 @@ func (eh *SecretHandler) ChangeComponentSecret(ctx context.Context, appName, env
 	}
 
 	var secretObjName, partName string
-	if strings.HasSuffix(secretName, defaults.BlobFuseCredsAccountKeyPartSuffix) {
+	if before, ok := strings.CutSuffix(secretName, defaults.BlobFuseCredsAccountKeyPartSuffix); ok {
 		// This is the account key part of the blobfuse cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.BlobFuseCredsAccountKeyPartSuffix)
+		secretObjName = before
 		partName = defaults.BlobFuseCredsAccountKeyPart
 
-	} else if strings.HasSuffix(secretName, defaults.BlobFuseCredsAccountNamePartSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.BlobFuseCredsAccountNamePartSuffix); ok {
 		// This is the account name part of the blobfuse cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.BlobFuseCredsAccountNamePartSuffix)
+		secretObjName = before
 		partName = defaults.BlobFuseCredsAccountNamePart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureCredsAccountKeyPartSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureCredsAccountKeyPartSuffix); ok {
 		// This is the account key part of the Csi Azure volume cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureCredsAccountKeyPartSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureCredsAccountKeyPart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureCredsAccountNamePartSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureCredsAccountNamePartSuffix); ok {
 		// This is the account name part of the Csi Azure volume cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureCredsAccountNamePartSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureCredsAccountNamePart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientIdSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientIdSuffix); ok {
 		// This is the client-id part of the Csi Azure KeyVault cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientIdSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureKeyVaultCredsClientIdPart
 
-	} else if strings.HasSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix) {
+	} else if before, ok := strings.CutSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix); ok {
 		// This is the client secret part of the Csi Azure KeyVault cred secret
-		secretObjName = strings.TrimSuffix(secretName, defaults.CsiAzureKeyVaultCredsClientSecretSuffix)
+		secretObjName = before
 		partName = defaults.CsiAzureKeyVaultCredsClientSecretPart
 
 	} else if strings.HasSuffix(secretName, suffix.OAuth2ClientSecret) {
@@ -210,7 +210,7 @@ func (eh *SecretHandler) getActiveRadixDeploymentForEnvironment(ctx context.Cont
 }
 
 func (eh *SecretHandler) getTLSValidatorOrDefault() tlsvalidation.Validator {
-	if commonutils.IsNil(eh.tlsValidator) {
+	if pointers.IsNil(eh.tlsValidator) {
 		return tlsvalidation.DefaultValidator()
 	}
 	return eh.tlsValidator
@@ -289,7 +289,6 @@ func (eh *SecretHandler) getSecretProviderClassMapForLabelSelector(envNamespace,
 	}
 	secretProviderClassMap := make(map[string]secretsstorev1.SecretProviderClass)
 	for _, secretProviderClass := range secretProviderClassList.Items {
-		secretProviderClass := secretProviderClass
 		secretProviderClassMap[secretProviderClass.GetName()] = secretProviderClass
 	}
 	return secretProviderClassMap, nil
@@ -324,7 +323,7 @@ func (eh *SecretHandler) getAzKeyVaultSecretVersions(appName string, envNamespac
 		podCreated := pod.GetCreationTimestamp()
 		azureKeyVaultSecretVersion := models.AzureKeyVaultSecretVersion{
 			ReplicaName:    pod.GetName(),
-			ReplicaCreated: commonutils.FormatTime(&podCreated),
+			ReplicaCreated: podCreated.Format(time.RFC3339),
 			Version:        secretVersion,
 		}
 		if _, ok := pod.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
@@ -343,12 +342,12 @@ func (eh *SecretHandler) getAzKeyVaultSecretVersions(appName string, envNamespac
 		}
 		azureKeyVaultSecretVersion.JobName = jobName
 		jobCreated := job.GetCreationTimestamp()
-		azureKeyVaultSecretVersion.JobCreated = commonutils.FormatTime(&jobCreated)
+		azureKeyVaultSecretVersion.JobCreated = jobCreated.Format(time.RFC3339)
 		if batchName, ok := pod.Labels[kube.RadixBatchNameLabel]; ok {
 			if batch, ok := jobMap[batchName]; ok {
 				azureKeyVaultSecretVersion.BatchName = batchName
 				batchCreated := batch.GetCreationTimestamp()
-				azureKeyVaultSecretVersion.BatchCreated = commonutils.FormatTime(&batchCreated)
+				azureKeyVaultSecretVersion.BatchCreated = batchCreated.Format(time.RFC3339)
 			}
 		}
 		azKeyVaultSecretVersions = append(azKeyVaultSecretVersions, azureKeyVaultSecretVersion)
@@ -363,7 +362,6 @@ func (eh *SecretHandler) getJobMap(appName, namespace, componentName string) (ma
 		return nil, err
 	}
 	for _, job := range jobList.Items {
-		job := job
 		jobMap[job.GetName()] = job
 	}
 	return jobMap, nil

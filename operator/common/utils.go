@@ -44,7 +44,7 @@ func NamePartitionKey(obj cache.ObjectName) (lockKey string) {
 }
 
 // GetOwner Function pointer to pass to retrieve owner
-type GetOwner func(context.Context, radixclient.Interface, string, string) (interface{}, error)
+type GetOwner func(context.Context, radixclient.Interface, string, string) (any, error)
 
 func NewRateLimitedWorkQueue(ctx context.Context, name string) workqueue.TypedRateLimitingInterface[cache.ObjectName] {
 	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[cache.ObjectName](), workqueue.TypedRateLimitingQueueConfig[cache.ObjectName]{Name: name})

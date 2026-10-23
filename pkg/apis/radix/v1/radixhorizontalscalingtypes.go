@@ -1,9 +1,5 @@
 package v1
 
-import (
-	"github.com/equinor/radix-common/utils/pointers"
-)
-
 const (
 	// DefaultTargetCPUUtilizationPercentage is the default target CPU utilization percentage for horizontal scaling.
 	DefaultTargetCPUUtilizationPercentage = 80
@@ -325,7 +321,7 @@ func (c *RadixHorizontalScaling) NormalizeConfig() *RadixHorizontalScaling {
 	}
 
 	if config.MinReplicas == nil {
-		config.MinReplicas = pointers.Ptr[int32](1)
+		config.MinReplicas = new(int32(1))
 	}
 
 	if len(config.Triggers) == 0 {

@@ -3,16 +3,24 @@ package utils_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/test"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
+var testCfg = config.Config{
+	Operator: config.OperatorConfig{
+		EnvNsLimitRange: config.LimitRangeConfig{
+			DefaultMemory:        new(resource.MustParse("500M")),
+			DefaultRequestCPU:    new(resource.MustParse("100m")),
+			DefaultRequestMemory: new(resource.MustParse("32Mi")),
+		},
+	},
+}
 
+func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 	request := map[string]string{
 		"cpu":    "0.1",
 		"memory": "32Mi",
@@ -26,7 +34,7 @@ func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 	component := utils.NewDeployComponentBuilder().
 		WithResource(request, limit).
 		BuildComponent()
-	requirements, err := utils.GetResourceRequirements(&component)
+	requirements, err := utils.GetResourceRequirements(testCfg, &component)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.1")), "CPU request should be included")
@@ -37,8 +45,6 @@ func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 }
 
 func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
-
 	request := map[string]string{
 		"cpu":    "0.2",
 		"memory": "128Mi",
@@ -47,7 +53,7 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements, err := utils.GetResourceRequirements(&component)
+	requirements, err := utils.GetResourceRequirements(testCfg, &component)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.2")), "CPU request should be included")
@@ -58,8 +64,6 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
-
 	request := map[string]string{
 		"cpu": "0.3",
 	}
@@ -67,7 +71,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements, err := utils.GetResourceRequirements(&component)
+	requirements, err := utils.GetResourceRequirements(testCfg, &component)
 	require.NoError(t, err)
 
 	assert.Equal(t, "300m", requirements.Requests.Cpu().String(), "CPU request should be included")
@@ -78,8 +82,6 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 }
 
 func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
-
 	request := map[string]string{
 		"cpu":    "5",
 		"memory": "5Gi",
@@ -88,7 +90,7 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements, err := utils.GetResourceRequirements(&component)
+	requirements, err := utils.GetResourceRequirements(testCfg, &component)
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("5")), "CPU request should be included")
@@ -98,8 +100,6 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
-
 	request := map[string]string{
 		"cpu": "6",
 	}
@@ -107,7 +107,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements, err := utils.GetResourceRequirements(&component)
+	requirements, err := utils.GetResourceRequirements(testCfg, &component)
 	require.NoError(t, err)
 
 	assert.Equal(t, "6", requirements.Requests.Cpu().String(), "CPU request should be included")

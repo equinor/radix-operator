@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
@@ -83,11 +82,9 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
-		},
-		Spec: pipelinev1.PipelineSpec{},
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -102,7 +99,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 		ServiceAccountName: utils.GetSubPipelineServiceAccountName(internalTest.Env1),
 		PodTemplate: &pod.Template{
 			SecurityContext: &corev1.PodSecurityContext{
-				RunAsNonRoot: pointers.Ptr(true),
+				RunAsNonRoot: new(true),
 			},
 			NodeSelector: map[string]string{
 				corev1.LabelArchStable: "amd64",
@@ -172,10 +169,8 @@ func (s *stepTestSuite) Test_RunPipeline_RadixParam() {
 
 	for _, targetEnv := range []string{internalTest.Env1, internalTest.Env2} {
 		_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   internalTest.RadixPipelineJobName + "-" + targetEnv,
-				Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv, rr.Spec.AppID),
-			},
+			Name:   internalTest.RadixPipelineJobName + "-" + targetEnv,
+			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, targetEnv, rr.Spec.AppID),
 			Spec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{paramSpec},
 			},
@@ -332,10 +327,8 @@ func (s *stepTestSuite) Test_RunPipeline_ParamsFromBuildAndEnvironment() {
 			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   internalTest.RadixPipelineJobName,
-					Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
-				},
+				Name:   internalTest.RadixPipelineJobName,
+				Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
 				Spec: pipelinev1.PipelineSpec{
 					Params: testCase.pipelineParamSpecs,
 				},
@@ -451,10 +444,8 @@ func (s *stepTestSuite) Test_RunPipeline_AzureIdentityClientID() {
 			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   internalTest.RadixPipelineJobName,
-					Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
-				},
+				Name:   internalTest.RadixPipelineJobName,
+				Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
 				Spec: pipelinev1.PipelineSpec{
 					Params: testScenario.pipelineParamSpecs,
 				},
@@ -528,11 +519,9 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam() {
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
-		},
-		Spec: pipelinev1.PipelineSpec{},
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -588,11 +577,9 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_NotInjectedWhenNoImages() {
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
-		},
-		Spec: pipelinev1.PipelineSpec{},
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -652,11 +639,9 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_Promote_AllImagesPassedOn() 
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env2, rr.Spec.AppID),
-		},
-		Spec: pipelinev1.PipelineSpec{},
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env2, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -727,11 +712,9 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledCompo
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   internalTest.RadixPipelineJobName,
-			Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
-		},
-		Spec: pipelinev1.PipelineSpec{},
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
 

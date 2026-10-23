@@ -41,6 +41,21 @@ func (m *MockEventHandler) EXPECT() *MockEventHandlerMockRecorder {
 	return m.recorder
 }
 
+// GetApplicationEvents mocks base method.
+func (m *MockEventHandler) GetApplicationEvents(ctx context.Context, appName string) ([]*models.Event, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetApplicationEvents", ctx, appName)
+	ret0, _ := ret[0].([]*models.Event)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetApplicationEvents indicates an expected call of GetApplicationEvents.
+func (mr *MockEventHandlerMockRecorder) GetApplicationEvents(ctx, appName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationEvents", reflect.TypeOf((*MockEventHandler)(nil).GetApplicationEvents), ctx, appName)
+}
+
 // GetComponentEvents mocks base method.
 func (m *MockEventHandler) GetComponentEvents(ctx context.Context, appName, envName, componentName string) ([]*models.Event, error) {
 	m.ctrl.T.Helper()

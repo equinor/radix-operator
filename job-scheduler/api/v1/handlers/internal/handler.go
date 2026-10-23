@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"dario.cat/mergo"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/job-scheduler/internal"
 	"github.com/equinor/radix-operator/job-scheduler/models"
@@ -19,7 +18,9 @@ import (
 	apiErrors "github.com/equinor/radix-operator/job-scheduler/pkg/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixAnnotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixLabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -108,7 +109,7 @@ func (h *Handler) CreateBatch(ctx context.Context, batchScheduleDescription *com
 		return nil, apiErrors.NewInvalidWithReason("BatchScheduleDescription", "empty job description list ")
 	}
 
-	radixBatch, err := h.createRadixBatchOrJob(ctx, *batchScheduleDescription, kube.RadixBatchTypeBatch, false)
+	radixBatch, err := h.createRadixBatchOrJob(ctx, *batchScheduleDescription, kube.RadixBatchTypeBatch, "")
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (h *Handler) CopyBatch(ctx context.Context, sourceBatchName, deploymentName
 	return batch.CopyRadixBatchOrJob(ctx, h.kubeUtil.RadixClient(), sourceRadixBatch, "", h.radixDeployJobComponent, deploymentName)
 }
 
-func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType, isCronJob bool) (*modelsv1.BatchStatus, error) {
+func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType, cronSchedule string) (*modelsv1.BatchStatus, error) {
 	logger := log.Ctx(ctx)
 	namespace := h.env.RadixDeploymentNamespace
 	radixComponentName := h.env.RadixComponentName
@@ -149,7 +150,7 @@ func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescri
 
 	appName := radixDeployment.Spec.AppName //nolint:staticcheck
 
-	createdRadixBatch, err := h.createRadixBatch(ctx, namespace, appName, radixDeployment.GetName(), *radixJobComponent, batchScheduleDescription, radixBatchType, isCronJob)
+	createdRadixBatch, err := h.createRadixBatch(ctx, namespace, appName, radixDeployment.GetName(), *radixJobComponent, batchScheduleDescription, radixBatchType, cronSchedule)
 	if err != nil {
 		return nil, apiErrors.NewFromError(err)
 	}
@@ -160,7 +161,7 @@ func (h *Handler) createRadixBatchOrJob(ctx context.Context, batchScheduleDescri
 }
 
 // CreateRadixBatchSingleJob Create a batch single job with parameters
-func (h *Handler) CreateRadixBatchSingleJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, isCronJob bool) (*modelsv1.BatchStatus, error) {
+func (h *Handler) CreateRadixBatchSingleJob(ctx context.Context, jobScheduleDescription *common.JobScheduleDescription, cronSchedule string) (*modelsv1.BatchStatus, error) {
 	logger := log.Ctx(ctx)
 	logger.Info().Msg("Create Radix Batch single job")
 	if jobScheduleDescription == nil {
@@ -169,7 +170,7 @@ func (h *Handler) CreateRadixBatchSingleJob(ctx context.Context, jobScheduleDesc
 	radixBatchJob, err := h.createRadixBatchOrJob(ctx, common.BatchScheduleDescription{
 		JobScheduleDescriptions:        []common.JobScheduleDescription{*jobScheduleDescription},
 		DefaultRadixJobComponentConfig: nil,
-	}, kube.RadixBatchTypeJob, isCronJob)
+	}, kube.RadixBatchTypeJob, cronSchedule)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (h *Handler) StopAllSingleRadixJobs(ctx context.Context) error {
 	return batch.StopAllRadixBatches(ctx, h.kubeUtil.RadixClient(), h.env.RadixAppName, h.env.RadixEnvironmentName, h.env.RadixComponentName, kube.RadixBatchTypeJob)
 }
 
-func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radixDeploymentName string, radixJobComponent radixv1.RadixDeployJobComponent, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType, isCronJob bool) (*radixv1.RadixBatch, error) {
+func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radixDeploymentName string, radixJobComponent radixv1.RadixDeployJobComponent, batchScheduleDescription common.BatchScheduleDescription, radixBatchType kube.RadixBatchType, cronSchedule string) (*radixv1.RadixBatch, error) {
 	logger := log.Ctx(ctx)
 	batchName := internal.GenerateBatchName(radixJobComponent.GetName())
 	logger.Debug().Msgf("Create Radix Batch %s", batchName)
@@ -226,15 +227,14 @@ func (h *Handler) createRadixBatch(ctx context.Context, namespace, appName, radi
 	}
 	logger.Debug().Msgf("Built Radix Batch with %d jobs", len(radixBatchJobs))
 	radixBatch := radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: batchName,
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(appName),
-				radixLabels.ForComponentName(radixJobComponentName),
-				radixLabels.ForBatchType(radixBatchType),
-				radixLabels.ForBatchCron(isCronJob),
-			),
-		},
+		Name: batchName,
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(appName),
+			radixLabels.ForComponentName(radixJobComponentName),
+			radixLabels.ForBatchType(radixBatchType),
+			radixLabels.ForBatchCron(cronSchedule != ""),
+		),
+		Annotations: radixAnnotations.ForBatchCronSchedule(cronSchedule),
 		Spec: radixv1.RadixBatchSpec{
 			BatchId: batchScheduleDescription.BatchId,
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
@@ -330,8 +330,8 @@ func (h *Handler) createRadixBatchJobPayloadSecrets(ctx context.Context, namespa
 		logger.Debug().Msgf("New accumulated payload size: %d", newAccumulatedPayloadSecretSize)
 		logger.Debug().Msgf("Added a reference to the payload secret %s, key %s", payloadsSecret.GetName(), radixBatchJob.Name)
 		radixBatchJob.PayloadSecretRef = &radixv1.PayloadSecretKeySelector{
-			LocalObjectReference: radixv1.LocalObjectReference{Name: payloadsSecret.GetName()},
-			Key:                  radixBatchJob.Name,
+			Name: payloadsSecret.GetName(),
+			Key:  radixBatchJob.Name,
 		}
 	}
 	if len(errs) > 0 {
@@ -363,16 +363,14 @@ func buildPayloadSecret(ctx context.Context, appName, radixJobComponentName, bat
 	secretName := fmt.Sprintf("%s-payloads-%d", batchName, secretIndex)
 	logger.Debug().Msgf("build payload secret %s", secretName)
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: radixLabels.Merge(
-				radixLabels.ForApplicationName(appName),
-				radixLabels.ForComponentName(radixJobComponentName),
-				radixLabels.ForBatchName(batchName),
-				radixLabels.ForJobScheduleJobType(),
-				radixLabels.ForRadixSecretType(kube.RadixSecretJobPayload),
-			),
-		},
+		Name: secretName,
+		Labels: radixLabels.Merge(
+			radixLabels.ForApplicationName(appName),
+			radixLabels.ForComponentName(radixJobComponentName),
+			radixLabels.ForBatchName(batchName),
+			radixLabels.ForJobScheduleJobType(),
+			radixLabels.ForRadixSecretType(kube.RadixSecretJobPayload),
+		),
 		Data: make(map[string][]byte),
 	}
 }

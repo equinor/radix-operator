@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -60,7 +60,7 @@ func validateEgressRulePort(port int32) error {
 func validateEgressRulePortProtocol(protocol string) error {
 	upperCaseProtocol := strings.ToUpper(protocol)
 	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP)}
-	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
+	if slices.Contains(validProtocols, upperCaseProtocol) {
 		return nil
 	} else {
 		return fmt.Errorf("protocol %s (valid: %v): %w", protocol, validProtocols, ErrInvalidEgressPortProtocol)

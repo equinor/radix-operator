@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog"
@@ -26,18 +26,20 @@ type ApplicationConfig struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *radixv1.RadixRegistration
-	config       *radixv1.RadixApplication
+	application  *radixv1.RadixApplication
+	cfg          config.Config
 	logger       zerolog.Logger
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication) *ApplicationConfig {
+func NewApplicationConfig(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, registration *radixv1.RadixRegistration, config *radixv1.RadixApplication, cfg config.Config) *ApplicationConfig {
 	return &ApplicationConfig{
 		kubeclient:   kubeclient,
 		radixclient:  radixclient,
 		kubeutil:     kubeutil,
 		registration: registration,
-		config:       config,
+		application:  config,
+		cfg:          cfg,
 		logger:       log.Logger.With().Str("resource_kind", radixv1.KindRadixApplication).Str("resource_name", cache.MetaObjectToName(&config.ObjectMeta).String()).Logger(),
 	}
 }
@@ -49,7 +51,11 @@ func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration 
 
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
 func GetConfigBranch(rr *radixv1.RadixRegistration) string {
-	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
+	if strings.TrimSpace(rr.Spec.ConfigBranch) == "" {
+		return ConfigBranchFallback
+	}
+
+	return rr.Spec.ConfigBranch
 }
 
 // IsConfigBranch Checks if given branch is where radix config lives
@@ -95,7 +101,7 @@ func (app *ApplicationConfig) OnSync(ctx context.Context) error {
 
 func (app *ApplicationConfig) reconcile(ctx context.Context) error {
 	if err := app.syncEnvironments(ctx); err != nil {
-		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.config.Name, err)
+		return fmt.Errorf("failed to create namespaces for app environments %s: %w", app.application.Name, err)
 	}
 	if err := app.syncPrivateImageHubSecrets(ctx); err != nil {
 		return fmt.Errorf("failed to create private image hub secrets: %w", err)

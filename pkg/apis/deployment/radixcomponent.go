@@ -6,18 +6,18 @@ import (
 	"fmt"
 
 	"dario.cat/mergo"
-	commonutils "github.com/equinor/radix-common/utils"
-	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	mergoutils "github.com/equinor/radix-operator/pkg/apis/utils/mergo"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 )
 
 var (
 	mergoTranformers mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}, mergoutils.ResourceQuantityTransformer{}}}
 )
 
-func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent) ([]radixv1.RadixDeployComponent, error) {
+func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.RadixApplication, currentRadixDeployment *radixv1.RadixDeployment, env string, componentImages pipeline.DeployComponentImages, defaultEnvVars radixv1.EnvVarsMap, preservingDeployComponents []radixv1.RadixDeployComponent, defaultIssuer string) ([]radixv1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var deployComponents []radixv1.RadixDeployComponent
 	preservingDeployComponentMap := slice.Reduce(preservingDeployComponents, make(map[string]radixv1.RadixDeployComponent), func(acc map[string]radixv1.RadixDeployComponent, component radixv1.RadixDeployComponent) map[string]radixv1.RadixDeployComponent {
@@ -36,7 +36,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		}
 		deployComponent := radixv1.RadixDeployComponent{
 			Name:             componentName,
-			Public:           false,
+			Public:           false, //nolint:staticcheck
 			Ports:            radixComponent.Ports,
 			MonitoringConfig: radixComponent.MonitoringConfig,
 			Secrets:          radixComponent.Secrets,
@@ -69,7 +69,7 @@ func GetRadixComponentsForEnv(ctx context.Context, radixApplication *radixv1.Rad
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
-		deployComponent.ExternalDNS = getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		deployComponent.ExternalDNS = getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env, defaultIssuer)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.HealthChecks = getRadixCommonComponentHealthChecks(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
@@ -127,29 +127,29 @@ func getRadixCommonComponentHealthChecks(r *radixv1.RadixComponent, config *radi
 }
 
 func getRadixCommonComponentReadOnlyFileSystem(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *bool {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetReadOnlyFileSystem() != nil {
+	if !pointers.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetReadOnlyFileSystem() != nil {
 		return environmentSpecificConfig.GetReadOnlyFileSystem()
 	}
 	return radixComponent.GetReadOnlyFileSystem()
 }
 
 func getRadixCommonComponentRunAsUser(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *int64 {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRunAsUser() != nil {
+	if !pointers.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetRunAsUser() != nil {
 		return environmentSpecificConfig.GetRunAsUser()
 	}
 	return radixComponent.GetRunAsUser()
 }
 
 func getRadixCommonComponentMonitoring(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) bool {
-	if !commonutils.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetMonitoring() != nil {
+	if !pointers.IsNil(environmentSpecificConfig) && environmentSpecificConfig.GetMonitoring() != nil {
 		return *environmentSpecificConfig.GetMonitoring()
 	}
 	monitoring := radixComponent.GetMonitoring()
-	return !commonutils.IsNil(monitoring) && *monitoring
+	return !pointers.IsNil(monitoring) && *monitoring
 }
 
 func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) *radixv1.RadixHorizontalScaling {
-	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
+	if pointers.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetHorizontalScaling() == nil {
 		return radixComponent.GetHorizontalScaling().NormalizeConfig()
 	}
 
@@ -184,7 +184,7 @@ func getRadixCommonComponentHorizontalScaling(radixComponent radixv1.RadixCommon
 
 func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonComponent, environmentSpecificConfig radixv1.RadixCommonEnvironmentConfig) ([]radixv1.RadixVolumeMount, error) {
 	componentVolumeMounts := radixComponent.GetVolumeMounts()
-	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetVolumeMounts() == nil {
+	if pointers.IsNil(environmentSpecificConfig) || environmentSpecificConfig.GetVolumeMounts() == nil {
 		return componentVolumeMounts, nil
 	}
 	environmentVolumeMounts := environmentSpecificConfig.GetVolumeMounts()
@@ -221,7 +221,7 @@ func getRadixCommonComponentVolumeMounts(radixComponent radixv1.RadixCommonCompo
 
 func getRadixJobComponentBatchStatusRules(radixJobComponent *radixv1.RadixJobComponent, environmentSpecificConfig *radixv1.RadixJobComponentEnvironmentConfig) []radixv1.BatchStatusRule {
 	batchStatusRules := radixJobComponent.GetBatchStatusRules()
-	if commonutils.IsNil(environmentSpecificConfig) || environmentSpecificConfig.BatchStatusRules == nil {
+	if pointers.IsNil(environmentSpecificConfig) || environmentSpecificConfig.BatchStatusRules == nil {
 		return batchStatusRules
 	}
 	return environmentSpecificConfig.BatchStatusRules
@@ -300,12 +300,20 @@ func getRadixComponentPort(radixComponent *radixv1.RadixComponent) string {
 	return radixComponent.PublicPort
 }
 
-func getExternalDNSAliasForComponentEnvironment(radixApplication *radixv1.RadixApplication, component, env string) []radixv1.RadixDeployExternalDNS {
+func getExternalDNSAliasForComponentEnvironment(radixApplication *radixv1.RadixApplication, component, env string, defaultIssuer string) []radixv1.RadixDeployExternalDNS {
 	dnsExternalAlias := make([]radixv1.RadixDeployExternalDNS, 0)
 
 	for _, externalAlias := range radixApplication.Spec.DNSExternalAlias {
 		if externalAlias.Component == component && externalAlias.Environment == env {
-			dnsExternalAlias = append(dnsExternalAlias, radixv1.RadixDeployExternalDNS{FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation})
+			ed := radixv1.RadixDeployExternalDNS{FQDN: externalAlias.Alias, UseCertificateAutomation: externalAlias.UseCertificateAutomation}
+			if externalAlias.UseCertificateAutomation {
+				issuer := defaultIssuer
+				if externalAlias.CertificateAutomation != nil {
+					issuer = externalAlias.CertificateAutomation.Issuer
+				}
+				ed.CertificateAutomation = &radixv1.CertificateAutomation{Issuer: issuer}
+			}
+			dnsExternalAlias = append(dnsExternalAlias, ed)
 		}
 	}
 

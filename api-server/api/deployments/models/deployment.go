@@ -73,20 +73,7 @@ type Deployment struct {
 	// example: https://github.com/equinor/radix-canary-golang
 	Repository string `json:"repository,omitempty"`
 
-	// Name of the branch used to build the deployment
-	//
-	// required: false
-	// example: main
-	BuiltFromBranch string `json:"builtFromBranch,omitempty"`
-
-	// Enables BuildKit when building Dockerfile.
-	//
-	// required: false
-	// Extensions:
-	// x-nullable: true
-	UseBuildKit *bool `json:"useBuildKit,omitempty"`
-
-	// Defaults to true and requires useBuildKit to have an effect.
+	// Defaults to true.
 	//
 	// required: false
 	// Extensions:

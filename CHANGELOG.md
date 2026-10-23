@@ -2,6 +2,253 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.133.0](https://github.com/equinor/radix-operator/compare/v1.132.1..v1.133.0) - 2026-10-23
+
+### 🚀 Features
+
+- Add support for multiple certificate issuers in dnsExternalAlias - ([b2d6e02](https://github.com/equinor/radix-operator/commit/b2d6e02b43a45470392bb12e45fa483430af3741)) by @jacobsolbergholm in [#1998](https://github.com/equinor/radix-operator/pull/1998)
+
+
+### 🐛 Bug Fixes
+
+- Update dependencies and go fix (#2019) - ([77fa85b](https://github.com/equinor/radix-operator/commit/77fa85b7510687c118f55646d1b498ede8b55891)) by @Richard87 in [#2019](https://github.com/equinor/radix-operator/pull/2019)
+
+- Change error response (#2028) - ([e5f0882](https://github.com/equinor/radix-operator/commit/e5f0882974defb589b81ce0367dda842d7d318d5)) by @herda1 in [#2028](https://github.com/equinor/radix-operator/pull/2028)
+
+- Update go version (#2034) - ([986eb2f](https://github.com/equinor/radix-operator/commit/986eb2f860d2c3a095d79113f5cf1a88807cc449)) by @herda1 in [#2034](https://github.com/equinor/radix-operator/pull/2034)
+
+
+## [1.132.1](https://github.com/equinor/radix-operator/compare/v1.132.0..v1.132.1) - 2026-10-15
+
+### 🐛 Bug Fixes
+
+- Bump size of deploy keys (#2014) - ([877669e](https://github.com/equinor/radix-operator/commit/877669e2d88b3c132bc95207f3e19ffcd1fc6a50)) by @Richard87 in [#2014](https://github.com/equinor/radix-operator/pull/2014)
+
+
+## [1.132.0](https://github.com/equinor/radix-operator/compare/v1.131.1..v1.132.0) - 2026-10-15
+
+### 🚀 Features
+
+- Migrate Oauth2 Proxy and Session Store pod config to helm chart  (#1991) - ([d387959](https://github.com/equinor/radix-operator/commit/d38795961286d47fc9210fdee418c607c623fbcb)) by @Richard87 in [#1991](https://github.com/equinor/radix-operator/pull/1991)
+
+
+## [1.131.1](https://github.com/equinor/radix-operator/compare/v1.131.0..v1.131.1) - 2026-10-07
+
+### 🐛 Bug Fixes
+
+- Add validation on radix batch jobs (#1980) - ([5cc9fd8](https://github.com/equinor/radix-operator/commit/5cc9fd8edb4bcc2a9590a80f5537735116a8332d)) by @herda1 in [#1980](https://github.com/equinor/radix-operator/pull/1980)
+
+
+### ◀️ Revert
+
+- Remove obsolete code tied to migration of clusters. (#1983) - ([6dd1653](https://github.com/equinor/radix-operator/commit/6dd16537ceb43fceeba0ad54889ceb6bbf01de9e)) by @jacobsolbergholm in [#1983](https://github.com/equinor/radix-operator/pull/1983)
+
+
+## [1.131.0](https://github.com/equinor/radix-operator/compare/v1.130.0..v1.131.0) - 2026-09-30
+
+### 🚀 Features
+
+- Refactor pipeline-runner to use config from configmap instead of flags (#1976) - ([6a3b975](https://github.com/equinor/radix-operator/commit/6a3b975174c18954cb338c767f1b9e83bc34c02c)) by @nilsgstrabo in [#1976](https://github.com/equinor/radix-operator/pull/1976)
+
+
+## [1.130.0](https://github.com/equinor/radix-operator/compare/v1.129.0..v1.130.0) - 2026-09-29
+
+### 🚀 Features
+
+- Extend get applications endpoint with more registration details (#1975) - ([210b8d7](https://github.com/equinor/radix-operator/commit/210b8d735462448b0f8ca13a752dc5901b0de639)) by @Richard87 in [#1975](https://github.com/equinor/radix-operator/pull/1975)
+
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump google.golang.org/grpc (#1964) - ([313602d](https://github.com/equinor/radix-operator/commit/313602da5388f49d57e0abe8ccb4a079f66e0026)) by @dependabot[bot] in [#1964](https://github.com/equinor/radix-operator/pull/1964)
+
+- *(deps)* Bump google.golang.org/grpc (#1968) - ([7d41ed8](https://github.com/equinor/radix-operator/commit/7d41ed8fb9b60b6069668ee9196b78b411ac91da)) by @dependabot[bot] in [#1968](https://github.com/equinor/radix-operator/pull/1968)
+
+- Complete refactor of os.Getenv in config (#1946) - ([1297309](https://github.com/equinor/radix-operator/commit/12973094195d779c63f7b565eb1d447c5c9f870e)) by @Richard87 in [#1946](https://github.com/equinor/radix-operator/pull/1946)
+
+- Add identity validation in key vaults  (#1971) - ([0d49789](https://github.com/equinor/radix-operator/commit/0d4978907a870c1213f53d4f44c1256696d379d6)) by @herda1 in [#1971](https://github.com/equinor/radix-operator/pull/1971)
+
+- Migrate config1 to config2 (#1966) - ([a229fa0](https://github.com/equinor/radix-operator/commit/a229fa00c354a66eee8899860931903880194159)) by @nilsgstrabo in [#1966](https://github.com/equinor/radix-operator/pull/1966)
+
+- Enhance pipeline validation and add tests for inline task specs (#1970) - ([148c07b](https://github.com/equinor/radix-operator/commit/148c07b9d53921dc28a63c38c21cb73428e88bfc)) by @jacobsolbergholm in [#1970](https://github.com/equinor/radix-operator/pull/1970)
+
+
+## [1.129.0](https://github.com/equinor/radix-operator/compare/v1.128.0..v1.129.0) - 2026-09-07
+
+### 🚀 Features
+
+- Migrate options and update version with configuration fixes (#1930) - ([a39ddcd](https://github.com/equinor/radix-operator/commit/a39ddcd2dcaf4b44f436faf4fa0e2184dd6ddb6f)) by @Richard87 in [#1930](https://github.com/equinor/radix-operator/pull/1930)
+
+
+## [1.128.0](https://github.com/equinor/radix-operator/compare/v1.127.0..v1.128.0) - 2026-09-01
+
+### 🚀 Features
+
+- *(api-server)* Rerun job returns pipeline jobId  (#1936) - ([e1149a7](https://github.com/equinor/radix-operator/commit/e1149a709b4925b4878a3934bae8dc2976492422)) by @herda1 in [#1936](https://github.com/equinor/radix-operator/pull/1936)
+
+
+### 🐛 Bug Fixes
+
+- *(api-server)* Get gitRef and gitRefType from Annotations instead (#1934) - ([84680b2](https://github.com/equinor/radix-operator/commit/84680b21a9e35066ffa3d01ba4006323020a4365)) by @herda1 in [#1934](https://github.com/equinor/radix-operator/pull/1934)
+
+- *(api-server)* Remove deprecated secret type 'azure-blob-fuse-volume' (#1938) - ([ddeabd5](https://github.com/equinor/radix-operator/commit/ddeabd5ecc39fd71b7c4ac2663666827dc6bd156)) by @nilsgstrabo in [#1938](https://github.com/equinor/radix-operator/pull/1938)
+
+- Potential fixes for 2 code quality findings (#1931) - ([c512c73](https://github.com/equinor/radix-operator/commit/c512c73e56aa9e28fcf87e69d45a9539bbe70b65)) by @jacobsolbergholm in [#1931](https://github.com/equinor/radix-operator/pull/1931)
+
+
+## [1.127.0](https://github.com/equinor/radix-operator/compare/v1.126.1..v1.127.0) - 2026-08-25
+
+### 🚀 Features
+
+- Update codebase to use modern go constructs (#1905) - ([78ebc54](https://github.com/equinor/radix-operator/commit/78ebc5475549d94459e9af2c80de69fb317d4810)) by @nilsgstrabo in [#1905](https://github.com/equinor/radix-operator/pull/1905)
+
+
+## [1.126.1](https://github.com/equinor/radix-operator/compare/v1.126.0..v1.126.1) - 2026-08-21
+
+### 🐛 Bug Fixes
+
+- Allow no schedulerPort if atleast one cron schedule is defined (#1833) - ([56625fc](https://github.com/equinor/radix-operator/commit/56625fc4e33ca30d6eb532b0b84b51bed5ccf299)) by @Richard87 in [#1833](https://github.com/equinor/radix-operator/pull/1833)
+
+
+## [1.126.0](https://github.com/equinor/radix-operator/compare/v1.125.0..v1.126.0) - 2026-08-19
+
+### 🚀 Features
+
+- Return cron schedules for the job component. (#1888) - ([f2047b6](https://github.com/equinor/radix-operator/commit/f2047b6f770171ccaf4197ba3452eab7cd00506d)) by @jacobsolbergholm in [#1888](https://github.com/equinor/radix-operator/pull/1888)
+
+
+### 🐛 Bug Fixes
+
+- Validate subdomain length constrain (#1900) - ([a4f673a](https://github.com/equinor/radix-operator/commit/a4f673abebc4acd8fe71ed8de5fc1dc291436483)) by @herda1 in [#1900](https://github.com/equinor/radix-operator/pull/1900)
+
+- Remove deprecated field ´deployment´ (#1903) - ([16206ff](https://github.com/equinor/radix-operator/commit/16206ff1d328f06c299b347c419beb6ba29635f3)) by @herda1 in [#1903](https://github.com/equinor/radix-operator/pull/1903)
+
+
+## [1.125.0](https://github.com/equinor/radix-operator/compare/v1.124.1..v1.125.0) - 2026-08-12
+
+### 🚀 Features
+
+- Include nextCronRun in component builder and deployment models (#1883) - ([1c3e4e0](https://github.com/equinor/radix-operator/commit/1c3e4e0aba8ce3526ab73926d971b2d949c4d0bf)) by @jacobsolbergholm in [#1883](https://github.com/equinor/radix-operator/pull/1883)
+
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump github.com/go-git/go-git/v5 (#1891) - ([568dd3f](https://github.com/equinor/radix-operator/commit/568dd3f79d48035fb891df1d63db5c39b62f99d7)) by @dependabot[bot] in [#1891](https://github.com/equinor/radix-operator/pull/1891)
+
+- Remove legacy sharedSecret from radixRegistration (#1886) - ([6dc3b7b](https://github.com/equinor/radix-operator/commit/6dc3b7b1d7277bcd5141859b85a65b3dca11fdb2)) by @Richard87 in [#1886](https://github.com/equinor/radix-operator/pull/1886)
+
+- Set TTLSecondsAfterFinished on pipeline and build jobs (#1895) - ([37a1374](https://github.com/equinor/radix-operator/commit/37a1374b1c9cd98d3cb47ffda8a5c7f3c8ad1d93)) by @nilsgstrabo in [#1895](https://github.com/equinor/radix-operator/pull/1895)
+
+- Ensure job aux deployment is recreated if selector labels are modified (#1887) - ([bf08b8b](https://github.com/equinor/radix-operator/commit/bf08b8ba4b94a070b2b1333261b0b8062c586912)) by @nilsgstrabo in [#1887](https://github.com/equinor/radix-operator/pull/1887)
+
+
+## [1.124.1](https://github.com/equinor/radix-operator/compare/v1.124.0..v1.124.1) - 2026-08-06
+
+### 🐛 Bug Fixes
+
+- Move sharedSecret to Kubernetes secret and restrict access to admins (#1818) - ([db21aa4](https://github.com/equinor/radix-operator/commit/db21aa41f824c05491523e1a2a9a95846ab38fc5)) by @Richard87 in [#1818](https://github.com/equinor/radix-operator/pull/1818)
+
+
+### ⚙️ Miscellaneous Tasks
+
+- Do not fail fast when creating images (#1881) - ([9955a1f](https://github.com/equinor/radix-operator/commit/9955a1f03cc6c472e646b351609a183c2d98090a)) by @Richard87 in [#1881](https://github.com/equinor/radix-operator/pull/1881)
+
+
+## [1.124.0](https://github.com/equinor/radix-operator/compare/v1.123.0..v1.124.0) - 2026-07-30
+
+### 🚀 Features
+
+- *(logs)* Add ´previous´ parameter in GetEnvironmentAuxiliaryResourcePodLog endpoint  (#1873) - ([1882051](https://github.com/equinor/radix-operator/commit/18820510cefce41069332c42755f57658b35af3f)) by @herda1 in [#1873](https://github.com/equinor/radix-operator/pull/1873)
+
+
+## [1.123.0](https://github.com/equinor/radix-operator/compare/v1.122.2..v1.123.0) - 2026-07-28
+
+### 🚀 Features
+
+- Store cron schedule as annotation on RadixBatch, and return it through the API. (#1865) - ([bb9d134](https://github.com/equinor/radix-operator/commit/bb9d13497d33aef00abd186bc3c2f20f013088b7)) by @jacobsolbergholm in [#1865](https://github.com/equinor/radix-operator/pull/1865)
+
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump go version and dependencies (#1869) - ([f6475d9](https://github.com/equinor/radix-operator/commit/f6475d90894bc03cfb820daf23e8ee94a44c9559)) by @nilsgstrabo in [#1869](https://github.com/equinor/radix-operator/pull/1869)
+
+
+## [1.122.2](https://github.com/equinor/radix-operator/compare/v1.122.1..v1.122.2) - 2026-07-24
+
+### 🐛 Bug Fixes
+
+- Custom radix arguments to sub pipeline not populated for promote and deploy jobs (#1855) - ([a48af74](https://github.com/equinor/radix-operator/commit/a48af746453c884a15d0b975e6b258ce4aa95927)) by @nilsgstrabo in [#1855](https://github.com/equinor/radix-operator/pull/1855)
+
+
+## [1.122.1](https://github.com/equinor/radix-operator/compare/v1.122.0..v1.122.1) - 2026-07-23
+
+### 🐛 Bug Fixes
+
+- Resolve environments mapped to tags for github webhook push events (#1857) - ([611013a](https://github.com/equinor/radix-operator/commit/611013a4ca9d3f28f82f0786741da56a90eed0ed)) by @nilsgstrabo in [#1857](https://github.com/equinor/radix-operator/pull/1857)
+
+
+## [1.122.0](https://github.com/equinor/radix-operator/compare/v1.121.1..v1.122.0) - 2026-07-22
+
+### 🚀 Features
+
+- Support in API to set and fetch annotations regarding federated credential migraton (#1845) - ([9dc79e7](https://github.com/equinor/radix-operator/commit/9dc79e7fbc07a43be097f8883cebffea49acf8e0)) by @jacobsolbergholm in [#1845](https://github.com/equinor/radix-operator/pull/1845)
+
+- Get annotation in get application (#1846) - ([169e33e](https://github.com/equinor/radix-operator/commit/169e33eaf444c7980bae2610b21223e44696eb1e)) by @herda1 in [#1846](https://github.com/equinor/radix-operator/pull/1846)
+
+
+### 🐛 Bug Fixes
+
+- *(api)* Make HasFederatedCredentialAnnotation bool (#1849) - ([976bfe9](https://github.com/equinor/radix-operator/commit/976bfe98c6a0ef4472b14ab7a76249e91bf54092)) by @herda1 in [#1849](https://github.com/equinor/radix-operator/pull/1849)
+
+
+## [1.121.1](https://github.com/equinor/radix-operator/compare/v1.121.0..v1.121.1) - 2026-07-10
+
+### 🐛 Bug Fixes
+
+- More logging for GitHub Push events (#1837) - ([56cee44](https://github.com/equinor/radix-operator/commit/56cee441f02ff7821be18dbd6f65c50c2a9c2118)) by @Richard87 in [#1837](https://github.com/equinor/radix-operator/pull/1837)
+
+- Allow api-server to create events (#1840) - ([121b8c3](https://github.com/equinor/radix-operator/commit/121b8c3516ace1498a95a39333476be074dbb171)) by @Richard87 in [#1840](https://github.com/equinor/radix-operator/pull/1840)
+
+
+## [1.121.0](https://github.com/equinor/radix-operator/compare/v1.120.4..v1.121.0) - 2026-07-08
+
+### 🚀 Features
+
+- Replace gateway api XListenerSet with ListenerSet (#1799) - ([55b9f8c](https://github.com/equinor/radix-operator/commit/55b9f8c155e61b30f5a7b88d4eed4edd7ba8a799)) by @nilsgstrabo in [#1799](https://github.com/equinor/radix-operator/pull/1799)
+
+
+## [1.120.4](https://github.com/equinor/radix-operator/compare/v1.120.3..v1.120.4) - 2026-07-08
+
+### 🐛 Bug Fixes
+
+- Add Retry on conflict for patching job objects (#1829) - ([34b0dd9](https://github.com/equinor/radix-operator/commit/34b0dd9a497d1a8481ad9fadd67a9000d984969c)) by @Richard87 in [#1829](https://github.com/equinor/radix-operator/pull/1829)
+
+
+## [1.120.3](https://github.com/equinor/radix-operator/compare/v1.120.2..v1.120.3) - 2026-07-08
+
+### 🐛 Bug Fixes
+
+- Stopping of waiting jobs (#1823) - ([78d1670](https://github.com/equinor/radix-operator/commit/78d1670226dc303b5862944ebe1128218cc247a8)) by @Richard87 in [#1823](https://github.com/equinor/radix-operator/pull/1823)
+
+
+## [1.120.2](https://github.com/equinor/radix-operator/compare/v1.120.1..v1.120.2) - 2026-07-06
+
+### 🐛 Bug Fixes
+
+- Remove ACR secrets (#1815) - ([be67e44](https://github.com/equinor/radix-operator/commit/be67e44c4448654b1f59096573b1ddb69d89597a)) by @Richard87 in [#1815](https://github.com/equinor/radix-operator/pull/1815)
+
+
+## [1.120.1](https://github.com/equinor/radix-operator/compare/v1.120.0..v1.120.1) - 2026-07-02
+
+### 🐛 Bug Fixes
+
+- Overriding envvar from batch should reset any value from configmap/secret (#1804) - ([37756de](https://github.com/equinor/radix-operator/commit/37756dea03fce4c6e769dadd53ffaa6d58e7f721)) by @Richard87 in [#1804](https://github.com/equinor/radix-operator/pull/1804)
+
+- Bugfix queuing jobs (#1800) - ([da2e4e0](https://github.com/equinor/radix-operator/commit/da2e4e09c256dc80a7593c25887cc64f143aefbb)) by @Richard87 in [#1800](https://github.com/equinor/radix-operator/pull/1800)
+
+- Remove ACR tasks (#1810) - ([39467e5](https://github.com/equinor/radix-operator/commit/39467e5cf8735f7cae4f2732a25f247fe6ef3110)) by @Richard87 in [#1810](https://github.com/equinor/radix-operator/pull/1810)
+
+
 ## [1.120.0](https://github.com/equinor/radix-operator/compare/v1.119.1..v1.120.0) - 2026-06-23
 
 ### 🚀 Features

@@ -48,7 +48,7 @@ func (app *ApplicationConfig) syncDNSAliases(ctx context.Context) error {
 		}
 	}
 
-	if len(app.config.Spec.DNSAlias) == 0 {
+	if len(app.application.Spec.DNSAlias) == 0 {
 		if err := app.garbageCollectAccessToDNSAliases(ctx); err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 	processedAliases := make(map[string]any)
 	appName := app.registration.Name
 	var errs []error
-	for _, dnsAlias := range app.config.Spec.DNSAlias {
+	for _, dnsAlias := range app.application.Spec.DNSAlias {
 		if existingAlias, exists := existingAliases[dnsAlias.Alias]; exists {
 			if existingAlias.Spec.AppName != appName {
 				errs = append(errs, fmt.Errorf("failed to process dns alias %s: %w", dnsAlias.Alias, ErrDNSAliasUsedByOtherApplication))
@@ -117,10 +117,8 @@ func (app *ApplicationConfig) getDNSAliasesToSync(existingAliases map[string]*ra
 
 func (app *ApplicationConfig) buildRadixDNSAlias(appName string, dnsAlias radixv1.DNSAlias) (*radixv1.RadixDNSAlias, error) {
 	rda := &radixv1.RadixDNSAlias{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   dnsAlias.Alias,
-			Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
-		},
+		Name:   dnsAlias.Alias,
+		Labels: labels.Merge(labels.ForApplicationName(appName), labels.ForComponentName(dnsAlias.Component), labels.ForEnvironmentName(dnsAlias.Environment)),
 		Spec: radixv1.RadixDNSAliasSpec{
 			AppName:     appName,
 			Environment: dnsAlias.Environment,

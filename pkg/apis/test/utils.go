@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
 	"github.com/rs/zerolog"
@@ -24,8 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
-
-const dnsZone = "dev.radix.equinor.com"
 
 // Utils Instance variables
 type Utils struct {
@@ -104,7 +102,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (
 	var rr *radixv1.RadixRegistration
 	var err error
 
-	if !commonUtils.IsNil(regBuilder) {
+	if !pointers.IsNil(regBuilder) {
 		if rr, err = tu.ApplyRegistration(regBuilder); err != nil {
 			return nil, err
 		}
@@ -176,7 +174,7 @@ func (tu *Utils) ApplyDeployment(ctx context.Context, deploymentBuilder utils.De
 	envs := make(map[string]struct{})
 
 	applicationBuilder := deploymentBuilder.GetApplicationBuilder()
-	if !commonUtils.IsNil(applicationBuilder) {
+	if !pointers.IsNil(applicationBuilder) {
 		ra, _ := tu.ApplyApplication(applicationBuilder)
 		for _, env := range ra.Spec.Environments {
 			envs[env.Name] = struct{}{}
@@ -289,36 +287,16 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuil
 	return re, nil
 }
 
-// SetRequiredEnvironmentVariables  Sets the required environment
-// variables needed for the operator to run properly
-func SetRequiredEnvironmentVariables() {
-	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
-	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "docker.io/radix-job-scheduler:main-latest")
-	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
-	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
-	os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")
-	os.Setenv(defaults.AppContainerRegistryEnvironmentVariable, "any.app.container.registry")
-}
-
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) error {
-	SetRequiredEnvironmentVariables()
+func (tu *Utils) CreateClusterPrerequisites() error {
 
 	var errs []error
 	_, err := tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
-			Type: "Opaque",
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "radix-known-hosts-git",
-				Namespace: corev1.NamespaceDefault,
-			},
+			Type:      "Opaque",
+			Name:      "radix-known-hosts-git",
+			Namespace: corev1.NamespaceDefault,
 			Data: map[string][]byte{
 				"known_hosts": []byte("abcd"),
 			},
@@ -326,28 +304,11 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) 
 		metav1.CreateOptions{})
 	errs = append(errs, err)
 
-	_, err = tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
-		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "radix-config",
-				Namespace: corev1.NamespaceDefault,
-			},
-			Data: map[string]string{
-				"clustername":    clustername,
-				"subscriptionId": subscriptionId,
-			},
-		},
-		metav1.CreateOptions{})
-	errs = append(errs, err)
-
 	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.AzureACRServicePrincipleSecretName,
-				Namespace: corev1.NamespaceDefault,
-			},
+			Name:      defaults.AzureACRServicePrincipleBuildahSecretName,
+			Namespace: corev1.NamespaceDefault,
 			StringData: map[string]string{
 				"sp_credentials.json": "{}",
 			},
@@ -358,24 +319,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, subscriptionId string) 
 	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
 		context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.AzureACRServicePrincipleBuildahSecretName,
-				Namespace: corev1.NamespaceDefault,
-			},
-			StringData: map[string]string{
-				"sp_credentials.json": "{}",
-			},
-		},
-		metav1.CreateOptions{})
-	errs = append(errs, err)
-
-	_, err = tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
-		context.Background(),
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.AzureACRTokenPasswordAppRegistrySecretName,
-				Namespace: corev1.NamespaceDefault,
-			},
+			Name:      defaults.AzureACRTokenPasswordAppRegistrySecretName,
+			Namespace: corev1.NamespaceDefault,
 			StringData: map[string]string{
 				"sp_credentials.json": "{}",
 			},
@@ -402,27 +347,15 @@ func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment st
 
 func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns string) {
 	namespace := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ns,
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-				kube.RadixEnvLabel: envName,
-			},
+		Name: ns,
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+			kube.RadixEnvLabel: envName,
 		},
 	}
 
 	// TODO: should the error be returned to caller
 	_, _ = kubeclient.CoreV1().Namespaces().Create(context.Background(), &namespace, metav1.CreateOptions{})
-}
-
-// IntPtr Helper function to get the pointer of an int
-func IntPtr(i int) *int {
-	return &i
-}
-
-// GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
-func GetRadixAzureKeyVaultObjectTypePtr(objectType radixv1.RadixAzureKeyVaultObjectType) *radixv1.RadixAzureKeyVaultObjectType {
-	return &objectType
 }
 
 // GetAzureKeyVaultTypeSecrets Gets secrets with kube.RadixSecretRefTypeLabel and value v1.RadixSecretRefTypeAzureKeyVault
@@ -463,10 +396,8 @@ func RegisterRadixDNSAlias(ctx context.Context, radixClient radixclient.Interfac
 func RegisterRadixDNSAliasBySpec(ctx context.Context, radixClient radixclient.Interface, alias string, aliasesSpec DNSAlias) error {
 	_, err := radixClient.RadixV1().RadixDNSAliases().Create(ctx,
 		&radixv1.RadixDNSAlias{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   alias,
-				Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
-			},
+			Name:   alias,
+			Labels: labels.Merge(labels.ForApplicationName(aliasesSpec.AppName), labels.ForComponentName(aliasesSpec.Component), labels.ForEnvironmentName(aliasesSpec.Environment)),
 			Spec: radixv1.RadixDNSAliasSpec{
 				AppName:     aliasesSpec.AppName,
 				Environment: aliasesSpec.Environment,

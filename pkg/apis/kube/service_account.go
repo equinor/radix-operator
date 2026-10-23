@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,10 +18,8 @@ import (
 // CreateServiceAccount create a service account
 func (kubeutil *Kube) CreateServiceAccount(ctx context.Context, namespace, name string) (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 	}
 
 	return kubeutil.ApplyServiceAccount(ctx, &serviceAccount)
@@ -140,7 +138,7 @@ func (kubeutil *Kube) ListServiceAccountsWithSelector(ctx context.Context, names
 			return nil, err
 		}
 
-		serviceAccounts = slice.PointersOf(list.Items).([]*corev1.ServiceAccount)
+		serviceAccounts = slice.PointersOf(list.Items)
 	}
 
 	return serviceAccounts, nil

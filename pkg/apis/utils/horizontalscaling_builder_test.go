@@ -3,7 +3,6 @@ package utils_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -68,15 +67,15 @@ func Test_HorizontalScalingBuilder_Triggers(t *testing.T) {
 		},
 		{
 			name: "AzureServiceBus",
-			actual: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "topic-name", "subscription-name", "", pointers.Ptr(5), pointers.Ptr(10)).
+			actual: utils.NewHorizontalScalingBuilder().WithAzureServiceBusTrigger("anamespace", "abcd", "queue-name", "topic-name", "subscription-name", "", new(5), new(10)).
 				Build(),
 			expected: radixv1.RadixHorizontalScalingTrigger{Name: "azure-service-bus", AzureServiceBus: &radixv1.RadixHorizontalScalingAzureServiceBusTrigger{
 				Namespace:              "anamespace",
 				QueueName:              "queue-name",
 				TopicName:              "topic-name",
 				SubscriptionName:       "subscription-name",
-				MessageCount:           pointers.Ptr(5),
-				ActivationMessageCount: pointers.Ptr(10),
+				MessageCount:           new(5),
+				ActivationMessageCount: new(10),
 				Authentication: radixv1.RadixHorizontalScalingAuthentication{
 					Identity: radixv1.RadixHorizontalScalingRequiredIdentity{Azure: radixv1.AzureIdentity{ClientId: "abcd"}},
 				},

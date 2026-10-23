@@ -94,12 +94,10 @@ func buildServiceAccountForOAuthProxyComponent(namespace string, component radix
 
 func buildServiceAccount(namespace, name string, labels kubelabels.Set, identityClientId string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Labels:      labels,
-			Annotations: getComponentServiceAccountAnnotations(identityClientId),
-		},
+		Name:        name,
+		Namespace:   namespace,
+		Labels:      labels,
+		Annotations: getComponentServiceAccountAnnotations(identityClientId),
 	}
 }
 

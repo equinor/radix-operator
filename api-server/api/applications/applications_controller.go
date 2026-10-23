@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	applicationModels "github.com/equinor/radix-operator/api-server/api/applications/models"
+	"github.com/equinor/radix-operator/api-server/api/events"
 	"github.com/equinor/radix-operator/api-server/api/metrics"
-	"github.com/equinor/radix-operator/api-server/models"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	"github.com/equinor/radix-operator/api-server/internal/controller"
 	"github.com/gorilla/mux"
 )
 
@@ -17,14 +19,14 @@ const rootPath = ""
 const appPath = rootPath + "/applications/{appName}"
 
 type applicationController struct {
-	*models.DefaultController
+	*controller.DefaultController
 	hasAccessToRR
 	applicationHandlerFactory ApplicationHandlerFactory
 	metricsHandler            *metrics.Handler
 }
 
 // NewApplicationController Constructor
-func NewApplicationController(hasAccessTo hasAccessToRR, applicationHandlerFactory ApplicationHandlerFactory, metricsHandler *metrics.Handler) models.Controller {
+func NewApplicationController(hasAccessTo hasAccessToRR, applicationHandlerFactory ApplicationHandlerFactory, metricsHandler *metrics.Handler) controller.Controller {
 	if hasAccessTo == nil {
 		hasAccessTo = hasAccess
 	}
@@ -37,110 +39,115 @@ func NewApplicationController(hasAccessTo hasAccessToRR, applicationHandlerFacto
 }
 
 // GetRoutes List the supported routes of this controller
-func (ac *applicationController) GetRoutes() models.Routes {
-	routes := models.Routes{
-		models.Route{
+func (ac *applicationController) GetRoutes() controller.Routes {
+	routes := controller.Routes{
+		controller.Route{
 			Path:        rootPath + "/applications",
 			Method:      "POST",
 			HandlerFunc: ac.RegisterApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath,
 			Method:      "PUT",
 			HandlerFunc: ac.ChangeRegistrationDetails,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath,
 			Method:      "PATCH",
 			HandlerFunc: ac.ModifyRegistrationDetails,
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/applications",
 			Method:      "GET",
 			HandlerFunc: ac.ShowApplications,
-			KubeApiConfig: models.KubeApiConfig{
+			KubeApiConfig: controller.KubeApiConfig{
 				QPS:   50,
 				Burst: 100,
 			},
 		},
-		models.Route{
+		controller.Route{
 			Path:        rootPath + "/applications/_search",
 			Method:      "GET",
 			HandlerFunc: ac.SearchApplications,
-			KubeApiConfig: models.KubeApiConfig{
+			KubeApiConfig: controller.KubeApiConfig{
 				QPS:   100,
 				Burst: 100,
 			},
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath,
 			Method:      "GET",
 			HandlerFunc: ac.GetApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath,
 			Method:      "DELETE",
 			HandlerFunc: ac.DeleteApplication,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/pipelines",
 			Method:      "GET",
 			HandlerFunc: ac.ListPipelines,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/pipelines/build",
 			Method:      "POST",
 			HandlerFunc: ac.TriggerPipelineBuild,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/pipelines/build-deploy",
 			Method:      "POST",
 			HandlerFunc: ac.TriggerPipelineBuildDeploy,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/pipelines/promote",
 			Method:      "POST",
 			HandlerFunc: ac.TriggerPipelinePromote,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/pipelines/deploy",
 			Method:      "POST",
 			HandlerFunc: ac.TriggerPipelineDeploy,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/pipelines/apply-config",
 			Method:      "POST",
 			HandlerFunc: ac.TriggerPipelineApplyConfig,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/deploykey-valid",
 			Method:      "GET",
 			HandlerFunc: ac.IsDeployKeyValidHandler,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/deploy-key-and-secret",
 			Method:      "GET",
 			HandlerFunc: ac.GetDeployKeyAndSecret,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/regenerate-deploy-key",
 			Method:      "POST",
 			HandlerFunc: ac.RegenerateDeployKeyHandler,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/regenerate-shared-secret",
 			Method:      "POST",
 			HandlerFunc: ac.RegenerateSharedSecretHandler,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/utilization",
 			Method:      "GET",
 			HandlerFunc: ac.GetApplicationResourcesUtilization,
 		},
-		models.Route{
+		controller.Route{
 			Path:        appPath + "/environments/{envName}/utilization",
 			Method:      "GET",
 			HandlerFunc: ac.GetEnvironmentResourcesUtilization,
+		},
+		controller.Route{
+			Path:        appPath + "/events",
+			Method:      "GET",
+			HandlerFunc: ac.GetApplicationEvents,
 		},
 	}
 
@@ -148,17 +155,12 @@ func (ac *applicationController) GetRoutes() models.Routes {
 }
 
 // ShowApplications Lists applications
-func (ac *applicationController) ShowApplications(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) ShowApplications(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications platform showApplications
 	//
 	// ---
 	// summary: Lists the applications. NOTE - doesn't get applicationSummary.latestJob.Environments
 	// parameters:
-	// - name: sshRepo
-	//   in: query
-	//   description: ssh repo to identify Radix application if exists
-	//   type: string
-	//   required: false
 	// - name: Impersonate-User
 	//   in: header
 	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
@@ -187,14 +189,8 @@ func (ac *applicationController) ShowApplications(accounts models.Accounts, w ht
 	//   "500":
 	//     description: "Internal server error"
 
-	matcher := applicationModels.MatchAll
-	sshRepo := strings.TrimSpace(r.FormValue("sshRepo"))
-	if len(sshRepo) > 0 {
-		matcher = applicationModels.MatchBySSHRepoFunc(sshRepo)
-	}
-
 	handler := ac.applicationHandlerFactory.Create(accounts)
-	appRegistrations, err := handler.GetApplications(r.Context(), matcher, ac.hasAccessToRR, GetApplicationsOptions{})
+	appRegistrations, err := handler.GetApplications(r.Context(), applicationModels.MatchAll, ac.hasAccessToRR, GetApplicationsOptions{})
 
 	if err != nil {
 		ac.ErrorResponse(w, r, err)
@@ -205,7 +201,7 @@ func (ac *applicationController) ShowApplications(accounts models.Accounts, w ht
 }
 
 // SearchApplications Gets applications by list of application names
-func (ac *applicationController) SearchApplications(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) SearchApplications(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/_search platform getSearchApplications
 	//
 	// ---
@@ -278,7 +274,7 @@ func (ac *applicationController) SearchApplications(accounts models.Accounts, w 
 
 	// No need to perform search if names in request is empty. Just return empty list
 	if len(appNamesRequest.Names) == 0 {
-		ac.JSONResponse(w, r, []interface{}{})
+		ac.JSONResponse(w, r, []any{})
 		return
 	}
 
@@ -303,7 +299,7 @@ func (ac *applicationController) SearchApplications(accounts models.Accounts, w 
 }
 
 // GetApplication Gets application by application name
-func (ac *applicationController) GetApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) GetApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName} application getApplication
 	// ---
 	// summary: Gets the application by name
@@ -354,7 +350,7 @@ func (ac *applicationController) GetApplication(accounts models.Accounts, w http
 }
 
 // IsDeployKeyValidHandler validates deploy key for radix application found for application name
-func (ac *applicationController) IsDeployKeyValidHandler(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) IsDeployKeyValidHandler(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/deploykey-valid application isDeployKeyValid
 	// ---
 	// summary: Checks if the deploy key is correctly setup for application by cloning the repository
@@ -392,7 +388,7 @@ func (ac *applicationController) IsDeployKeyValidHandler(accounts models.Account
 }
 
 // RegenerateDeployKeyHandler Regenerates deploy key and secret and returns the new key
-func (ac *applicationController) RegenerateDeployKeyHandler(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) RegenerateDeployKeyHandler(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/regenerate-deploy-key application regenerateDeployKey
 	// ---
 	// summary: Regenerates deploy key
@@ -445,7 +441,7 @@ func (ac *applicationController) RegenerateDeployKeyHandler(accounts models.Acco
 }
 
 // RegenerateSharedSecretHandler Regenerates shared secret
-func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) RegenerateSharedSecretHandler(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/regenerate-shared-secret application regenerateSharedSecret
 	// ---
 	// summary: Regenerates shared secret
@@ -455,12 +451,6 @@ func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.A
 	//   description: name of application
 	//   type: string
 	//   required: true
-	// - name: regenerateRegenerateSharedSecretData
-	//   in: body
-	//   description: Regenerate shared secret and secret data
-	//   required: true
-	//   schema:
-	//       "$ref": "#/definitions/RegenerateSharedSecretData"
 	// - name: Impersonate-User
 	//   in: header
 	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
@@ -482,12 +472,8 @@ func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.A
 	//     description: "Conflict"
 	appName := mux.Vars(r)["appName"]
 	handler := ac.applicationHandlerFactory.Create(accounts)
-	var sharedSecret applicationModels.RegenerateSharedSecretData
-	if err := json.NewDecoder(r.Body).Decode(&sharedSecret); err != nil {
-		ac.ErrorResponse(w, r, err)
-		return
-	}
-	err := handler.RegenerateSharedSecret(r.Context(), appName, sharedSecret)
+
+	err := handler.RegenerateSharedSecret(r.Context(), appName)
 
 	if err != nil {
 		ac.ErrorResponse(w, r, err)
@@ -497,7 +483,7 @@ func (ac *applicationController) RegenerateSharedSecretHandler(accounts models.A
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (ac *applicationController) GetDeployKeyAndSecret(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) GetDeployKeyAndSecret(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/deploy-key-and-secret application getDeployKeyAndSecret
 	// ---
 	// summary: Get deploy key and secret
@@ -540,7 +526,7 @@ func (ac *applicationController) GetDeployKeyAndSecret(accounts models.Accounts,
 }
 
 // RegisterApplication Creates new application registration
-func (ac *applicationController) RegisterApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) RegisterApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications platform registerApplication
 	// ---
 	// summary: Create an application registration
@@ -568,10 +554,20 @@ func (ac *applicationController) RegisterApplication(accounts models.Accounts, w
 	//       "$ref": "#/definitions/ApplicationRegistrationUpsertResponse"
 	//   "400":
 	//     description: "Invalid application registration"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
 	//   "401":
 	//     description: "Unauthorized"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
+	//   "403":
+	//     description: "Forbidden"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
 	//   "409":
 	//     description: "Conflict"
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponseBody"
 	var applicationRegistrationRequest applicationModels.ApplicationRegistrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&applicationRegistrationRequest); err != nil {
 		ac.ErrorResponse(w, r, err)
@@ -590,7 +586,7 @@ func (ac *applicationController) RegisterApplication(accounts models.Accounts, w
 }
 
 // ChangeRegistrationDetails Updates application registration
-func (ac *applicationController) ChangeRegistrationDetails(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) ChangeRegistrationDetails(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /applications/{appName} application changeRegistrationDetails
 	// ---
 	// summary: Update application registration
@@ -649,7 +645,7 @@ func (ac *applicationController) ChangeRegistrationDetails(accounts models.Accou
 }
 
 // ModifyRegistrationDetails Updates specific field(s) of an application registration
-func (ac *applicationController) ModifyRegistrationDetails(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) ModifyRegistrationDetails(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PATCH /applications/{appName} application modifyRegistrationDetails
 	// ---
 	// summary: Updates specific field(s) of an application registration
@@ -708,7 +704,7 @@ func (ac *applicationController) ModifyRegistrationDetails(accounts models.Accou
 }
 
 // DeleteApplication Deletes application
-func (ac *applicationController) DeleteApplication(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) DeleteApplication(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation DELETE /applications/{appName} application deleteApplication
 	// ---
 	// summary: Delete application
@@ -751,7 +747,7 @@ func (ac *applicationController) DeleteApplication(accounts models.Accounts, w h
 }
 
 // ListPipelines Lists supported pipelines
-func (ac *applicationController) ListPipelines(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) ListPipelines(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/pipelines application listPipelines
 	// ---
 	// summary: Lists the supported pipelines
@@ -776,7 +772,7 @@ func (ac *applicationController) ListPipelines(accounts models.Accounts, w http.
 }
 
 // TriggerPipelineBuild creates a build pipeline job for the application
-func (ac *applicationController) TriggerPipelineBuild(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) TriggerPipelineBuild(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/pipelines/build application triggerPipelineBuild
 	// ---
 	// summary: Run a build pipeline for a given application and branch
@@ -824,7 +820,7 @@ func (ac *applicationController) TriggerPipelineBuild(accounts models.Accounts, 
 }
 
 // TriggerPipelineBuildDeploy creates a build-deploy pipeline job for the application
-func (ac *applicationController) TriggerPipelineBuildDeploy(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) TriggerPipelineBuildDeploy(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/pipelines/build-deploy application triggerPipelineBuildDeploy
 	// ---
 	// summary: Run a build-deploy pipeline for a given application and branch
@@ -873,7 +869,7 @@ func (ac *applicationController) TriggerPipelineBuildDeploy(accounts models.Acco
 }
 
 // TriggerPipelineDeploy creates a deploy pipeline job for the application
-func (ac *applicationController) TriggerPipelineDeploy(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) TriggerPipelineDeploy(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/pipelines/deploy application triggerPipelineDeploy
 	// ---
 	// summary: Run a deploy pipeline for a given application and environment
@@ -922,7 +918,7 @@ func (ac *applicationController) TriggerPipelineDeploy(accounts models.Accounts,
 }
 
 // TriggerPipelineApplyConfig creates an apply config pipeline job for the application
-func (ac *applicationController) TriggerPipelineApplyConfig(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) TriggerPipelineApplyConfig(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/pipelines/apply-config application triggerPipelineApplyConfig
 	// ---
 	// summary: Run a apply config pipeline for a given application
@@ -971,7 +967,7 @@ func (ac *applicationController) TriggerPipelineApplyConfig(accounts models.Acco
 }
 
 // TriggerPipelinePromote creates a promote pipeline job for the application
-func (ac *applicationController) TriggerPipelinePromote(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) TriggerPipelinePromote(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /applications/{appName}/pipelines/promote application triggerPipelinePromote
 	// ---
 	// summary: Run a promote pipeline for a given application and branch
@@ -1018,7 +1014,7 @@ func (ac *applicationController) TriggerPipelinePromote(accounts models.Accounts
 }
 
 // GetApplicationResourcesUtilization Gets used resources for the application
-func (ac *applicationController) GetApplicationResourcesUtilization(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) GetApplicationResourcesUtilization(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/utilization application GetApplicationResourcesUtilization
 	// ---
 	// summary: Gets max resources used by the application
@@ -1057,7 +1053,7 @@ func (ac *applicationController) GetApplicationResourcesUtilization(accounts mod
 }
 
 // GetEnvironmentResourcesUtilization Gets used resources for the application
-func (ac *applicationController) GetEnvironmentResourcesUtilization(accounts models.Accounts, w http.ResponseWriter, r *http.Request) {
+func (ac *applicationController) GetEnvironmentResourcesUtilization(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /applications/{appName}/environments/{envName}/utilization environment GetEnvironmentResourcesUtilization
 	// ---
 	// summary: Gets max resources used by the application
@@ -1099,4 +1095,47 @@ func (ac *applicationController) GetEnvironmentResourcesUtilization(accounts mod
 	}
 
 	ac.JSONResponse(w, r, &utilization)
+}
+
+// GetApplicationEvents Lists events in the application namespace (<appName>-app).
+func (ac *applicationController) GetApplicationEvents(accounts accounts.Accounts, w http.ResponseWriter, r *http.Request) {
+	// swagger:operation GET /applications/{appName}/events application getApplicationEvents
+	// ---
+	// summary: Lists events for the application namespace
+	// parameters:
+	// - name: appName
+	//   in: path
+	//   description: Name of the application
+	//   type: string
+	//   required: true
+	// - name: Impersonate-User
+	//   in: header
+	//   description: Works only with custom setup of cluster. Allow impersonation of test users (Required if Impersonate-Group is set)
+	//   type: string
+	//   required: false
+	// - name: Impersonate-Group
+	//   in: header
+	//   description: Works only with custom setup of cluster. Allow impersonation of a comma-separated list of test groups (Required if Impersonate-User is set)
+	//   type: string
+	//   required: false
+	// responses:
+	//   "200":
+	//     description: "Successful get application events"
+	//     schema:
+	//        type: "array"
+	//        items:
+	//          "$ref": "#/definitions/Event"
+	//   "401":
+	//     description: "Unauthorized"
+	//   "404":
+	//     description: "Not found"
+	appName := mux.Vars(r)["appName"]
+
+	appEvents, err := events.Init(accounts).GetApplicationEvents(r.Context(), appName)
+	if err != nil {
+		ac.ErrorResponse(w, r, err)
+		return
+	}
+
+	ac.JSONResponse(w, r, appEvents)
 }

@@ -1,13 +1,13 @@
 package environmentvariables
 
-import "github.com/equinor/radix-operator/api-server/models"
+import "github.com/equinor/radix-operator/api-server/internal/accounts"
 
 type envVarsHandlerFactory interface {
-	createHandler(models.Accounts) EnvVarsHandler
+	createHandler(accounts.Accounts) EnvVarsHandler
 }
 
 type defaultEnvVarsHandlerFactory struct{}
 
-func (factory *defaultEnvVarsHandlerFactory) createHandler(accounts models.Accounts) EnvVarsHandler {
+func (factory *defaultEnvVarsHandlerFactory) createHandler(accounts accounts.Accounts) EnvVarsHandler {
 	return Init(WithAccounts(accounts))
 }

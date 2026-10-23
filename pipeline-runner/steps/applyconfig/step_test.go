@@ -1,3 +1,4 @@
+//nolint:staticcheck // PipelineArguments.Branch is deprecated but still used by these tests
 package applyconfig_test
 
 import (
@@ -6,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/applyconfig"
 	internaltest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
+	"github.com/equinor/radix-operator/pkg/apis/config"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -106,8 +107,8 @@ func (s *applyConfigTestSuite) Test_BuildSecrets_SecretExist() {
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().WithAppName(anyAppName).WithBuildSecrets("secret1", "secret2").BuildRA()
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName, Namespace: utils.GetAppNamespace(anyAppName)},
-		Data:       map[string][]byte{"any": []byte("data")},
+		Name: defaults.BuildSecretsName, Namespace: utils.GetAppNamespace(anyAppName),
+		Data: map[string][]byte{"any": []byte("data")},
 	}
 	secret, _ = s.kubeClient.CoreV1().Secrets(utils.GetAppNamespace(anyAppName)).Create(context.Background(), secret, metav1.CreateOptions{})
 
@@ -162,8 +163,8 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPipelineShouldFail() 
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("buildjob"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("deployjob").WithImage("any:latest"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("buildjob"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("deployjob").WithImage("any:latest"),
 		).
 		WithEnvironment("dev", "anybranch").
 		BuildRA()
@@ -225,28 +226,28 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 				),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-1").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-1").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image2:some-tag"),
 				),
-			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-2").WithDockerfileName("client.Dockerfile").WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-2").WithDockerfileName("client.Dockerfile").WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image3:some-tag"),
 				),
-			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-3").WithSourceFolder("./client/").WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-3").WithSourceFolder("./client/").WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName3).WithDockerfileName("client2.Dockerfile"),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName4).WithImage("some-image4:some-tag"),
 				),
-			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-4").WithImage("some-image1:some-tag").WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-4").WithImage("some-image1:some-tag").WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName1),
 					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName2).WithSourceFolder("./client2/"),
@@ -258,14 +259,20 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      string(radixv1.BuildDeploy),
-			Branch:            buildBranch,
-			JobName:           rjName,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			JobName:      rjName,
+			ImageTag:     "imgtag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "clustername",
+				ClusterType: "clustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "anycontainerregistry",
+			},
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName1}, {Environment: envName2}, {Environment: envName3}, {Environment: envName4}},
@@ -278,13 +285,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 		return fmt.Sprintf("%s-%s", env, comp)
 	}
 	imagePathFunc := func(env, comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(env, comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(env, comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(env, comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(env, component, context, dockerfile string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -386,7 +393,6 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
-		WithBuildKit(pointers.Ptr(true)).
 		WithEnvironment(envName, buildBranch).
 		WithEnvironmentNoBranch("otherenv").
 		WithComponents(
@@ -412,38 +418,44 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithName("job1-build").WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job2-build").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job3-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job4-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job5-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithName("job1-build").WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job2-build").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job3-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job4-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job5-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
-			utils.NewApplicationJobComponentBuilder().WithName("job6-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithName("job6-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
-			utils.NewApplicationJobComponentBuilder().WithName("job7-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithName("job7-build").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
-			utils.NewApplicationJobComponentBuilder().WithName("job1-deploy").WithImage("any").WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job2-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job3-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job4-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999),
-			utils.NewApplicationJobComponentBuilder().WithName("job5-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithName("job1-deploy").WithImage("any").WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job2-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job3-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job4-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithName("job5-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{})),
-			utils.NewApplicationJobComponentBuilder().WithName("job6-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithName("job6-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
-			utils.NewApplicationJobComponentBuilder().WithName("job7-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999).
+			utils.NewApplicationJobComponentBuilder().WithName("job7-deploy").WithImage("any").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(new(int32(9999))).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("otherenv").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64})),
 		).
 		BuildRA()
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      string(radixv1.BuildDeploy),
-			Branch:            buildBranch,
-			ImageTag:          "anytag",
-			ContainerRegistry: "anyregistry",
-			Clustertype:       "anyclustertype",
-			Clustername:       "anyclustername",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			ImageTag:     "anytag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "anyclustername",
+				ClusterType: "anyclustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "anycontainerregistry",
+			},
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
@@ -456,13 +468,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_ExpectedRuntim
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(component string, runtime *radixv1.Runtime) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -583,32 +595,38 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-1").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-2").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-3").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-4").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-5").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-6").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc3/").
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-1").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-2").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-3").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-4").WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-5").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc2/"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-6").WithEnabled(false).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc3/").
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("calc-7").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc4/").
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("calc-7").WithEnabled(true).WithDockerfileName("calc.Dockerfile").WithSourceFolder("./calc4/").
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
-			utils.NewApplicationJobComponentBuilder().WithName("calc-8").WithSchedulerPort(9999).WithImage("calc-8-image"),
-			utils.NewApplicationJobComponentBuilder().WithName("calc-9").WithSchedulerPort(9999).WithImage("calc-9-image").
+			utils.NewApplicationJobComponentBuilder().WithName("calc-8").WithSchedulerPort(new(int32(9999))).WithImage("calc-8-image"),
+			utils.NewApplicationJobComponentBuilder().WithName("calc-9").WithSchedulerPort(new(int32(9999))).WithImage("calc-9-image").
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(false)),
-			utils.NewApplicationJobComponentBuilder().WithName("calc-10").WithSchedulerPort(9999).WithImage("calc-10-image").WithEnabled(false).
+			utils.NewApplicationJobComponentBuilder().WithName("calc-10").WithSchedulerPort(new(int32(9999))).WithImage("calc-10-image").WithEnabled(false).
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithEnabled(true)),
 		).
 		BuildRA()
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      string(radixv1.BuildDeploy),
-			Branch:            buildBranch,
-			ImageTag:          "imgtag",
-			ContainerRegistry: "registry",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			ImageTag:     "imgtag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "clustername",
+				ClusterType: "clustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "registry",
+			},
 		},
 		RadixApplication:   ra,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}},
@@ -623,13 +641,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_IgnoreDisabled
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(component, context, dockerfile string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -698,13 +716,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-deployonly").WithImage("comp-deployonly:anytag"),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-changed").WithDockerfileName("job-changed.Dockerfile"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-new").WithDockerfileName("job-new.Dockerfile"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-unchanged").WithDockerfileName("job-unchanged.Dockerfile"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-common1-unchanged").WithDockerfileName("common1.Dockerfile"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-common2-changed").WithDockerfileName("common2.Dockerfile"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-common3-changed").WithDockerfileName("common3.Dockerfile"),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job-deployonly").WithImage("job-deployonly:anytag"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-changed").WithDockerfileName("job-changed.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-new").WithDockerfileName("job-new.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-unchanged").WithDockerfileName("job-unchanged.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-common1-unchanged").WithDockerfileName("common1.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-common2-changed").WithDockerfileName("common2.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-common3-changed").WithDockerfileName("common3.Dockerfile"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job-deployonly").WithImage("job-deployonly:anytag"),
 		).
 		BuildRA()
 	currentRd := utils.NewDeploymentBuilder().
@@ -736,13 +754,19 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 	pipelineInfo := model.PipelineInfo{
 		RadixApplication: ra,
 		PipelineArguments: model.PipelineArguments{
-			PipelineType:      "build-deploy",
-			Branch:            buildBranch,
-			ImageTag:          "imgtag",
-			Clustertype:       "clustertype",
-			Clustername:       "clustername",
-			ContainerRegistry: "registry",
-			GitWorkspace:      "/some-workspace",
+			PipelineType: "build-deploy",
+			Branch:       buildBranch,
+			ImageTag:     "imgtag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			Common: config.CommonConfig{
+				ClusterName: "clustername",
+				ClusterType: "clustertype",
+			},
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "registry",
+			},
 		},
 		BuildContext:       buildCtx,
 		TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: currentRd}},
@@ -758,13 +782,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_BuildChangedCo
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustertype, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterType, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.PipelineArguments.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.PipelineArguments.Clustername, pipelineInfo.PipelineArguments.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineInfo.Cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineInfo.Cfg.Common.ClusterName, pipelineInfo.PipelineArguments.ImageTag)
 	}
 	buildComponentImageFunc := func(component, dockerfile string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -827,13 +851,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp"),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job"),
 		)
 	defaultRa := raBuilder.WithBuildSecrets(buildSecretName).BuildRA()
 	raWithoutSecret := raBuilder.WithBuildSecrets().BuildRA()
 	oldRa := defaultRa.DeepCopy()
 	oldRa.Spec.Components[0].Variables = radixv1.EnvVarsMap{"anyvar": "anyvalue"}
-	currentBuildSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: defaults.BuildSecretsName}, Data: map[string][]byte{buildSecretName: []byte("anydata")}}
+	currentBuildSecret := &corev1.Secret{Name: defaults.BuildSecretsName, Data: map[string][]byte{buildSecretName: []byte("anydata")}}
 	oldBuildSecret := currentBuildSecret.DeepCopy()
 	oldBuildSecret.Data[buildSecretName] = []byte("newdata")
 	radixDeploymentFactory := func(annotations map[string]string, condition radixv1.RadixDeployCondition, componentBuilders []utils.DeployComponentBuilder, jobBuilders []utils.DeployJobComponentBuilder) *radixv1.RadixDeployment {
@@ -854,13 +878,19 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		return builder.BuildRD()
 	}
 	pipelineArgs := model.PipelineArguments{
-		PipelineType:      string(radixv1.BuildDeploy),
-		Branch:            buildBranch,
-		ImageTag:          "imgtag",
-		ContainerRegistry: "registry",
-		Clustertype:       "clustertype",
-		Clustername:       "clustername",
-		GitWorkspace:      "/some-workspace",
+		PipelineType: string(radixv1.BuildDeploy),
+		Branch:       buildBranch,
+		ImageTag:     "imgtag",
+		GitWorkspace: "/some-workspace",
+	}
+	cfg := config.Config{
+		Common: config.CommonConfig{
+			ClusterName: "clustername",
+			ClusterType: "clustertype",
+		},
+		PipelineRunner: config.PipelineRunnerConfig{
+			ContainerRegistry: "registry",
+		},
 	}
 	type testSpec struct {
 		name                          string
@@ -874,13 +904,13 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 		return fmt.Sprintf("%s-%s", envName, comp)
 	}
 	imagePathFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s", cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.ImageTag)
 	}
 	imagePathClusterTypeFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.Clustertype, pipelineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), cfg.Common.ClusterType, pipelineArgs.ImageTag)
 	}
 	imagePathClusterNameFunc := func(comp string) string {
-		return fmt.Sprintf("%s/%s-%s:%s-%s", pipelineArgs.ContainerRegistry, appName, imageNameFunc(comp), pipelineArgs.Clustername, pipelineArgs.ImageTag)
+		return fmt.Sprintf("%s/%s-%s:%s-%s", cfg.PipelineRunner.ContainerRegistry, appName, imageNameFunc(comp), cfg.Common.ClusterName, pipelineArgs.ImageTag)
 	}
 	buildComponentImageFunc := func(component string) pipeline.BuildComponentImage {
 		return pipeline.BuildComponentImage{
@@ -1257,6 +1287,7 @@ func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages_DetectComponen
 			}
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments:  pipelineArgs,
+				Cfg:                cfg,
 				RadixApplication:   ra,
 				BuildContext:       test.prepareBuildCtx,
 				TargetEnvironments: []model.TargetEnvironment{{Environment: envName, ActiveRadixDeployment: existingRd}},
@@ -1456,7 +1487,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithMissingImageTagNameShouldFail(
 		WithAppName(appName).
 		WithEnvironment("dev", "anybranch").
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("deployjob").WithImage("any:{imageTagName}"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("deployjob").WithImage("any:{imageTagName}"),
 		).
 		BuildRA()
 
@@ -1486,7 +1517,7 @@ func (s *applyConfigTestSuite) Test_Deploy_JobWithImageTagNameInRAShouldSucceed(
 		WithAppName(appName).
 		WithEnvironment("dev", "anybranch").
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("deployjob").WithImage("any:{imageTagName}").
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("deployjob").WithImage("any:{imageTagName}").
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("dev").WithImageTagName("anytag")),
 		).
 		BuildRA()
@@ -1514,7 +1545,7 @@ func (s *applyConfigTestSuite) Test_DeployComponentWitImageTagNameInPipelineArgS
 		WithAppName(appName).
 		WithEnvironment("dev", "anybranch").
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("deployjob").WithImage("any:{imageTagName}"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("deployjob").WithImage("any:{imageTagName}"),
 		).
 		BuildRA()
 
@@ -1542,8 +1573,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			utils.AnApplicationComponent().WithName("comp2").WithImage("some-image"),
 		).
 		WithJobComponents(
-			utils.AnApplicationJobComponent().WithName("job1").WithImage("some-image").WithSchedulerPort(8080),
-			utils.AnApplicationJobComponent().WithName("job2").WithImage("some-image").WithSchedulerPort(8080),
+			utils.AnApplicationJobComponent().WithName("job1").WithImage("some-image").WithSchedulerPort(new(int32(8080))),
+			utils.AnApplicationJobComponent().WithName("job2").WithImage("some-image").WithSchedulerPort(new(int32(8080))),
 		)
 	const appName = "anyapp"
 	rdBuilder := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("dev").
@@ -1551,8 +1582,8 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			utils.NewDeployComponentBuilder().WithName("comp1").WithImage("some-image"),
 			utils.NewDeployComponentBuilder().WithName("comp2").WithImage("some-image")).
 		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("some-image").WithSchedulerPort(8080),
-			utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("some-image").WithSchedulerPort(8080))
+			utils.NewDeployJobComponentBuilder().WithName("job1").WithImage("some-image").WithSchedulerPort(new(int32(8080))),
+			utils.NewDeployJobComponentBuilder().WithName("job2").WithImage("some-image").WithSchedulerPort(new(int32(8080))))
 	activeRadixDeployment := rdBuilder.BuildRD()
 	ra := raBuilder.BuildRA()
 	rr := raBuilder.GetRegistrationBuilder().BuildRR()
@@ -1585,7 +1616,7 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 			s.Require().NoError(err)
 
 			for _, env := range []string{"anyapp-app", "anyapp-dev"} {
-				_, err = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: env}}, metav1.CreateOptions{})
+				_, err = s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{Name: env}, metav1.CreateOptions{})
 				s.Require().NoError(err, "create env %s", env)
 			}
 
@@ -1605,9 +1636,9 @@ func (s *applyConfigTestSuite) Test_Deploy_ComponentsToDeployValidation() {
 				pipeline.PipelineArguments.GitRef = "main"
 				pipeline.PipelineArguments.GitRefType = "tag"
 			case radixv1.Promote:
-				pipeline.PipelineArguments.FromEnvironment = "dev"
+				pipeline.PipelineArguments.PromoteFromEnvironment = "dev"
 				pipeline.PipelineArguments.ToEnvironment = "dev"
-				pipeline.PipelineArguments.DeploymentName = "depl"
+				pipeline.PipelineArguments.PromoteDeploymentName = "depl"
 			}
 
 			applyStep := applyconfig.NewApplyConfigStep()
@@ -1639,9 +1670,9 @@ func (s *applyConfigTestSuite) Test_DeployComponentImages_ImageTagNames() {
 				WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("comp2envtag")),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job1").WithImage("job1img:{imageTagName}").
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job1").WithImage("job1img:{imageTagName}").
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job1envtag")),
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job2").WithImage("job2img:{imageTagName}").
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job2").WithImage("job2img:{imageTagName}").
 				WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithImageTagName("job2envtag")),
 		).
 		BuildRA()
@@ -1689,7 +1720,7 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImagesSetFromSourceDeployment(
 			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp2").WithImage("any"),
 		).
 		WithJobComponents(
-			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(9999).WithName("job1").WithImage("any"),
+			utils.NewApplicationJobComponentBuilder().WithSchedulerPort(new(int32(9999))).WithName("job1").WithImage("any"),
 		).
 		BuildRA()
 
@@ -1711,11 +1742,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImagesSetFromSourceDeployment(
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnv,
-			ToEnvironment:   toEnv,
-			DeploymentName:  deploymentName,
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnv,
+			ToEnvironment:          toEnv,
+			PromoteDeploymentName:  deploymentName,
 		},
 		RadixApplication: ra,
 	}
@@ -1759,11 +1790,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_MissingFromEnvironmentO
 		s.Run(ts.name, func() {
 			pipelineInfo := model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
-					AppName:         appName,
-					PipelineType:    string(radixv1.Promote),
-					FromEnvironment: ts.fromEnvironment,
-					ToEnvironment:   "prod",
-					DeploymentName:  ts.deploymentName,
+					AppName:                appName,
+					PipelineType:           string(radixv1.Promote),
+					PromoteFromEnvironment: ts.fromEnvironment,
+					ToEnvironment:          "prod",
+					PromoteDeploymentName:  ts.deploymentName,
 				},
 				RadixApplication: ra,
 			}
@@ -1789,11 +1820,11 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_SourceDeploymentNotFoun
 
 	pipelineInfo := model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			AppName:         appName,
-			PipelineType:    string(radixv1.Promote),
-			FromEnvironment: fromEnv,
-			ToEnvironment:   toEnv,
-			DeploymentName:  "nonexistent-deployment",
+			AppName:                appName,
+			PipelineType:           string(radixv1.Promote),
+			PromoteFromEnvironment: fromEnv,
+			ToEnvironment:          toEnv,
+			PromoteDeploymentName:  "nonexistent-deployment",
 		},
 		RadixApplication: ra,
 	}
@@ -1802,96 +1833,4 @@ func (s *applyConfigTestSuite) Test_Promote_DeployImages_SourceDeploymentNotFoun
 	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
 	s.Empty(pipelineInfo.DeployEnvironmentComponentImages)
-}
-
-func (s *applyConfigTestSuite) Test_BuildDeploy_RuntimeValidation() {
-	appName, branchName := "anyapp", "anybranch"
-
-	tests := map[string]struct {
-		useBuildKit bool
-		components  []utils.RadixApplicationComponentBuilder
-		jobs        []utils.RadixApplicationJobComponentBuilder
-		expectError bool
-	}{
-		"buildkit: support non-amd64 build architectures": {
-			components: []utils.RadixApplicationComponentBuilder{
-				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-			},
-			jobs: []utils.RadixApplicationJobComponentBuilder{
-				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSchedulerPort(9999).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSchedulerPort(9999).WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-			},
-			useBuildKit: true,
-			expectError: false,
-		},
-		"non-buildkit: succeed if all components are amd64": {
-			components: []utils.RadixApplicationComponentBuilder{
-				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: ""}),
-				utils.NewApplicationComponentBuilder().WithName("comp3"),
-			},
-			useBuildKit: false,
-			expectError: false,
-		},
-		"non-buildkit: fail if any component is non-amd64": {
-			components: []utils.RadixApplicationComponentBuilder{
-				utils.NewApplicationComponentBuilder().WithName("comp1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}),
-				utils.NewApplicationComponentBuilder().WithName("comp2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}),
-			},
-			useBuildKit: false,
-			expectError: true,
-		},
-		"non-buildkit: succeed if all jobs are amd64": {
-			jobs: []utils.RadixApplicationJobComponentBuilder{
-				utils.NewApplicationJobComponentBuilder().WithName("job1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(9999),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithRuntime(&radixv1.Runtime{Architecture: ""}).WithSchedulerPort(9999),
-				utils.NewApplicationJobComponentBuilder().WithName("job3").WithSchedulerPort(9999),
-			},
-			useBuildKit: false,
-			expectError: false,
-		},
-		"non-buildkit: fail if any job is non-amd64": {
-			jobs: []utils.RadixApplicationJobComponentBuilder{
-				utils.NewApplicationJobComponentBuilder().WithName("job1").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureArm64}).WithSchedulerPort(9999),
-				utils.NewApplicationJobComponentBuilder().WithName("job2").WithRuntime(&radixv1.Runtime{Architecture: radixv1.RuntimeArchitectureAmd64}).WithSchedulerPort(9999),
-			},
-			useBuildKit: false,
-			expectError: true,
-		},
-	}
-
-	for name, test := range tests {
-		s.Run(name, func() {
-			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
-			_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-			ra := utils.NewRadixApplicationBuilder().
-				WithAppName(appName).
-				WithBuildKit(&test.useBuildKit).
-				WithEnvironment("dev", branchName).
-				WithComponents(test.components...).
-				WithJobComponents(test.jobs...).
-				BuildRA()
-			//TODO ? s.Require().NoError(test.CreatePreparePipelineConfigMapResponse(s.kubeClient, prepareConfigMapName, appName, ra, nil))
-
-			pipeline := model.PipelineInfo{
-				PipelineArguments: model.PipelineArguments{
-					PipelineType: string(radixv1.BuildDeploy),
-					Branch:       branchName,
-					GitWorkspace: "/some-workspace",
-				},
-				RadixApplication:   ra,
-				TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
-			}
-
-			applyStep := applyconfig.NewApplyConfigStep()
-			applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
-			err := applyStep.Run(context.Background(), &pipeline)
-			if test.expectError {
-				s.ErrorIs(err, applyconfig.ErrBuildNonDefaultRuntimeArchitectureWithoutBuildKitError)
-			} else {
-				s.NoError(err)
-			}
-		})
-	}
 }
