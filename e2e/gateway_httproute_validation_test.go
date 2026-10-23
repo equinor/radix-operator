@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,8 +22,15 @@ func createHttpRouteAndNamespaceForTest(t *testing.T, c client.Client, appName s
 		"unique3.hostname.com",
 		"*.wildcarddomain.com",
 	}
-	err := createHttpRoute(t, c, appName+"-httproute", appNamespace, hostnames, false)
+	err := createHttpRouteWhenNamespaceIsCached(t, c, appName+"-httproute", appNamespace, hostnames, false)
 	require.NoError(t, err)
+}
+
+// createHttpRouteWhenNamespaceIsCached creates the http route, retrying while the webhook has not yet seen the namespace that was just created
+func createHttpRouteWhenNamespaceIsCached(t *testing.T, c client.Client, name string, namespace string, hostnames []gatewayapiv1.Hostname, dryRunAll bool) error {
+	return createWhenWebhookCacheIsSynced(t, "failed to get namespace", func(context.Context) error {
+		return createHttpRoute(t, c, name, namespace, hostnames, dryRunAll)
+	})
 }
 
 // TestGatewayWebhookHttpRouteValidation tests that the webhook is working by verifying createHttpRouteUsableValidator
@@ -43,9 +51,9 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 			"unique5.hostname.com",
 			"unique3.hostname.com",
 		}
-		err := createHttpRoute(t, c, "uniqueroute", appNamespace, hostnames, true)
+		err := createHttpRouteWhenNamespaceIsCached(t, c, "uniqueroute", appNamespace, hostnames, true)
 
-		assert.Error(t, err, "Should reject http route that is not unique outside its own namespace")
+		assert.ErrorContains(t, err, "hostname already exists", "Should reject http route that is not unique outside its own namespace")
 		if err != nil {
 			t.Logf("Got expected error: %v", err)
 		}
@@ -62,7 +70,7 @@ func TestGatewayWebhookHttpRouteValidation(t *testing.T) {
 			"unique5.hostname.com",
 			"unique6.hostname.com",
 		}
-		err := createHttpRoute(t, c, "uniqueroute", appNamespace, hostnames, true)
+		err := createHttpRouteWhenNamespaceIsCached(t, c, "uniqueroute", appNamespace, hostnames, true)
 
 		assert.NoError(t, err, "Should accept http route that is unique outside its own namespace")
 		if err != nil {

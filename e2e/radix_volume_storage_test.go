@@ -314,7 +314,10 @@ func setupVolumeTestApp(t *testing.T, c client.Client, appName, container string
 			}},
 		},
 	}
-	require.NoError(t, c.Create(t.Context(), ra), "should create RadixApplication")
+	err := createWhenWebhookCacheIsSynced(t, "no corresponding radix application found", func(ctx context.Context) error {
+		return c.Create(ctx, ra.DeepCopy())
+	})
+	require.NoError(t, err, "should create RadixApplication")
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, volumeTestEnvName)
 	require.NoError(t, wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
