@@ -195,12 +195,8 @@ func TestMustDecode(t *testing.T) {
 	var actual struct {
 		Name string `json:"name" required:"true"`
 	}
-	require.NotPanics(t, func() { configcodec.MustDecode([]byte("name: valid"), &actual) })
+	configcodec.MustDecode([]byte("name: valid"), &actual)
 	assert.Equal(t, "valid", actual.Name)
-
-	assert.PanicsWithError(t, `failed to decode config: failed to validate config: field "Name" is required but not set`, func() {
-		configcodec.MustDecode([]byte("{}"), &actual)
-	})
 }
 
 func TestEncodeUsesDurationAndBinaryMarshalers(t *testing.T) {

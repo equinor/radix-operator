@@ -38,6 +38,15 @@ var (
 	testManager manager.Manager
 )
 
+// e2eCertificateIssuers maps certificate automation issuer name to cluster issuer name.
+var e2eCertificateIssuers = map[string]string{
+	"digicert":    "digicert-http01-gateway",
+	"letsencrypt": "letsencrypt-http01",
+}
+
+// e2eDefaultCertificateIssuer must be a key in e2eCertificateIssuers.
+const e2eDefaultCertificateIssuer = "digicert"
+
 var componentSpecs = []struct {
 	Name         string
 	Dockerfile   string

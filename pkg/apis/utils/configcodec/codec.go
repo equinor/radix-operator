@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/processfields"
+	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/yaml"
 )
 
@@ -52,10 +53,10 @@ func Decode(data []byte, out any) error {
 	return nil
 }
 
-// MustDecode decodes the given YAML or JSON data into the provided output structure, panicking if an error occurs. It is a convenience wrapper around Decode.
+// MustDecode decodes the given YAML or JSON data into the provided output structure, logging a fatal error and exiting if an error occurs. It is a convenience wrapper around Decode.
 func MustDecode(data []byte, out any) {
 	if err := Decode(data, out); err != nil {
-		panic(fmt.Errorf("failed to decode config: %w", err))
+		log.Fatal().Err(err).Msg("failed to decode config")
 	}
 }
 
