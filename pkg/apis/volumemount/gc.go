@@ -303,7 +303,7 @@ func (gc *volumeGarbageCollector) keepPvc(ctx context.Context, pvc corev1.Persis
 func (gc *volumeGarbageCollector) deletePvcAndBoundPv(ctx context.Context, pvc corev1.PersistentVolumeClaim) error {
 	if pvc.GetDeletionTimestamp() == nil {
 		log.Ctx(ctx).Info().Msgf("Delete unused PersistentVolumeClaim %s in namespace %s", pvc.GetName(), pvc.GetNamespace())
-		if err := gc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(ctx, pvc.GetName(), metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+		if err := gc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(ctx, pvc.GetName(), metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &pvc.UID}}); err != nil && !k8serrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete PersistentVolumeClaim %s: %w", pvc.GetName(), err)
 		}
 	}
