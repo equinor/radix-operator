@@ -85,6 +85,7 @@ Infrastructure and helper code used by tests:
 - **`helm_installer.go`**: Helm chart installation with Prometheus Operator CRD setup
 - **`image_builder.go`**: Docker image building and loading into Kind
 - **`prometheus_installer.go`**: Prometheus Operator CRD installation
+- **`fake_blob_csi.go`**: Builds and deploys the fake Azure Blob CSI driver (see [Fake Azure Blob CSI driver](#fake-azure-blob-csi-driver))
 
 ## Test Flow
 
@@ -104,6 +105,17 @@ Infrastructure and helper code used by tests:
 3. **Teardown** (`TestMain`):
    - Deletes the Kind cluster
    - Cleans up temporary files
+
+## Fake Azure Blob CSI driver
+
+BlobFuse2 volume mounts are backed by PersistentVolumes for the `blob.csi.azure.com` CSI driver. The test suite deploys a fake CSI node plugin with that driver name (source in [testdata/fakeblobcsi](testdata/fakeblobcsi), a separate Go module), so Pods can mount these volumes without Azure:
+
+- A DaemonSet in the `fake-blob-csi` namespace runs the driver with the `csi-node-driver-registrar` sidecar, and a `CSIDriver` object with `attachRequired: false` is created.
+- Each volume is a directory on the node, named after the volume handle, that is bind mounted into the Pod. Pods using the same PersistentVolume share data.
+- The driver writes `fake-blob-csi.json` to the root of each volume, with the volume handle, volume attributes and mount options it received, so tests can verify them (e.g. by printing the file from the Pod and reading the Pod logs).
+- The driver does not support staging, so the volume mount credentials secret is not used.
+
+The Helm values set `volumeGarbageCollectionGracePeriod: 5s`, so tests can observe garbage collection of PersistentVolumeClaims and PersistentVolumes.
 
 ## Configuration
 

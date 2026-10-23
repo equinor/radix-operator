@@ -288,6 +288,7 @@ func TestParse_HappyPath(t *testing.T) {
 				RenewBefore:          720 * time.Hour,
 			},
 			OrphanedEnvironmentsRetentionPeriod: 720 * time.Hour,
+			VolumeGarbageCollectionGracePeriod:  10 * time.Minute,
 			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
 			PipelineJobsHistoryLimit:            5,
 			PipelineJobsHistoryPeriodLimit:      720 * time.Hour,

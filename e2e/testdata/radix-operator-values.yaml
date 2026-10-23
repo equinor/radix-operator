@@ -51,6 +51,8 @@ config:
       namespace: some-namespace
     certificateAutomation:
       gatewayClusterIssuer: some-cluster-issuer
+    # Short grace period so the e2e tests can observe volume garbage collection
+    volumeGarbageCollectionGracePeriod: 5s
 
   # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
   runtime:

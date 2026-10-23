@@ -225,3 +225,59 @@ func (s *syncerTestSuite) Test_Volumes_EnsuredOnRestart() {
 	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).Get(context.Background(), blobClaimName(job), metav1.GetOptions{})
 	s.NoError(err)
 }
+
+func (s *syncerTestSuite) createOrphanPvc(name string) {
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+		Name: name, Namespace: volumesTestNamespace,
+		Labels: map[string]string{kube.RadixAppLabel: volumesTestAppName, kube.RadixComponentLabel: volumesTestJobComponent, kube.RadixVolumeMountNameLabel: "removed"},
+	}}
+	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).Create(context.Background(), pvc, metav1.CreateOptions{})
+	s.Require().NoError(err)
+}
+
+func (s *syncerTestSuite) pvcExists(name string) bool {
+	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).Get(context.Background(), name, metav1.GetOptions{})
+	return err == nil
+}
+
+func (s *syncerTestSuite) Test_Volumes_GarbageCollectedWhenBatchCompletes() {
+	olderRd := volumesTestRd("older-rd", "oldcontainer")
+	activeRd := volumesTestRd("active-rd", "newcontainer")
+	activeRd.Status.Condition = radixv1.DeploymentActive
+	batch := s.createVolumesTestResources(volumesTestBatch(olderRd.Name), olderRd, activeRd)
+	s.createOrphanPvc("pvc-orphan")
+
+	// The batch is active: garbage collection does not run, and the storage of the batch is created
+	s.Require().NoError(s.createSyncer(batch, config.Config{}).OnSync(context.Background()))
+	batchClaimName := blobClaimName(s.getSingleKubeJob())
+	s.True(s.pvcExists("pvc-orphan"), "garbage collection must not run while the batch is not completed")
+	s.True(s.pvcExists(batchClaimName))
+
+	// Stopping the job deletes the Kubernetes Job, and completes the batch
+	batch, err := s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Get(context.Background(), batch.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	batch.Spec.Jobs[0].Stop = new(true)
+	batch, err = s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Update(context.Background(), batch, metav1.UpdateOptions{})
+	s.Require().NoError(err)
+	s.Require().NoError(s.createSyncer(batch, config.Config{}).OnSync(context.Background()))
+	batch, err = s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Get(context.Background(), batch.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Require().Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
+
+	s.False(s.pvcExists("pvc-orphan"))
+	s.False(s.pvcExists(batchClaimName), "storage only used by the completed batch must be deleted")
+}
+
+func (s *syncerTestSuite) Test_Volumes_GarbageCollectionSkippedWithoutActiveRd() {
+	rd := volumesTestRd("any-rd", "container1")
+	batch := volumesTestBatch(rd.Name)
+	batch.Spec.Jobs[0].Stop = new(true)
+	batch = s.createVolumesTestResources(batch, rd)
+	s.createOrphanPvc("pvc-orphan")
+
+	s.Require().NoError(s.createSyncer(batch, config.Config{}).OnSync(context.Background()))
+	batch, err := s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Get(context.Background(), batch.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Require().Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
+	s.True(s.pvcExists("pvc-orphan"))
+}

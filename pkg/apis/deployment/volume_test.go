@@ -166,3 +166,58 @@ func Test_BlobFuse2_JobSchedulerAuxDeploymentGetsJobVolumes(t *testing.T) {
 	require.NoError(t, err, "the claim used by the aux deployment must exist")
 	assert.Equal(t, jobName, pvc.Labels[kube.RadixComponentLabel])
 }
+
+func Test_GarbageCollection_RunsWhenActiveRdSyncsAndNotForInactiveRd(t *testing.T) {
+	appName, envName, compName := "anyapp", "anyenv", "anycomp"
+	namespace := utils.GetEnvironmentNamespace(appName, envName)
+	tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, _, certClient := SetupTest(t)
+	builderFor := func(rdName, container string) utils.DeploymentBuilder {
+		return utils.NewDeploymentBuilder().
+			WithDeploymentName(rdName).
+			WithRadixApplication(utils.NewRadixApplicationBuilder().WithAppName(appName).WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))).
+			WithAppName(appName).
+			WithEnvironment(envName).
+			WithComponents(utils.NewDeployComponentBuilder().WithName(compName).WithVolumeMounts(blobFuse2TestVolumeMount(container)))
+	}
+	getClaimName := func() string {
+		deployment, err := kubeclient.AppsV1().Deployments(namespace).Get(context.Background(), compName, metav1.GetOptions{})
+		require.NoError(t, err)
+		claims := pvcClaimNames(deployment.Spec.Template.Spec.Volumes)
+		require.Len(t, claims, 1)
+		return claims[0]
+	}
+	pvcExists := func(name string) bool {
+		_, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		return err == nil
+	}
+
+	_, err := ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, builderFor("rd-1", "container1"))
+	require.NoError(t, err)
+	claim1 := getClaimName()
+
+	_, err = ApplyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, kedaClient, dynamicClient, certClient, builderFor("rd-2", "container2"))
+	require.NoError(t, err)
+	claim2 := getClaimName()
+	assert.False(t, pvcExists(claim1), "the pair of the previous spec must be deleted when the active RD syncs")
+	assert.True(t, pvcExists(claim2))
+
+	orphan := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+		Name: "pvc-orphan", Namespace: namespace,
+		Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: compName, kube.RadixVolumeMountNameLabel: "removed"},
+	}}
+	_, err = kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), orphan, metav1.CreateOptions{})
+	require.NoError(t, err)
+	inactiveRd, err := radixclient.RadixV1().RadixDeployments(namespace).Get(context.Background(), "rd-1", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, v1.DeploymentInactive, inactiveRd.Status.Condition)
+	rr, err := radixclient.RadixV1().RadixRegistrations().Get(context.Background(), appName, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NoError(t, NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, rr, inactiveRd, nil, testConfig).OnSync(context.Background()))
+	assert.True(t, pvcExists(orphan.Name), "garbage collection must not run when an inactive RD syncs")
+
+	activeRd, err := radixclient.RadixV1().RadixDeployments(namespace).Get(context.Background(), "rd-2", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NoError(t, NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, rr, activeRd, nil, testConfig).OnSync(context.Background()))
+	assert.False(t, pvcExists(orphan.Name))
+	assert.True(t, pvcExists(claim2))
+}

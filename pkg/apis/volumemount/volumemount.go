@@ -2,13 +2,11 @@ package volumemount
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,7 +15,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -25,10 +22,6 @@ const (
 	csiVolumeNameTemplate                   = "%s-%s-%s-%s" // <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
 	csiAzureKeyVaultSecretMountPathTemplate = "/mnt/azure-key-vault/%s"
 	volumeNameMaxLength                     = 63
-)
-
-var (
-	csiVolumeProvisioners = map[string]any{provisionerBlobCsiAzure: struct{}{}}
 )
 
 // GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
@@ -73,28 +66,6 @@ func GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Con
 		}
 	}
 	return garbageCollectSecrets(ctx, kubeUtil, namespace, secrets, excludeSecretNames)
-}
-
-// GarbageCollectCsiAzureVolumeResourcesForDeployComponent Garbage collect CSI Azure volume resources - PersistentVolumes, PersistentVolumeClaims
-func GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment, namespace string) error {
-	currentlyUsedPvcNames, err := getCurrentlyUsedPvcNames(ctx, kubeClient, radixDeployment)
-	if err != nil {
-		return err
-	}
-	var errs []error
-	if err = garbageCollectCsiAzurePvcs(ctx, kubeClient, namespace, currentlyUsedPvcNames); err != nil {
-		errs = append(errs, err)
-	}
-	if err = garbageCollectCsiAzurePvs(ctx, kubeClient, namespace, currentlyUsedPvcNames); err != nil {
-		errs = append(errs, err)
-	}
-	if err = garbageCollectOrphanedCsiAzurePvs(ctx, kubeClient, currentlyUsedPvcNames); err != nil {
-		errs = append(errs, err)
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
 }
 
 // CreateOrUpdateVolumeMountSecrets creates or updates secrets for volume mounts
@@ -154,16 +125,6 @@ func createOrUpdateVolumeMountSecret(ctx context.Context, kubeUtil *kube.Kube, a
 	}
 
 	return nil
-}
-
-func getCsiAzurePvsForNamespace(ctx context.Context, kubeClient kubernetes.Interface, namespace string) ([]corev1.PersistentVolume, error) {
-	pvList, err := kubeClient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return slice.FindAll(pvList.Items, func(pv corev1.PersistentVolume) bool {
-		return pvIsForCsiDriver(pv) && pvIsForNamespace(pv, namespace)
-	}), nil
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
@@ -307,144 +268,6 @@ func GetVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentNa
 		return getCsiAzureVolumeMountName(componentName, volumeMount)
 	}
 	return fmt.Sprintf("radix-vm-%s", volumeMount.Name), nil
-}
-
-func pvIsForCsiDriver(pv corev1.PersistentVolume) bool {
-	return pv.Spec.CSI != nil
-}
-
-func pvIsForNamespace(pv corev1.PersistentVolume, namespace string) bool {
-	return pv.Spec.ClaimRef != nil && pv.Spec.ClaimRef.Namespace == namespace
-}
-
-func getCsiAzurePvcs(ctx context.Context, kubeClient kubernetes.Interface, namespace string) (*corev1.PersistentVolumeClaimList, error) {
-	return kubeClient.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
-}
-
-func deletePvc(ctx context.Context, kubeClient kubernetes.Interface, namespace, pvcName string) error {
-	if len(namespace) == 0 || len(pvcName) == 0 {
-		log.Ctx(ctx).Debug().Msgf("Skip deleting PVC - namespace %s or name %s is empty", namespace, pvcName)
-		return nil
-	}
-	if err := kubeClient.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvcName, metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
-		return err
-	}
-	return nil
-}
-
-func deletePv(ctx context.Context, kubeClient kubernetes.Interface, pvName string) error {
-	if len(pvName) == 0 {
-		log.Ctx(ctx).Debug().Msg("Skip deleting PersistentVolume - name is empty")
-		return nil
-	}
-	if err := kubeClient.CoreV1().PersistentVolumes().Delete(ctx, pvName, metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
-		return err
-	}
-	return nil
-}
-
-func garbageCollectOrphanedCsiAzurePvs(ctx context.Context, kubeClient kubernetes.Interface, excludePvcNames map[string]any) error {
-	pvList, err := kubeClient.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	var errs []error
-	for _, pv := range pvList.Items {
-		if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Kind != k8s.KindPersistentVolumeClaim || pv.Spec.CSI == nil || !knownCSIDriver(pv.Spec.CSI.Driver) {
-			continue
-		}
-		if !(pv.Status.Phase == corev1.VolumeReleased || pv.Status.Phase == corev1.VolumeFailed) {
-			continue
-		}
-		if _, ok := excludePvcNames[pv.Spec.ClaimRef.Name]; ok {
-			continue
-		}
-		log.Ctx(ctx).Info().Msgf("Delete orphaned Csi Azure PersistantVolume %s of PersistantVolumeClaim %s", pv.Name, pv.Spec.ClaimRef.Name)
-		if err := deletePv(ctx, kubeClient, pv.Name); err != nil && !k8serrors.IsNotFound(err) {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
-}
-
-func knownCSIDriver(driver string) bool {
-	_, ok := csiVolumeProvisioners[driver]
-	return ok
-}
-
-func getCurrentlyUsedPvcNames(ctx context.Context, kubeClient kubernetes.Interface, radixDeployment *radixv1.RadixDeployment) (map[string]any, error) {
-	namespace := radixDeployment.GetNamespace()
-	currentlyUsedPvcNames := make(map[string]any)
-	existingDeployments, err := kubeClient.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, deployment := range existingDeployments.Items {
-		currentlyUsedPvcNames = appendPvcNamesFromVolumes(currentlyUsedPvcNames, deployment.Spec.Template.Spec.Volumes)
-	}
-	existingJobs, err := kubeClient.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, job := range existingJobs.Items {
-		currentlyUsedPvcNames = appendPvcNamesFromVolumes(currentlyUsedPvcNames, job.Spec.Template.Spec.Volumes)
-	}
-	return currentlyUsedPvcNames, nil
-}
-
-func appendPvcNamesFromVolumes(pvcMap map[string]any, volumes []corev1.Volume) map[string]any {
-	return slice.Reduce(volumes, pvcMap, func(acc map[string]any, volume corev1.Volume) map[string]any {
-		if volume.PersistentVolumeClaim != nil && len(volume.PersistentVolumeClaim.ClaimName) > 0 {
-			acc[volume.PersistentVolumeClaim.ClaimName] = struct{}{}
-		}
-		return acc
-	})
-}
-
-func garbageCollectCsiAzurePvs(ctx context.Context, kubeClient kubernetes.Interface, namespace string, excludePvcNames map[string]any) error {
-	pvs, err := getCsiAzurePvsForNamespace(ctx, kubeClient, namespace)
-	if err != nil {
-		return err
-	}
-	for _, pv := range pvs {
-		if _, ok := excludePvcNames[pv.Spec.ClaimRef.Name]; ok {
-			continue
-		}
-		log.Ctx(ctx).Debug().Msgf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pv.Name, namespace)
-		if err = deletePv(ctx, kubeClient, pv.Name); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func garbageCollectCsiAzurePvcs(ctx context.Context, kubeClient kubernetes.Interface, namespace string, excludePvcNames map[string]any) error {
-	pvcList, err := getCsiAzurePvcs(ctx, kubeClient, namespace)
-	if err != nil {
-		return err
-	}
-	var errs []error
-	for _, pvc := range pvcList.Items {
-		if _, ok := excludePvcNames[pvc.Name]; ok {
-			continue
-		}
-		log.Ctx(ctx).Debug().Msgf("Delete not used CSI Azure PersistentVolumeClaim %s in namespace %s", pvc.Name, namespace)
-		if err := deletePvc(ctx, kubeClient, namespace, pvc.Name); err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		pvName := pvc.Spec.VolumeName
-		log.Ctx(ctx).Debug().Msgf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pvName, namespace)
-		if err := deletePv(ctx, kubeClient, pvName); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
 }
 
 func trimVolumeNameToValidLength(volumeName string) string {

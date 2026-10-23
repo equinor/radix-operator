@@ -57,7 +57,7 @@ func blobFuse2VolumeMount(name, container string, modify ...func(*radixv1.RadixB
 
 // createLegacyPair creates a bound PV/PVC pair as created by previous operator versions: a random PVC name suffix,
 // a PV name and volumeHandle with a UUID, a block cache path with another UUID, and attributes and labels added by others.
-func (s *ensureComponentVolumesTestSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, vm radixv1.RadixVolumeMount, pvcSuffix string, created time.Time) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim) {
+func (s *testSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, vm radixv1.RadixVolumeMount, pvcSuffix string, created time.Time) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim) {
 	desired, err := buildDesiredVolumeResources(rd, component, vm)
 	s.Require().NoError(err)
 	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
@@ -100,7 +100,7 @@ func (s *ensureComponentVolumesTestSuite) createLegacyPair(rd *radixv1.RadixDepl
 	return pv, pvc
 }
 
-func (s *ensureComponentVolumesTestSuite) listPvAndPvcNames() ([]string, []string) {
+func (s *testSuite) listPvAndPvcNames() ([]string, []string) {
 	pvList, err := s.kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
 	pvcList, err := s.kubeClient.CoreV1().PersistentVolumeClaims("").List(context.Background(), metav1.ListOptions{})

@@ -97,12 +97,21 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 		return nil
 	}
 
-	if err := deploy.syncStatus(ctx, deploy.syncDeployment(ctx)); err != nil {
+	if err := deploy.syncStatus(ctx, errors.Join(deploy.syncDeployment(ctx), deploy.garbageCollectVolumes(ctx))); err != nil {
 		return fmt.Errorf("failed to sync deployment %s for application %s: %w", deploy.radixDeployment.Name, deploy.radixDeployment.Spec.AppName, err) //nolint:staticcheck
 	}
 
 	deploy.maintainHistoryLimit(ctx, deploy.config.Operator.DeploymentHistoryLimit)
 	return metrics.RequestedResources(deploy.config, deploy.registration, deploy.radixDeployment)
+}
+
+// garbageCollectVolumes deletes PersistentVolumeClaims and PersistentVolumes that are no longer needed.
+// It runs even if syncDeployment failed, because what is kept depends on the spec of the RadixDeployment, not on what was applied.
+func (deploy *Deployment) garbageCollectVolumes(ctx context.Context) error {
+	if err := volumemount.GarbageCollectVolumes(ctx, deploy.kubeutil, deploy.radixDeployment, time.Now(), deploy.config.Operator.VolumeGarbageCollectionGracePeriod); err != nil {
+		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
+	}
+	return nil
 }
 
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
@@ -448,10 +457,6 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		if err != nil {
 			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
-	}
-
-	if err = volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {
-		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
 	}
 
 	return nil

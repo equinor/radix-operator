@@ -66,6 +66,8 @@ config:
     defaultAppAdminGroups: []
     deploymentHistoryLimit: 10
     orphanedEnvironmentsRetentionPeriod: 720h
+    # Protects new PersistentVolumeClaims and PersistentVolumes against garbage collection
+    volumeGarbageCollectionGracePeriod: 10m
     orphanedEnvironmentsCleanupCron: "0 0 * * *"
     pipelineJobsHistoryLimit: 5
     pipelineJobsHistoryPeriodLimit: "720h"
