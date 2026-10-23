@@ -207,6 +207,7 @@ operator:
     namespace: "istio-system"
     sectionName: "https"
   orphanedEnvironmentsRetentionPeriod: 720h
+  volumeGarbageCollectionGracePeriod: 10m
   orphanedEnvironmentsCleanupCron: "0 0 * * *"
   pipelineJobsHistoryLimit: 5
   pipelineJobsHistoryPeriodLimit: "720h"

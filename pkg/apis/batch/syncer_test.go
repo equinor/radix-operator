@@ -1225,49 +1225,6 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	s.Equal("/azureblob2path", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
 
-func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
-	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
-	jobName := "any-job"
-	batch := &radixv1.RadixBatch{
-		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
-		Spec: radixv1.RadixBatchSpec{
-			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  componentName,
-			},
-			Jobs: []radixv1.RadixBatchJob{{Name: jobName}},
-		},
-	}
-	rd := &radixv1.RadixDeployment{
-		Name: rdName,
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: appName,
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name: componentName,
-					VolumeMounts: []radixv1.RadixVolumeMount{
-						{Type: "azure-blob", Name: "azureblobname", Storage: "azureblobcontainer", Path: "/azureblobpath"},
-					},
-				},
-			},
-		},
-	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	sut := s.createSyncer(batch, config.Config{})
-	s.Require().NoError(sut.OnSync(context.Background()))
-	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(jobs.Items, 1)
-	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
-	s.Require().Len(job.Spec.Template.Spec.Volumes, 1)
-	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 1)
-	s.Equal(job.Spec.Template.Spec.Volumes[0].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
-	s.Equal("/azureblobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
-}
-
 func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-app-dev", "any-rd"
 	jobName := "any-job"

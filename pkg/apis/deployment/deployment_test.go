@@ -221,11 +221,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithVolumeMounts(
 								radixv1.RadixVolumeMount{
-									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-									Name:    blobCsiAzureVolumeName,
-									Storage: "some-storage",
-									Path:    "some-path2",
-									GID:     "1000",
+									Name:      blobCsiAzureVolumeName,
+									Path:      "some-path2",
+									BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "some-storage", GID: "1000"},
 								},
 							).
 							WithSecrets([]string{outdatedSecret, remainingSecret}))
@@ -584,10 +582,9 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							}).
 							WithVolumeMounts(
 								radixv1.RadixVolumeMount{
-									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-									Name:    blobCsiAzureVolumeName,
-									Storage: "some-storage",
-									Path:    "some-path",
+									Name:      blobCsiAzureVolumeName,
+									Path:      "some-path",
+									BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "some-storage"},
 								}).
 							WithSchedulerPort(new(int32(8000))).
 							WithPayloadPath(&payloadPath).
@@ -3375,7 +3372,7 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(compName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						radixv1.RadixVolumeMount{Name: "blobcsi", Path: "blobcsipath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "blobcsistorage"}},
 					),
 			),
 	)
@@ -3405,7 +3402,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName(jobName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						radixv1.RadixVolumeMount{Name: "blobcsi", Path: "blobcsipath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "blobcsistorage"}},
 					),
 			),
 	)

@@ -1178,52 +1178,15 @@ const (
 
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
-	// Deprecated: use BlobFuse2 instead.
-	// Type defines the storage type.
-	// +kubebuilder:validation:Enum=azure-blob;""
-	// +optional
-	Type MountType `json:"type,omitempty"`
-
 	// User-defined name of the volume mount.
 	// Must be unique for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=40
 	Name string `json:"name"`
 
-	// Deprecated: Only required by the deprecated type: blob.
-	// +optional
-	Container string `json:"container,omitempty"` // Outdated. Use Storage instead
-
-	// Deprecated: use BlobFuse2 instead.
-	// Storage defines the name of the container in the external storage resource.
-	// +optional
-	Storage string `json:"storage"` // Container name, file Share name, etc.
-
 	// Path defines in which directory the external storage is mounted.
 	// +kubebuilder:validation:MinLength=1
 	Path string `json:"path"` // Path within the pod (replica), where the volume mount has been mounted to
-
-	// Deprecated: use BlobFuse2 instead.
-	// GID defines the group ID (number) which will be set as owner of the mounted volume.
-	// +optional
-	GID string `json:"gid,omitempty"` // Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
-
-	// Deprecated: use BlobFuse2 instead.
-	// UID defines the user ID (number) which will be set as owner of the mounted volume.
-	// +optional
-	UID string `json:"uid,omitempty"` // Optional. Volume mount owner UserID. Used instead of GID.
-
-	// Deprecated: use BlobFuse2 instead.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +optional
-	RequestsStorage resource.Quantity `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-
-	// Deprecated: use BlobFuse2 instead.
-	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
-	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
-	// +optional
-	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
 	// BlobFuse2 settings for Azure Storage FUSE CSI driver with the protocol fuse2
 	BlobFuse2 *RadixBlobFuse2VolumeMount `json:"blobFuse2,omitempty"`
@@ -1233,37 +1196,22 @@ type RadixVolumeMount struct {
 }
 
 func (v *RadixVolumeMount) GetRequestsStorage() resource.Quantity {
-	switch {
-	case v.HasDeprecatedVolume():
-		//nolint:staticcheck
-		return v.RequestsStorage
-	case v.HasBlobFuse2():
+	if v.HasBlobFuse2() {
 		return v.BlobFuse2.RequestsStorage
-	default:
-		return resource.Quantity{}
 	}
+	return resource.Quantity{}
 }
 
 func (v *RadixVolumeMount) GetStorageContainerName() string {
-	switch {
-	case v.HasDeprecatedVolume():
-		//nolint:staticcheck
-		return v.Storage
-	case v.HasBlobFuse2():
+	if v.HasBlobFuse2() {
 		return v.BlobFuse2.Container
-	default:
-		return ""
 	}
+	return ""
 }
 
 func (v *RadixVolumeMount) GetVolumeMountType() MountType {
 	if v == nil {
 		return ""
-	}
-
-	if v.HasDeprecatedVolume() {
-		//nolint:staticcheck
-		return v.Type
 	}
 
 	if v.HasBlobFuse2() {
@@ -1273,11 +1221,6 @@ func (v *RadixVolumeMount) GetVolumeMountType() MountType {
 	}
 
 	return "unsupported"
-}
-
-// HasDeprecatedVolume returns true if the volume mount is configured to use the deprecated volume type
-func (v *RadixVolumeMount) HasDeprecatedVolume() bool {
-	return len(v.Type) > 0
 }
 
 // HasBlobFuse2 returns true if the volume mount is configured to use BlobFuse2
@@ -1477,8 +1420,6 @@ type MountType string
 
 // These are valid types of mount
 const (
-	// MountTypeBlobFuse2FuseCsiAzure Use of azure/csi driver for blobfuse2, protocol Fuse in Azure storage account
-	MountTypeBlobFuse2FuseCsiAzure MountType = "azure-blob"
 	// MountTypeBlobFuse2Fuse2CsiAzure Use of azure/csi driver for blobfuse2, protocol Fuse2 in Azure storage account
 	MountTypeBlobFuse2Fuse2CsiAzure MountType = "blobfuse2-fuse2"
 )

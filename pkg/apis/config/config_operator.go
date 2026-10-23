@@ -49,6 +49,9 @@ type OperatorConfig struct {
 
 	PipelineJobsHistoryLimit       int           `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
 	PipelineJobsHistoryPeriodLimit time.Duration `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
+
+	// VolumeGarbageCollectionGracePeriod protects new PersistentVolumeClaims and PersistentVolumes against garbage collection
+	VolumeGarbageCollectionGracePeriod time.Duration `json:"volumeGarbageCollectionGracePeriod" required:"true" validate:"compareDuration(self, '0s') >= 0"`
 }
 
 type PodSecurityStandardConfig struct {

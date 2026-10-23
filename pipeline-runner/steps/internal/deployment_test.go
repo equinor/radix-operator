@@ -51,15 +51,12 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						}).
 						WithVolumeMounts([]radixv1.RadixVolumeMount{
 							{
-								Type:      radixv1.MountTypeBlobFuse2FuseCsiAzure,
-								Container: "some-container",
 								Path:      "some-path",
+								BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "some-container"},
 							},
 							{
-								Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-								Storage: "some-storage",
-								Path:    "some-path",
-								GID:     "1000",
+								Path:      "some-path",
+								BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "some-storage", GID: "1000"},
 							},
 						}).
 						WithReplicas(new(3)))).

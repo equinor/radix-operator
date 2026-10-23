@@ -105,6 +105,14 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	return metrics.RequestedResources(deploy.config, deploy.registration, deploy.radixDeployment)
 }
 
+// garbageCollectVolumes deletes PersistentVolumeClaims and PersistentVolumes that are no longer needed.
+func (deploy *Deployment) garbageCollectVolumes(ctx context.Context) error {
+	if err := volumemount.GarbageCollectVolumes(ctx, deploy.kubeutil, deploy.radixDeployment, time.Now(), deploy.config.Operator.VolumeGarbageCollectionGracePeriod); err != nil {
+		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
+	}
+	return nil
+}
+
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
 	err := deploy.updateStatus(ctx, func(currStatus *v1.RadixDeployStatus) {
 		currStatus.Reconciled = metav1.Now()
@@ -209,7 +217,8 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to sync auxiliary resource : %w", err)
 	}
 
-	return nil
+	// Runs last, and only when everything else is synced, so workloads that failed to sync keep their current volumes
+	return deploy.garbageCollectVolumes(ctx)
 }
 
 func (deploy *Deployment) syncAuxiliaryResources(ctx context.Context) error {
@@ -448,10 +457,6 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		if err != nil {
 			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
-	}
-
-	if err = volumemount.GarbageCollectCsiAzureVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deploy.radixDeployment.GetNamespace()); err != nil {
-		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
 	}
 
 	return nil
