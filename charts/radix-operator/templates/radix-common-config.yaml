@@ -5,13 +5,18 @@
 {{- $_ := required "config.operator.azureKeyVaultTenantID is required" .Values.config.operator.azureKeyVaultTenantID -}}
 {{- $_ := required "config.operator.gateway.name is required" .Values.config.operator.gateway.name -}}
 {{- $_ := required "config.operator.gateway.namespace is required" .Values.config.operator.gateway.namespace -}}
-{{- $_ := required "config.operator.certificateAutomation.gatewayClusterIssuer is required" .Values.config.operator.certificateAutomation.gatewayClusterIssuer -}}
 {{- $_ := required "config.pipelineRunner.cacheContainerRegistry is required" .Values.config.pipelineRunner.cacheContainerRegistry -}}
 {{- $_ := required "config.pipelineRunner.containerRegistry is required" .Values.config.pipelineRunner.containerRegistry -}}
 {{- $_ := required "config.apiServer.prometheusUrl is required" .Values.config.apiServer.prometheusUrl -}}
 {{- if le (len (.Values.config.apiServer.authenticators | default dict)) 0 }}
 {{- fail "apiServer.authenticators must have at least one entry" }}
 {{- end }}
+{{- with .Values.config.common.certificateAutomation.defaultIssuer }}
+{{- if not (hasKey ($.Values.config.common.certificateAutomation.issuers | default dict) (toString .)) }}
+{{- fail (printf "config.common.certificateAutomation.issuers must contain a key matching config.common.certificateAutomation.defaultIssuer (%q)" (toString .)) }}
+{{- end }}
+{{- end }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
