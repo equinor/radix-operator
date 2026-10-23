@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -10,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -220,4 +222,43 @@ func Test_GarbageCollection_RunsWhenActiveRdSyncsAndNotForInactiveRd(t *testing.
 	require.NoError(t, NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, rr, activeRd, nil, testConfig).OnSync(context.Background()))
 	assert.False(t, pvcExists(orphan.Name))
 	assert.True(t, pvcExists(claim2))
+}
+
+func Test_GarbageCollection_RunsOnlyWhenSyncSucceeds(t *testing.T) {
+	const appName, envName = "anyapp", "dev"
+	namespace := utils.GetEnvironmentNamespace(appName, envName)
+	_, kubeclient, kubeUtil, radixclient, _, dynamicClient, _, certClient := SetupTest(t)
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment(envName).WithComponent(utils.NewDeployComponentBuilder().WithName("comp")).BuildRD()
+	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	require.NoError(t, err)
+	rd, err = radixclient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	require.NoError(t, err)
+	orphan := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+		Name: "pvc-orphan", Namespace: namespace,
+		Labels: map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: "comp", kube.RadixVolumeMountNameLabel: "removed"},
+	}}
+	_, err = kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.Background(), orphan, metav1.CreateOptions{})
+	require.NoError(t, err)
+	pvcExists := func() bool {
+		_, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), orphan.Name, metav1.GetOptions{})
+		return err == nil
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	auxResource := NewMockAuxiliaryResourceManager(ctrl)
+	auxResource.EXPECT().GarbageCollect(gomock.Any()).Times(2).Return(nil)
+	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(errors.New("any error"))
+	auxResource.EXPECT().Sync(gomock.Any()).Times(1).Return(nil)
+
+	err = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, testConfig).OnSync(context.Background())
+	require.Error(t, err)
+	assert.True(t, pvcExists(), "garbage collection must not run when the sync fails")
+
+	rd, err = radixclient.RadixV1().RadixDeployments(namespace).Get(context.Background(), rd.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	err = NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, dynamicClient, certClient, rr, rd, []AuxiliaryResourceManager{auxResource}, testConfig).OnSync(context.Background())
+	require.NoError(t, err)
+	assert.False(t, pvcExists(), "garbage collection must run when the sync succeeds")
 }

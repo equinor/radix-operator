@@ -3,6 +3,7 @@ package volumemount
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,9 +12,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 type garbageCollectVolumesTestSuite struct {
@@ -496,4 +500,25 @@ func Test_DeletePersistentVolumesForDeletedNamespace(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (s *garbageCollectVolumesTestSuite) Test_DeleteIsSkippedWhenChangedSinceRead() {
+	oldVm := blobFuse2VolumeMount("vol", "oldcontainer")
+	oldRd := newGcTestRd("old", false, oldVm)
+	activeRd := newGcTestRd("active", true)
+	pv, pvc := s.createLegacyPair(oldRd, &oldRd.Spec.Components[0], oldVm, "abcde", gcTestOld())
+	fakeClient := s.kubeClient.(*fake.Clientset)
+	var preconditions *metav1.Preconditions
+	fakeClient.PrependReactor("delete", "persistentvolumeclaims", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		preconditions = action.(k8stesting.DeleteAction).GetDeleteOptions().Preconditions
+		return true, nil, k8serrors.NewConflict(corev1.Resource("persistentvolumeclaims"), pvc.Name, errors.New("precondition failed"))
+	})
+
+	s.runGC(activeRd)
+
+	s.Require().NotNil(preconditions)
+	s.Require().NotNil(preconditions.UID)
+	s.Equal(pvc.UID, *preconditions.UID, "the PVC delete must have the uid of the PVC that was evaluated as precondition")
+	s.True(s.pvcExists(pvc.Name))
+	s.True(s.pvExists(pv.Name), "the PV must not be deleted when the PVC was changed since it was evaluated")
 }

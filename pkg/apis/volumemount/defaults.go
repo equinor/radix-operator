@@ -24,5 +24,9 @@ const (
 
 	nameRandPartLength = 5 // The length of a trailing random part in names
 
+	// legacyMountTypeAzureBlob is the mount type label value of credential secrets for the removed azure-blob volume mount type.
+	// Secrets with this label can still exist, and must be garbage collected.
+	legacyMountTypeAzureBlob = "azure-blob"
+
 	provisionerBlobCsiAzure string = "blob.csi.azure.com" // Use of azure/csi driver for blob in Azure storage account
 )

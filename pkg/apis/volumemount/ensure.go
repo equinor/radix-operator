@@ -155,8 +155,11 @@ func selectPersistentVolumeClaim(pvcs []corev1.PersistentVolumeClaim, desiredPvc
 	})
 }
 
-// createDesiredVolumeResources creates the desired PV, then the PVC. AlreadyExists is treated as success,
-// because the names are derived from the desired spec, so an existing resource with the same name has the same spec.
+// createDesiredVolumeResources creates the desired PV, then the PVC. A resource with the same name can already exist,
+// e.g. created concurrently by another controller, since the names are derived from the desired spec. An existing resource
+// is validated: it must not be terminating, its spec and labels must match the desired spec, the PV claimRef must refer to the
+// desired PVC, and the PVC must be bound to the desired PV and not be Lost. A conflicting existing resource returns an error,
+// and is never updated or deleted, except that a stale claimRef uid of a Released PV is cleared, so a recreated PVC can bind.
 func createDesiredVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, desired *desiredVolumeResources) error {
 	logger := log.Ctx(ctx)
 	logger.Info().Msgf("Create PersistentVolume %s for PersistentVolumeClaim %s in namespace %s", desired.pv.GetName(), desired.pvc.GetName(), desired.pvc.GetNamespace())
@@ -164,8 +167,17 @@ func createDesiredVolumeResources(ctx context.Context, kubeClient kubernetes.Int
 		if !k8serrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create PersistentVolume %s: %w", desired.pv.GetName(), err)
 		}
-		if err := releaseClaimRefFromReleasedPersistentVolume(ctx, kubeClient, desired.pv.GetName(), desired.pvc); err != nil {
+		existingPv, err := kubeClient.CoreV1().PersistentVolumes().Get(ctx, desired.pv.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get PersistentVolume %s: %w", desired.pv.GetName(), err)
+		}
+		if err := validateExistingPersistentVolume(existingPv, desired); err != nil {
 			return err
+		}
+		if existingPv.Status.Phase == corev1.VolumeReleased && (len(existingPv.Spec.ClaimRef.UID) > 0 || len(existingPv.Spec.ClaimRef.ResourceVersion) > 0) {
+			if err := clearClaimRefUID(ctx, kubeClient, existingPv); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -178,28 +190,40 @@ func createDesiredVolumeResources(ctx context.Context, kubeClient kubernetes.Int
 		if err != nil {
 			return fmt.Errorf("failed to get PersistentVolumeClaim %s: %w", desired.pvc.GetName(), err)
 		}
-		if existingPvc.GetDeletionTimestamp() != nil {
-			return fmt.Errorf("PersistentVolumeClaim %s in namespace %s is being deleted", existingPvc.GetName(), existingPvc.GetNamespace())
+		if err := validateExistingPersistentVolumeClaim(existingPvc, desired); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-// releaseClaimRefFromReleasedPersistentVolume clears claimRef.uid and claimRef.resourceVersion of a Released PV,
-// which was bound to a deleted PVC with the desired name, so a recreated PVC can bind to it. The PV spec is otherwise not changed.
-func releaseClaimRefFromReleasedPersistentVolume(ctx context.Context, kubeClient kubernetes.Interface, pvName string, desiredPvc *corev1.PersistentVolumeClaim) error {
-	pv, err := kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get PersistentVolume %s: %w", pvName, err)
+func validateExistingPersistentVolume(pv *corev1.PersistentVolume, desired *desiredVolumeResources) error {
+	if pv.GetDeletionTimestamp() != nil {
+		return fmt.Errorf("PersistentVolume %s is being deleted", pv.GetName())
 	}
-	claimRef := pv.Spec.ClaimRef
-	if pv.Status.Phase != corev1.VolumeReleased || claimRef == nil || claimRef.Namespace != desiredPvc.GetNamespace() || claimRef.Name != desiredPvc.GetName() {
-		return nil
+	if claimRef := pv.Spec.ClaimRef; claimRef == nil || claimRef.Namespace != desired.pvc.GetNamespace() || claimRef.Name != desired.pvc.GetName() {
+		return fmt.Errorf("PersistentVolume %s exists, but does not refer to PersistentVolumeClaim %s in namespace %s", pv.GetName(), desired.pvc.GetName(), desired.pvc.GetNamespace())
 	}
-	if len(claimRef.UID) == 0 && len(claimRef.ResourceVersion) == 0 {
-		return nil
+	if !pvMatchesDesired(pv, desired.pv) {
+		return fmt.Errorf("PersistentVolume %s exists, but does not match the desired spec", pv.GetName())
 	}
-	return clearClaimRefUID(ctx, kubeClient, pv)
+	return nil
+}
+
+func validateExistingPersistentVolumeClaim(pvc *corev1.PersistentVolumeClaim, desired *desiredVolumeResources) error {
+	if pvc.GetDeletionTimestamp() != nil {
+		return fmt.Errorf("PersistentVolumeClaim %s in namespace %s is being deleted", pvc.GetName(), pvc.GetNamespace())
+	}
+	if pvc.Status.Phase == corev1.ClaimLost {
+		return fmt.Errorf("PersistentVolumeClaim %s in namespace %s is Lost", pvc.GetName(), pvc.GetNamespace())
+	}
+	if pvc.Spec.VolumeName != desired.pv.GetName() {
+		return fmt.Errorf("PersistentVolumeClaim %s in namespace %s exists, but is not bound to PersistentVolume %s", pvc.GetName(), pvc.GetNamespace(), desired.pv.GetName())
+	}
+	if !pvcMatchesDesired(pvc, desired.pvc) {
+		return fmt.Errorf("PersistentVolumeClaim %s in namespace %s exists, but does not match the desired spec", pvc.GetName(), pvc.GetNamespace())
+	}
+	return nil
 }
 
 // hasStaleClaimRef returns true if the PV claimRef refers to a previous PVC with the same name as the PVC

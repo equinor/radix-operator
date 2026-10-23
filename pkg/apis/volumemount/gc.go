@@ -299,12 +299,20 @@ func (gc *volumeGarbageCollector) keepPvc(ctx context.Context, pvc corev1.Persis
 	return false, nil
 }
 
-// deletePvcAndBoundPv deletes the PVC, then the PV it is bound to, if the PV is Radix owned and its claimRef refers to the PVC
+// deletePvcAndBoundPv deletes the PVC, then the PV it is bound to, if the PV is Radix owned and its claimRef refers to the PVC.
+// The PVC is only deleted if it is unchanged since it was read; otherwise nothing is deleted, and it is evaluated again in the next garbage collection.
 func (gc *volumeGarbageCollector) deletePvcAndBoundPv(ctx context.Context, pvc corev1.PersistentVolumeClaim) error {
 	if pvc.GetDeletionTimestamp() == nil {
 		log.Ctx(ctx).Info().Msgf("Delete unused PersistentVolumeClaim %s in namespace %s", pvc.GetName(), pvc.GetNamespace())
-		if err := gc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(ctx, pvc.GetName(), metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &pvc.UID}}); err != nil && !k8serrors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete PersistentVolumeClaim %s: %w", pvc.GetName(), err)
+		if err := gc.kubeClient.CoreV1().PersistentVolumeClaims(pvc.GetNamespace()).Delete(ctx, pvc.GetName(), deleteOptionsWithPreconditions(&pvc)); err != nil {
+			switch {
+			case k8serrors.IsNotFound(err):
+			case k8serrors.IsConflict(err):
+				log.Ctx(ctx).Info().Msgf("Skip deleting PersistentVolumeClaim %s in namespace %s, it was changed after it was evaluated", pvc.GetName(), pvc.GetNamespace())
+				return nil
+			default:
+				return fmt.Errorf("failed to delete PersistentVolumeClaim %s: %w", pvc.GetName(), err)
+			}
 		}
 	}
 
@@ -351,12 +359,36 @@ func (gc *volumeGarbageCollector) isRadixPvForNamespace(pv *corev1.PersistentVol
 	return pv.GetLabels()[kube.RadixAppLabel] == gc.appName && pv.GetLabels()[kube.RadixNamespace] == gc.namespace
 }
 
+// deletePv deletes the PV if it is unchanged since it was read. Otherwise, e.g. if it was bound again or replaced, it is not deleted,
+// and it is evaluated again in the next garbage collection.
 func (gc *volumeGarbageCollector) deletePv(ctx context.Context, pv *corev1.PersistentVolume) error {
 	log.Ctx(ctx).Info().Msgf("Delete unused PersistentVolume %s (phase %s) for namespace %s", pv.GetName(), pv.Status.Phase, gc.namespace)
-	if err := gc.kubeClient.CoreV1().PersistentVolumes().Delete(ctx, pv.GetName(), metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("failed to delete PersistentVolume %s: %w", pv.GetName(), err)
+	return deletePvIfUnchanged(ctx, gc.kubeClient, pv)
+}
+
+func deletePvIfUnchanged(ctx context.Context, kubeClient kubernetes.Interface, pv *corev1.PersistentVolume) error {
+	if err := kubeClient.CoreV1().PersistentVolumes().Delete(ctx, pv.GetName(), deleteOptionsWithPreconditions(pv)); err != nil {
+		switch {
+		case k8serrors.IsNotFound(err):
+		case k8serrors.IsConflict(err):
+			log.Ctx(ctx).Info().Msgf("Skip deleting PersistentVolume %s, it was changed after it was evaluated", pv.GetName())
+		default:
+			return fmt.Errorf("failed to delete PersistentVolume %s: %w", pv.GetName(), err)
+		}
 	}
 	return nil
+}
+
+// deleteOptionsWithPreconditions makes a delete fail with a Conflict error, if the object was replaced or changed since it was read
+func deleteOptionsWithPreconditions(obj metav1.Object) metav1.DeleteOptions {
+	preconditions := &metav1.Preconditions{}
+	if uid := obj.GetUID(); len(uid) > 0 {
+		preconditions.UID = &uid
+	}
+	if resourceVersion := obj.GetResourceVersion(); len(resourceVersion) > 0 {
+		preconditions.ResourceVersion = &resourceVersion
+	}
+	return metav1.DeleteOptions{Preconditions: preconditions}
 }
 
 // DeletePersistentVolumesForDeletedNamespace deletes the Radix owned PersistentVolumes labelled for the namespace,
@@ -389,8 +421,8 @@ func DeletePersistentVolumesForDeletedNamespace(ctx context.Context, kubeClient 
 			continue
 		}
 		log.Ctx(ctx).Info().Msgf("Delete PersistentVolume %s (phase %s) for deleted namespace %s", pv.GetName(), pv.Status.Phase, namespace)
-		if err := kubeClient.CoreV1().PersistentVolumes().Delete(ctx, pv.GetName(), metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
-			errs = append(errs, fmt.Errorf("failed to delete PersistentVolume %s: %w", pv.GetName(), err))
+		if err := deletePvIfUnchanged(ctx, kubeClient, &pv); err != nil {
+			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)

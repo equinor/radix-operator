@@ -378,6 +378,75 @@ func (s *ensureComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated() 
 	s.Equal(legacyPv.ResourceVersion, pv.ResourceVersion, "PV must not be updated")
 }
 
+func (s *ensureComponentVolumesTestSuite) Test_ConflictingExistingHashNamedResourcesReturnError() {
+	tests := map[string]struct {
+		modifyPv      func(pv *corev1.PersistentVolume)
+		modifyPvc     func(pvc *corev1.PersistentVolumeClaim)
+		createPvc     bool
+		expectedError string
+	}{
+		"PV with changed mount options": {
+			modifyPv:      func(pv *corev1.PersistentVolume) { pv.Spec.MountOptions = append(pv.Spec.MountOptions, "-o gid=1000") },
+			expectedError: "does not match the desired spec",
+		},
+		"PV being deleted": {
+			modifyPv: func(pv *corev1.PersistentVolume) {
+				pv.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+				pv.Finalizers = []string{"kubernetes.io/pv-protection"}
+			},
+			expectedError: "is being deleted",
+		},
+		"PV bound to another claim": {
+			modifyPv:      func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Name = "other-pvc" },
+			expectedError: "does not refer to PersistentVolumeClaim",
+		},
+		"PVC is Lost": {
+			createPvc:     true,
+			modifyPvc:     func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimLost },
+			expectedError: "is Lost",
+		},
+		"PVC bound to another volume": {
+			createPvc:     true,
+			modifyPvc:     func(pvc *corev1.PersistentVolumeClaim) { pvc.Spec.VolumeName = "other-pv" },
+			expectedError: "is not bound to PersistentVolume",
+		},
+		"PVC with changed storage request": {
+			createPvc: true,
+			modifyPvc: func(pvc *corev1.PersistentVolumeClaim) {
+				pvc.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("2Mi")
+			},
+			expectedError: "does not match the desired spec",
+		},
+	}
+	for name, test := range tests {
+		s.Run(name, func() {
+			vm := blobFuse2VolumeMount("vol", "container")
+			rd, component := newEnsureTestRd(vm)
+			desired, err := buildDesiredVolumeResources(rd, component, vm)
+			s.Require().NoError(err)
+			pv := desired.pv.DeepCopy()
+			if test.modifyPv != nil {
+				test.modifyPv(pv)
+			}
+			_, err = s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), pv, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			if test.createPvc {
+				pvc := desired.pvc.DeepCopy()
+				pvc.Status.Phase = corev1.ClaimBound
+				if test.modifyPvc != nil {
+					test.modifyPvc(pvc)
+				}
+				_, err = s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Create(context.Background(), pvc, metav1.CreateOptions{})
+				s.Require().NoError(err)
+			}
+
+			_, _, err = EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
+			s.Require().Error(err)
+			s.Contains(err.Error(), test.expectedError)
+		})
+	}
+}
+
 func (s *ensureComponentVolumesTestSuite) Test_PvcBeingDeletedIsNotReused() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
