@@ -17,7 +17,9 @@ serviceAccount:
 
 # Rendered into the release specific radix common config ConfigMap and parsed by easyauth (see easyauth/config.go).
 config:
+  # When true, applying a RadixApplication without requiredAnnotation is rejected by the validating webhook
   enforced: false
+  annotation: radix.equinor.com/easyauth
   enableLeaderElection: true
   # Lease name used for leader election. Must be unique per release within the namespace.
   # Defaults to <fullname>.easyauth.radix.equinor.com
@@ -33,7 +35,7 @@ config:
 webhook:
   failurePolicy: Fail
   timeoutSeconds: 10
-  # Namespaces where RadixApplications are not mutated
+  # Namespaces where RadixApplications are not mutated or validated
   excludedNamespaces:
     - kube-system
 

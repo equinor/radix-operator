@@ -1,7 +1,9 @@
 package main
 
 type EasyAuthConfig struct {
-	Enforced bool `json:"enforced"`
+	// When true, RadixApplications without RequiredAnnotation are rejected by the validating webhook
+	Enforced   bool   `json:"enforced"`
+	Annotation string `json:"annotation" required:"true"`
 
 	LeaderId string `json:"leaderId"`
 	// Validated here since validation is skipped for zero-value fields (empty leaderId)

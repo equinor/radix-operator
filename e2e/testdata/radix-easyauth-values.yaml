@@ -1,0 +1,7 @@
+image:
+  pullPolicy: IfNotPresent
+  tag: "{{IMAGE_TAG}}"
+
+config:
+  logLevel: debug
+  logPrettyPrint: true

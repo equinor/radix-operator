@@ -28,6 +28,7 @@ import (
 
 	"github.com/equinor/radix-operator/easyauth/internal/controller"
 	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
+	"github.com/equinor/radix-operator/easyauth/internal/validator"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -87,9 +88,19 @@ func main() {
 	}
 
 	// Register the custom mutating webhook
-	err = defaulter.RegisterWithManager(mgr)
+	err = defaulter.RegisterWithManager(mgr, &defaulter.RadixApplicationDefaulter{
+		Annotation: cfg.Annotation,
+	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to create webhook")
+	}
+
+	err = validator.RegisterWithManager(mgr, &validator.RadixApplicationValidator{
+		Enforced:   cfg.Enforced,
+		Annotation: cfg.Annotation,
+	})
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to create validating webhook")
 	}
 
 	err = (&controller.RadixApplicationReconciler{
@@ -103,7 +114,8 @@ func main() {
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		logger.Fatal().Err(err).Msg("Failed to set up health check")
 	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+	// Not ready until the webhook server is serving, so the API server doesn't call it too early
+	if err := mgr.AddReadyzCheck("readyz", mgr.GetWebhookServer().StartedChecker()); err != nil {
 		logger.Fatal().Err(err).Msg("Failed to set up ready check")
 	}
 
