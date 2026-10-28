@@ -23,9 +23,9 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -182,9 +182,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	// Register the custom mutating webhook
-	err = ctrl.NewWebhookManagedBy(mgr, &radixv1.RadixApplication{}).
-		WithDefaulter(&ExternalCRDDefaulter{}).
-		Complete()
+	err = defaulter.RegisterWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "ExternalCRD")
 		os.Exit(1)

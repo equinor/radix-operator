@@ -1,8 +1,9 @@
-package main
+package defaulter
 
 import (
 	"context"
 
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -12,6 +13,13 @@ import (
 
 type ExternalCRDDefaulter struct {
 	decoder *admission.Decoder
+}
+
+func RegisterWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewWebhookManagedBy(mgr, &radixv1.RadixApplication{}).
+		WithDefaulter(&ExternalCRDDefaulter{}).
+		WithDefaulterCustomPath("/radix/v1/radixapplication/mutate").
+		Complete()
 }
 
 // InjectDecoder injects the decoder automatically
