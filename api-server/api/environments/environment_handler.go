@@ -3,7 +3,9 @@ package environments
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -28,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 // EnvironmentHandlerOptions defines a configuration function
@@ -207,6 +210,10 @@ func (eh EnvironmentHandler) GetEnvironment(ctx context.Context, appName, envNam
 
 // CreateEnvironment Handler for CreateEnvironment. Creates an environment if it does not exist
 func (eh EnvironmentHandler) CreateEnvironment(ctx context.Context, appName, envName string) (*radixv1.RadixEnvironment, error) {
+	if err := validateEnvironmentName(appName, envName); err != nil {
+		return nil, err
+	}
+
 	// ensure application exists
 	rr, err := eh.accounts.UserAccount.RadixClient.RadixV1().RadixRegistrations().Get(ctx, appName, metav1.GetOptions{})
 	if err != nil {
@@ -228,6 +235,19 @@ func (eh EnvironmentHandler) CreateEnvironment(ctx context.Context, appName, env
 	}
 
 	return re, nil
+}
+
+func validateEnvironmentName(appName, envName string) error {
+	if envName == "app" {
+		return http.ValidationError(radixv1.KindRadixEnvironment, "environment name 'app' is reserved")
+	}
+	if msgs := k8svalidation.IsDNS1123Label(envName); len(msgs) > 0 {
+		return http.ValidationError(radixv1.KindRadixEnvironment, fmt.Sprintf("invalid environment name %q: %s", envName, strings.Join(msgs, "; ")))
+	}
+	if namespace := k8sObjectUtils.GetEnvironmentNamespace(appName, envName); len(k8svalidation.IsDNS1123Label(namespace)) > 0 {
+		return http.ValidationError(radixv1.KindRadixEnvironment, fmt.Sprintf("combined application and environment name %q must be no more than %d characters", namespace, k8svalidation.DNS1123LabelMaxLength))
+	}
+	return nil
 }
 
 // DeleteEnvironment Handler for DeleteEnvironment. Deletes an environment if it is considered orphaned
