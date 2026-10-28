@@ -17,151 +17,57 @@ limitations under the License.
 package main
 
 import (
-	"crypto/tls"
-	"flag"
+	"context"
+	"fmt"
+	"io"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+
+	"github.com/equinor/radix-operator/easyauth/internal/controller"
 	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
+
+	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
+	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
+	"github.com/rs/zerolog/log"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+	siglog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	// +kubebuilder:scaffold:imports
 )
 
-var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-)
+var runtimeScheme = scheme.NewScheme()
 
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	// +kubebuilder:scaffold:scheme
-}
-
-// nolint:gocyclo
 func main() {
-	var metricsAddr string
-	var metricsCertPath, metricsCertName, metricsCertKey string
-	var webhookCertPath, webhookCertName, webhookCertKey string
-	var webhookPort int
-	var enableLeaderElection bool
-	var probeAddr string
-	var secureMetrics bool
-	var enableHTTP2 bool
-	var tlsOpts []func(*tls.Config)
-	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
-		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&secureMetrics, "metrics-secure", true,
-		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
-	flag.StringVar(&webhookCertPath, "webhook-cert-path", "", "The directory that contains the webhook certificate.")
-	flag.StringVar(&webhookCertName, "webhook-cert-name", "tls.crt", "The name of the webhook certificate file.")
-	flag.StringVar(&webhookCertKey, "webhook-cert-key", "tls.key", "The name of the webhook key file.")
-	flag.IntVar(&webhookPort, "webhook-port", 9443, "Port the webhook server listens on. "+
-		"Defaults to 9443. Set -1 to disable the webhook server.")
-	flag.StringVar(&metricsCertPath, "metrics-cert-path", "",
-		"The directory that contains the metrics server certificate.")
-	flag.StringVar(&metricsCertName, "metrics-cert-name", "tls.crt", "The name of the metrics server certificate file.")
-	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
-	flag.BoolVar(&enableHTTP2, "enable-http2", false,
-		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("Disabling HTTP/2")
-		c.NextProtos = []string{"http/1.1"}
-	}
-
-	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
-
-	// Initial webhook TLS options
-	webhookTLSOpts := tlsOpts
-	webhookServerOptions := webhook.Options{
-		TLSOpts: webhookTLSOpts,
-		Port:    webhookPort,
-	}
-
-	if len(webhookCertPath) > 0 {
-		setupLog.Info("Initializing webhook certificate watcher using provided certificates",
-			"webhook-cert-path", webhookCertPath, "webhook-cert-name", webhookCertName, "webhook-cert-key", webhookCertKey)
-
-		webhookServerOptions.CertDir = webhookCertPath
-		webhookServerOptions.CertName = webhookCertName
-		webhookServerOptions.KeyName = webhookCertKey
-	}
-
-	webhookServer := webhook.NewServer(webhookServerOptions)
-
-	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
-	// More info:
-	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.25.0/pkg/metrics/server
-	// - https://book.kubebuilder.io/reference/metrics.html
-	metricsServerOptions := metricsserver.Options{
-		BindAddress:   metricsAddr,
-		SecureServing: secureMetrics,
-		TLSOpts:       tlsOpts,
-	}
-
-	if secureMetrics {
-		// FilterProvider is used to protect the metrics endpoint with authn/authz.
-		// These configurations ensure that only authorized users and service accounts
-		// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
-		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.25.0/pkg/metrics/filters#WithAuthenticationAndAuthorization
-		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
-	}
-
-	// If the certificate is not specified, controller-runtime will automatically
-	// generate self-signed certificates for the metrics server. While convenient for development and testing,
-	// this setup is not recommended for production.
-	//
-	// TODO(user): If you enable certManager, uncomment the following lines:
-	// - [METRICS-WITH-CERTS] at config/default/kustomization.yaml to generate and use certificates
-	// managed by cert-manager for the metrics server.
-	// - [PROMETHEUS-WITH-CERTS] at config/prometheus/kustomization.yaml for TLS certification.
-	if len(metricsCertPath) > 0 {
-		setupLog.Info("Initializing metrics certificate watcher using provided certificates",
-			"metrics-cert-path", metricsCertPath, "metrics-cert-name", metricsCertName, "metrics-cert-key", metricsCertKey)
-
-		metricsServerOptions.CertDir = metricsCertPath
-		metricsServerOptions.CertName = metricsCertName
-		metricsServerOptions.KeyName = metricsCertKey
-	}
+	cfg := loadConfig(context.Background())
+	logger := initLogger(cfg)
+	logger.Info().Str("version", "dev").Msg("Starting Radix EasyAuth")
+	logger.Info().Interface("config", cfg).Msg("Configuration")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsServerOptions,
-		WebhookServer:          webhookServer,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "a3c24215.easyauth.radix.equinor.com",
+		Logger: initLogr(logger),
+		Scheme: runtimeScheme,
+		Metrics: metricsserver.Options{
+			BindAddress: fmt.Sprintf(":%d", cfg.MetricsPort),
+		},
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port:    cfg.Port,
+			CertDir: cfg.CertsDir,
+		}),
+		HealthProbeBindAddress: fmt.Sprintf(":%d", cfg.HealthPort),
+
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -172,34 +78,85 @@ func main() {
 		// the manager stops, so would be fine to enable this option. However,
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
+		LeaderElectionReleaseOnCancel: true,
+		LeaderElection:                cfg.EnableLeaderElection,
+		LeaderElectionID:              cfg.LeaderId,
 	})
 	if err != nil {
-		setupLog.Error(err, "Failed to start manager")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("Failed to start manager") // Exits
 	}
-
-	// +kubebuilder:scaffold:builder
 
 	// Register the custom mutating webhook
 	err = defaulter.RegisterWithManager(mgr)
 	if err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "ExternalCRD")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("unable to create webhook")
+	}
+
+	err = (&controller.RadixApplicationReconciler{
+		Client: mgr.GetClient(),
+		Scheme: runtimeScheme,
+	}).SetupWithManager(mgr)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to register controller with manager")
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "Failed to set up health check")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("Failed to set up health check")
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "Failed to set up ready check")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("Failed to set up ready check")
 	}
 
-	setupLog.Info("Starting manager")
+	logger.Info().Msg("Starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "Failed to run manager")
-		os.Exit(1)
+		logger.Fatal().Err(err).Msg("Failed to run manager")
 	}
+	logger.Info().Msg("Manager stopped")
+}
+
+func loadConfig(ctx context.Context) EasyAuthConfig {
+	cfgClient, err := client.New(k8sconfig.GetConfigOrDie(), client.Options{Scheme: runtimeScheme})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create config reader client")
+	}
+	cfgYaml := config.MustEnvConfigMapReader(ctx, cfgClient)
+	var cfg EasyAuthConfig
+	configcodec.MustDecode(cfgYaml, &cfg)
+	return cfg
+}
+
+func initLogger(cfg EasyAuthConfig) zerolog.Logger {
+	zerolog.TimeFieldFormat = time.RFC3339
+	logLevelStr := cfg.LogLevel
+	if len(logLevelStr) == 0 {
+		logLevelStr = zerolog.LevelInfoValue
+	}
+
+	logLevel, err := zerolog.ParseLevel(logLevelStr)
+	if err != nil {
+		logLevel = zerolog.InfoLevel
+		log.Warn().Msgf("Invalid log level '%s', fallback to '%s'", logLevelStr, logLevel.String())
+	}
+
+	var logWriter io.Writer = os.Stderr
+	if cfg.LogPrettyPrint {
+		logWriter = &zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+	}
+
+	logger := zerolog.New(logWriter).Level(logLevel).With().Timestamp().Logger()
+
+	log.Logger = logger
+	zerolog.DefaultContextLogger = &logger
+	return logger
+}
+
+func initLogr(logger zerolog.Logger) logr.Logger {
+	zerologr.NameFieldName = "logger"
+	zerologr.NameSeparator = "/"
+	zerologr.SetMaxV(2)
+
+	var log logr.Logger = zerologr.New(&logger)
+	siglog.SetLogger(log)
+
+	return log
 }

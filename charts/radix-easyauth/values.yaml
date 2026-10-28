@@ -1,0 +1,78 @@
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/equinor/radix/easyauth
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: [] # List of image pull secret names
+
+serviceAccount:
+  # The name of the service account to use. Defaults to the fullname template.
+  name: ""
+  annotations: {}
+
+# Rendered into the release specific radix common config ConfigMap and parsed by easyauth (see easyauth/config.go).
+config:
+  enforced: false
+  enableLeaderElection: true
+  # Lease name used for leader election. Must be unique per release within the namespace.
+  # Defaults to <fullname>.easyauth.radix.equinor.com
+  leaderId: ""
+  logLevel: info
+  logPrettyPrint: false
+  port: 9443
+  metricsPort: 9000
+  healthPort: 9440
+  # Mount path for the cert-manager generated webhook serving certificate
+  certsDir: /run/certs
+
+webhook:
+  failurePolicy: Fail
+  timeoutSeconds: 10
+  # Namespaces where RadixApplications are not mutated
+  excludedNamespaces:
+    - kube-system
+
+certificate:
+  # Duration and renewal window for the webhook serving certificate
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days
+  ca:
+    # Duration and renewal window for the self-signed CA certificate
+    duration: 87600h # 10 years
+    renewBefore: 720h # 30 days
+    commonName: radix-easyauth-ca
+    organization: Radix EasyAuth CA
+
+resources:
+  limits:
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  privileged: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}

@@ -1,0 +1,10 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "radix-easyauth.clusterScopedName" . }}-radixapplication
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["radix.equinor.com"]
+    resources: ["radixapplications"]
+    verbs: ["get", "list", "watch"]

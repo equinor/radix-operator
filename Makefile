@@ -222,11 +222,24 @@ HELM-ARGS:= \
 	--set config.apiServer.authenticators.azure.issuer=https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/ \
 	--set config.apiServer.authenticators.azure.audience=6dae42f8-4368-4678-94ff-3960e28e3630
 
-lint-helm: bootstrap
+.PHONY: lint-helm
+lint-helm: lint-helm-operator lint-helm-easyauth
+
+.PHONY: lint-helm-operator
+lint-helm-operator: bootstrap
 	helm lint ./charts/radix-operator $(HELM-ARGS)
-		
+
+.PHONY: lint-helm-easyauth
+lint-helm-easyauth: bootstrap
+	helm lint ./charts/radix-easyauth $(EASYAUTH-HELM-ARGS)
+
+.PHONY: helm-render
 helm-render:
 	helm template ./charts/radix-operator $(HELM-ARGS)
+
+.PHONY: helm-render-easyauth
+helm-render-easyauth:
+	helm template ./charts/radix-easyauth $(EASYAUTH-HELM-ARGS)
 
 .PHONY: generate
 generate: bootstrap bootstrap-e2e code-gen helmresources mocks swagger
