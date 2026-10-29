@@ -271,6 +271,12 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 
 `dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
 
+The chart templates `mutating_webhook.yaml` and `validating_webhook.yaml` are generated from the `+kubebuilder:webhook`
+markers in `internal/defaulter` and `internal/validator` by `make helmresources`, with
+[helmify-easyauth-mutating-webhook.sh](../hack/helmify-easyauth-mutating-webhook.sh) and
+[helmify-easyauth-validating-webhook.sh](../hack/helmify-easyauth-validating-webhook.sh) adding the Helm template
+expressions. Do not edit them by hand.
+
 The webhook serving certificate is issued by cert-manager, which also injects the CA bundle into the webhook
 configurations.
 

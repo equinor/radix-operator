@@ -19,6 +19,7 @@ webhooks:
   failurePolicy: {{ .Values.webhook.failurePolicy }}
   matchPolicy: Equivalent
   name: radixapplication.mutate.easyauth.radix.equinor.com
+  reinvocationPolicy: IfNeeded
   rules:
   - apiGroups:
     - radix.equinor.com
@@ -31,7 +32,6 @@ webhooks:
     - radixapplications
     scope: Namespaced
   sideEffects: None
-  reinvocationPolicy: IfNeeded
   timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}
   namespaceSelector:
     matchExpressions:

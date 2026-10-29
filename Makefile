@@ -2,6 +2,7 @@ ENVIRONMENT ?= dev
 VERSION 	?= dev
 CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
+EASYAUTH_CHART_DIR := ./charts/radix-easyauth/templates/
 JSON_SCHEMA_DIR := ./json-schema/
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
@@ -145,7 +146,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: helmresources
-helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixjob-crd radixwebhook delete-temp-resources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixjob-crd radixwebhook easyauth-webhook delete-temp-resources
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-resources
@@ -184,12 +185,20 @@ radixjob-crd: temp-resources
 radixwebhook: temp-resources
 	cp $(CRD_TEMP_DIR)radix-webhook-configuration.yaml $(CRD_CHART_DIR)radix-webhook-configuration.yaml
 
+.PHONY: easyauth-webhook
+easyauth-webhook: temp-resources
+	cp $(CRD_TEMP_DIR)easyauth-mutating-webhook.yaml $(EASYAUTH_CHART_DIR)mutating_webhook.yaml
+	cp $(CRD_TEMP_DIR)easyauth-validating-webhook.yaml $(EASYAUTH_CHART_DIR)validating_webhook.yaml
+
 .PHONY: temp-resources
 temp-resources: bootstrap
 	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
 	controller-gen +webhook paths=./webhook/validation/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
-	controller-gen +crd +webhook paths="./easyauth/webhook" paths="./pkg/apis/radix/v1" output:crd:artifacts:config=config/crd/bases
+	controller-gen +webhook paths=./easyauth/internal/defaulter/ output:stdout > $(CRD_TEMP_DIR)easyauth-mutating-webhook.yaml
+	controller-gen +webhook paths=./easyauth/internal/validator/ output:stdout > $(CRD_TEMP_DIR)easyauth-validating-webhook.yaml
 	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
+	./hack/helmify-easyauth-mutating-webhook.sh $(CRD_TEMP_DIR)easyauth-mutating-webhook.yaml
+	./hack/helmify-easyauth-validating-webhook.sh $(CRD_TEMP_DIR)easyauth-validating-webhook.yaml
 
 .PHONY: delete-temp-resources
 delete-temp-resources:
@@ -224,6 +233,9 @@ HELM-ARGS:= \
 	--set config.apiServer.authenticators.azure.audience=6dae42f8-4368-4678-94ff-3960e28e3630
 
 EASYAUTH-HELM-ARGS:= \
+	--set config.clusterName=mycluster \
+	--set config.dnsZone=radix.example.com \
+	--set config.appAliasBaseURL=app.radix.example.com \
 	--set dex.storage.postgres.host=postgres.example.com \
 	--set dex.storage.postgres.passwordSecret.name=dex-postgres \
 	--set dex.httpRoute.parentRefs[0].name=gateway
