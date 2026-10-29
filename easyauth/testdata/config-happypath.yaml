@@ -1,0 +1,11 @@
+enforced: true
+annotation: radix.equinor.com/easyauth
+issuerUrl: https://simpleauth.dev.radix.equinor.com
+enableLeaderElection: true
+leaderId: radix-easyauth.easyauth.radix.equinor.com
+logLevel: debug
+logPrettyPrint: true
+port: 9443
+metricsPort: 9000
+healthPort: 9440
+certsDir: /run/certs

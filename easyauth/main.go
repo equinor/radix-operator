@@ -89,7 +89,8 @@ func main() {
 
 	// Register the custom mutating webhook
 	err = defaulter.RegisterWithManager(mgr, &defaulter.RadixApplicationDefaulter{
-		Annotation: cfg.Annotation,
+		Annotation:      cfg.Annotation,
+		OAuth2IssuerURL: cfg.IssuerURL,
 	})
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to create webhook")

@@ -33,6 +33,9 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	_ = logf.FromContext(ctx)
 
 	// TODO(user): your logic here
+	// - Ensure Application have a client in Dex
+	// - Ensure Secrets are rotated if needed and synced
+	// - Ensure All radixdeployments belonging to the application have correct oauth2 config
 
 	return ctrl.Result{}, nil
 }

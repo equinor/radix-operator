@@ -5,3 +5,6 @@ image:
 config:
   logLevel: debug
   logPrettyPrint: true
+  # Must match easyAuthOAuth2IssuerURL in radix_easyauth_test.go
+  oauth2:
+    issuerUrl: https://simpleauth.dev.radix.equinor.com

@@ -20,6 +20,7 @@ config:
   # When true, applying a RadixApplication without requiredAnnotation is rejected by the validating webhook
   enforced: false
   annotation: radix.equinor.com/easyauth
+  issuerUrl: https://simpleauth.dev.radix.equinor.com
   enableLeaderElection: true
   # Lease name used for leader election. Must be unique per release within the namespace.
   # Defaults to <fullname>.easyauth.radix.equinor.com
