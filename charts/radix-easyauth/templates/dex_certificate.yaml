@@ -1,4 +1,3 @@
-{{- if .Values.dex.enabled }}
 # Dex gRPC API serving certificate. Its ca.crt is also used by Dex to verify client certificates.
 {{- $svc := include "radix-easyauth.dex.fullname" . }}
 apiVersion: cert-manager.io/v1
@@ -56,4 +55,3 @@ spec:
     name: {{ include "radix-easyauth.webhookIssuerName" . }}
     kind: Issuer
     group: cert-manager.io
-{{- end }}

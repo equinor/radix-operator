@@ -12,7 +12,7 @@ import (
 
 const Path = "/radix/v1/radixapplication/validate"
 
-// +kubebuilder:webhook:name=radixapplication.validate.easyauth.radix.equinor.com,path=/radix/v1/radixapplication/validate,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixapplications,verbs=create;update,versions=v1,admissionReviewVersions={v1}
+// +kubebuilder:webhook:name=radixapplication.validate.easyauth.radix.equinor.com,path=/radix/v1/radixapplication/validate,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,servicePort=443,groups=radix.equinor.com,resources=radixapplications,verbs=create;update,versions=v1,admissionReviewVersions={v1}
 
 // RadixApplicationValidator rejects RadixApplications missing the required annotation when Enforced is true
 type RadixApplicationValidator struct {

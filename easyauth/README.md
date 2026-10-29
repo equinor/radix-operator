@@ -16,12 +16,13 @@ metadata:
 EasyAuth runs as a separate deployment, installed with the [radix-easyauth](../charts/radix-easyauth) Helm chart.
 It consists of:
 
-| Part               | Status      | Responsibility                                                                                    |
-| ------------------ | ----------- | ------------------------------------------------------------------------------------------------- |
-| Mutating webhook   | Implemented | Overrides the OAuth2 configuration of public components                                           |
-| Validating webhook | Implemented | Optionally rejects `RadixApplications` without the annotation                                     |
-| Dex                | Implemented | OIDC provider that users log in to, installed by the chart when `dex.enabled` is `true`           |
-| Controller         | Partial     | Keeps the OAuth2 client secret and `RadixDeployments` in sync with each `RadixApplication`         |
+| Part               | Status      | Responsibility                                                                                   |
+| ------------------ | ----------- | ------------------------------------------------------------------------------------------------ |
+| Mutating webhook   | Implemented | Overrides the OAuth2 configuration of public components                                          |
+| Validating webhook | Implemented | Optionally rejects `RadixApplications` without the annotation                                    |
+| Dex                | Implemented | OIDC provider that users log in to, installed by the chart. Required                             |
+| Controller         | Implemented | Keeps an OAuth2 client in Dex, the client secret and `RadixDeployments` in sync with each app    |
+| Cleanup loop       | Implemented | Deletes Dex clients that no longer belong to an application, when `config.cleanupEnabled` is set |
 
 The webhooks and the controller run in the same process and Deployment, so they always share configuration and
 version. The webhooks are served by every replica, while the controller only runs on the leader. Since the webhooks
@@ -45,7 +46,7 @@ changed, and `RadixApplications` without the annotation are left untouched.
 ```yaml
 authentication:
   oauth2:
-    clientId: <app name>.dev.radix.equinor.com
+    clientId: easyauth.<appID>
     credentials: secret
     scope: openid profile email offline_access
     setAuthorizationHeader: false
@@ -57,8 +58,9 @@ authentication:
 The webhook only rewrites the `RadixApplication`, it has no side effects (`sideEffects: None`). Everything that
 talks to Dex or creates secrets belongs in the controller.
 
-The client ID is temporary. When the controller is implemented, the webhook will set the client ID described in
-[Client ID](#client-id), which requires it to read the `RadixRegistration` of the application.
+The client ID is described in [Client ID](#client-id). The webhook reads the `RadixRegistration` of the
+application from the API server, not a cache, since it may have just been created. The request is rejected if the
+`RadixRegistration` doesn't exist or has no AppID.
 
 ## Validating webhook
 
@@ -70,34 +72,43 @@ the annotation, making EasyAuth mandatory for all applications in the cluster.
 Reconciles `RadixApplications` with the annotation. `RadixApplications` without the annotation are ignored. For
 each application it:
 
-1. **Ensures a client secret.** Reads the Secret `easyauth-client-secret` (key `ClientSecret`) in the app namespace
-   (`<app>-app`), and generates a random value if the Secret or value is missing. The Secret is owned by the
-   `RadixApplication`, so it is deleted together with it.
-2. **Syncs the client secret to public components.** For every public component in every environment, writes the
+1. **Reads the AppID** from the `RadixRegistration` with the same name, and builds the [client ID](#client-id).
+2. **Ensures the Dex client** with the [reconcile loop](#reconcile-loop), and gets the client secret from Dex.
+3. **Syncs the client secret to public components.** For every public component in every environment, writes the
    client secret to the `ClientSecret` key of the OAuth2 proxy Secret (`<component>-aux-oauth-*`). The OAuth2 proxy
    Secret is created by radix-operator when the component is deployed, and is skipped until it exists. Other keys,
    like `CookieSecret`, are not changed.
-3. **Syncs the OAuth2 config to `RadixDeployments`.** Sets the OAuth2 configuration from the
+4. **Syncs the OAuth2 config to `RadixDeployments`.** Sets the OAuth2 configuration from the
    [mutating webhook](#mutating-webhook) on the public components of every `RadixDeployment`, active and inactive,
    in the environments of the application. This covers `RadixDeployments` created before the annotation was added,
    and inactive `RadixDeployments` that may be promoted later. radix-operator redeploys active `RadixDeployments`
    when they change. The patch uses optimistic locking, and is retried on conflict.
-4. Requeues every hour to correct drift.
+5. Requeues every hour to correct drift. Errors, for example when Dex is unavailable, are retried with backoff.
 
 Only Secrets and `RadixDeployments` in the environment namespaces of the application's `RadixApplication` are
-changed. The controller also watches `RadixDeployments` and OAuth2 proxy Secrets, mapped to their application by
-the `radix-app` label, so new deployments get the client secret without waiting for the next resync. Only OAuth2
-proxy Secrets (label `radix-aux-component-type=oauth`) are cached.
+changed. The controller also watches `RadixDeployments` (spec changes and activation) and OAuth2 proxy Secrets,
+mapped to their application by the `radix-app` label, so new deployments and hosts are handled without waiting for
+the next resync. Only OAuth2 proxy Secrets (label `radix-aux-component-type=oauth`) are cached.
 
-The client secret is generated locally for now. When the [Dex integration](#dex-integration-planned) is
-implemented, Dex becomes the source of truth for the secret, and the Secret in the app namespace is replaced.
+The OAuth2 proxy reads the client secret at startup. When the controller changes an existing client secret, for
+example after the Dex client was recreated or the value was changed by a user, it restarts the OAuth2 proxy:
 
-The OAuth2 proxy reads the client secret at startup, so a changed client secret is only picked up when the
-OAuth2 proxy pods are restarted.
+1. Sets the annotation `easyauth.radix.equinor.com/restart-pending` on the OAuth2 proxy Secret, in the same patch as
+   the new client secret, so a failed restart is retried by the next reconcile.
+2. Sets `easyauth.radix.equinor.com/restartedAt` on the pod template of the OAuth2 proxy Deployment
+   (`<component>-aux-oauth`), which rolls the pods like `kubectl rollout restart`. This is the same as restarting
+   the OAuth2 proxy in the Radix API, which uses `radixapi/restartedAt`.
+3. Removes `restart-pending` from the Secret.
+
+The OAuth2 proxy is not restarted when the client secret is set for the first time, since its container can't
+start until the key exists, and starts with the new value when it does. radix-operator doesn't know about the
+`restartedAt` annotation and removes it the next time it syncs the `RadixDeployment`, which rolls the pods once more.
+The Deployment is patched without being read, so Deployments are not cached and EasyAuth only needs the `patch`
+permission on them.
 
 ## Dex
 
-The chart installs Dex when `dex.enabled` is `true`:
+The chart always installs Dex, since EasyAuth stores OAuth2 clients in it:
 
 | Resource                       | Purpose                                                                                            |
 | ------------------------------ | -------------------------------------------------------------------------------------------------- |
@@ -125,7 +136,7 @@ The chart installs Dex when `dex.enabled` is `true`:
 - **Image entrypoint:** the container runs the `dex` binary directly instead of the image entrypoint, which
   renders the config with gomplate into `/tmp` and doesn't work with a read-only root filesystem.
 
-## Dex integration (planned)
+## Dex integration
 
 Dex needs one OAuth2 client per application, with redirect URIs for every public host of the application. The
 EasyAuth controller keeps these clients in sync using the [Dex gRPC API](https://dexidp.io/docs/configuration/api/).
@@ -175,11 +186,19 @@ For each `RadixApplication` with the annotation, the controller:
 
 1. Reads the AppID from the `RadixRegistration` with the same name.
 2. Builds the desired client: the [client ID](#client-id), the application name as `name`, and a redirect URI
-   `https://<host>/oauth2/callback` for every public host of every public component in every environment.
+   `https://<host>/oauth2/callback` for every public host of the active `RadixDeployment` in each environment of the
+   application. The hosts are built the same way as radix-operator builds the hosts of its HTTPRoutes, from
+   `config.clusterName`, `config.dnsZone` and `config.appAliasBaseURL`: the cluster, active cluster, app alias and
+   external DNS hosts of each public component, and the `dnsAlias` entries of the `RadixApplication` for the
+   component and environment. Since the hosts don't depend on the HTTPRoutes, redirect URIs are in Dex before the
+   routes are ready.
 3. Calls `GetClient`:
-   - `not_found`: generates a secret and calls `CreateClient`.
+   - Not found: generates a secret and calls `CreateClient`. If the client was created concurrently, for example by
+     another cluster, it is read again with `GetClient`. Dex returns a missing client as gRPC `Unknown` with the
+     message `not found`, which is handled the same as `NotFound`.
    - Found: calls `UpdateClient` if redirect URIs are missing or the name differs, and keeps the existing secret.
      Existing redirect URIs are kept, see [Multiple clusters](#multiple-clusters).
+   - Other errors: nothing is created, and the reconcile is retried.
 4. Writes the client secret from Dex to the OAuth2 client secret of each public component, so the OAuth2 proxy can
    authenticate against Dex.
 5. Requeues periodically to correct drift, and retries with backoff if Dex is unavailable.
@@ -192,8 +211,11 @@ the cleanup loop below.
 The controller does not use a finalizer. A periodic loop instead deletes clients that are no longer needed:
 
 1. Calls `ListClients`, and keeps the clients with the `easyauth.` prefix.
-2. Builds the set of AppIDs for `RadixApplications` that have the annotation, from the informer cache.
+2. Builds the set of AppIDs for `RadixApplications` that have the annotation, from the informer cache. The AppID is
+   read from the `RadixRegistration` with the same name.
 3. Deletes every client whose AppID is not in the set.
+
+The loop runs right after the cache has synced, and then every `config.cleanupInterval`.
 
 This covers a deleted `RadixApplication` or `RadixRegistration`, a removed annotation, and an application that
 was deleted and recreated with the same name.
@@ -236,13 +258,18 @@ running an application share one client. The controller must therefore:
 Configured with the `config` section in the Helm chart [values](../charts/radix-easyauth/values.yaml), which is
 rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 
-| Value                       | Description                                              |
-| --------------------------- | -------------------------------------------------------- |
-| `annotation`                | Annotation that enables EasyAuth on a `RadixApplication` |
-| `enforced`                  | Reject `RadixApplications` without the annotation        |
-| `issuerUrl`                 | OIDC issuer URL of Dex, set on all public components     |
-| `cleanupEnabled` (planned)  | Run the [cleanup loop](#cleanup-loop) in this cluster    |
-| `cleanupInterval` (planned) | How often the [cleanup loop](#cleanup-loop) runs         |
+| Value             | Description                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| `annotation`      | Annotation that enables EasyAuth on a `RadixApplication`                                |
+| `enforced`        | Reject `RadixApplications` without the annotation                                       |
+| `issuerUrl`       | OIDC issuer URL of Dex, set on all public components                                    |
+| `clusterName`     | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required    |
+| `dnsZone`         | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                   |
+| `appAliasBaseURL` | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required |
+| `cleanupEnabled`  | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `false`              |
+| `cleanupInterval` | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled |
+
+`dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
 
 The webhook serving certificate is issued by cert-manager, which also injects the CA bundle into the webhook
 configurations.
@@ -251,7 +278,6 @@ Dex is configured with the `dex` section:
 
 | Value                       | Description                                                               |
 | --------------------------- | ------------------------------------------------------------------------- |
-| `dex.enabled`               | Install Dex. Defaults to `false`                                          |
 | `dex.storage.postgres`      | Postgres host, port, database, user, password Secret and SSL mode         |
 | `dex.config`                | Free-form Dex configuration, for example connectors and `oauth2` settings |
 | `dex.extraEnv`              | Additional environment variables, for example connector client secrets    |
@@ -260,10 +286,15 @@ Dex is configured with the `dex` section:
 
 ## Testing
 
-- Unit tests: `go test ./easyauth/...`
+- Unit tests: `go test ./easyauth/...`. Dex is replaced by an in-memory fake (`internal/dex/dextest`), and the
+  mTLS connection is tested against an in-process gRPC server.
 - End-to-end tests: `e2e/radix_easyauth_test.go`, see the [e2e README](../e2e/README.md). The e2e setup installs
   cert-manager, a throwaway Postgres (`e2e/testdata/dex-postgres.yaml`) and the radix-easyauth chart with Dex in the
-  kind cluster, and waits for Dex to be ready.
+  kind cluster, and waits for Dex to be ready. The issuer is the in-cluster Dex Service, and Dex has a static
+  password user. The pipeline test logs in as that user through port forwards to the OAuth2 proxy and Dex pods, and
+  verifies that the web component is reached. It also verifies that unauthenticated requests, forged session cookies,
+  wrong passwords, unknown users and cancelled approvals are rejected. Dex always shows the approval screen, since
+  the OAuth2 proxy sends `approval_prompt=force`, which overrides `oauth2.skipApprovalScreen` in Dex.
 
 ## References
 

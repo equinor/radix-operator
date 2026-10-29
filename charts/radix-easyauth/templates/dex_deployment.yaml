@@ -1,4 +1,3 @@
-{{- if .Values.dex.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -108,4 +107,3 @@ spec:
             - name: grpc-tls
               mountPath: /etc/dex/grpc
               readOnly: true
-{{- end }}

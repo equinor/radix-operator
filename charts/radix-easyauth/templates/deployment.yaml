@@ -63,12 +63,10 @@ spec:
           secret:
             # Populated by cert-manager
             secretName: {{ include "radix-easyauth.servingCertificateSecretName" . }}
-        {{- if .Values.dex.enabled }}
         - name: dex-client-certs
           secret:
             # Populated by cert-manager
             secretName: {{ include "radix-easyauth.dex.grpcClientCertificateSecretName" . }}
-        {{- end }}
       containers:
         - name: easyauth
           image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
@@ -112,8 +110,6 @@ spec:
             - name: webhook-certs
               mountPath: {{ .Values.config.certsDir }}
               readOnly: true
-            {{- if .Values.dex.enabled }}
             - name: dex-client-certs
               mountPath: {{ include "radix-easyauth.dex.clientCertsDir" . }}
               readOnly: true
-            {{- end }}

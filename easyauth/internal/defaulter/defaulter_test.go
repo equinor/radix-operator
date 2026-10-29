@@ -4,20 +4,38 @@ import (
 	"context"
 	"testing"
 
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
 )
 
 const (
 	annotation = "radix.equinor.com/easyauth"
 	issuerURL  = "https://simpleauth.example.com"
+	appID      = "01JABCDEFGHJKMNPQRSTVWXYZ0"
 )
 
-func expectedOAuth2(appName string) *radixv1.OAuth2 {
+func newDefaulter(objs ...client.Object) *RadixApplicationDefaulter {
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
+	return &RadixApplicationDefaulter{Client: c, Annotation: annotation, OAuth2IssuerURL: issuerURL}
+}
+
+func newRR(appName, id string) *radixv1.RadixRegistration {
+	rr := &radixv1.RadixRegistration{Name: appName}
+	if id != "" {
+		rr.Spec.AppID = radixv1.ULID{ULID: ulid.MustParse(id)}
+	}
+	return rr
+}
+
+func expectedOAuth2() *radixv1.OAuth2 {
 	return &radixv1.OAuth2{
-		ClientID:               appName + ".dev.radix.equinor.com",
+		ClientID:               "easyauth." + appID,
 		Credentials:            radixv1.Secret,
 		Scope:                  "openid profile email offline_access",
 		SetAuthorizationHeader: new(false),
@@ -51,13 +69,13 @@ func TestDefault_OverridesOAuth2OnPublicComponents(t *testing.T) {
 		},
 	}
 
-	d := &RadixApplicationDefaulter{Annotation: annotation, OAuth2IssuerURL: issuerURL}
+	d := newDefaulter(newRR("my-app", appID))
 	require.NoError(t, d.Default(context.Background(), ra))
 
 	for _, name := range []string{"public-port", "public-deprecated", "public-existing-oauth"} {
 		component := findComponent(t, ra, name)
 		require.NotNil(t, component.Authentication, name)
-		assert.Equal(t, expectedOAuth2("my-app"), component.Authentication.OAuth2, name)
+		assert.Equal(t, expectedOAuth2(), component.Authentication.OAuth2, name)
 	}
 
 	envConfigs := findComponent(t, ra, "public-existing-oauth").EnvironmentConfig
@@ -76,9 +94,30 @@ func TestDefault_WithoutAnnotationDoesNothing(t *testing.T) {
 	}
 	expected := ra.DeepCopy()
 
-	d := &RadixApplicationDefaulter{Annotation: annotation, OAuth2IssuerURL: issuerURL}
+	// No RadixRegistration, since it is not read for RadixApplications without the annotation
+	d := newDefaulter()
 	require.NoError(t, d.Default(context.Background(), ra))
 	assert.Equal(t, expected, ra)
+}
+
+func TestDefault_FailsWithoutAppID(t *testing.T) {
+	tests := map[string][]client.Object{
+		"RadixRegistration not found":     nil,
+		"RadixRegistration without appID": {newRR("my-app", "")},
+	}
+	for name, objs := range tests {
+		t.Run(name, func(t *testing.T) {
+			ra := &radixv1.RadixApplication{
+				Name:        "my-app",
+				Annotations: map[string]string{annotation: ""},
+				Spec: radixv1.RadixApplicationSpec{
+					Components: []radixv1.RadixComponent{{Name: "web", PublicPort: "http"}},
+				},
+			}
+			d := newDefaulter(objs...)
+			assert.Error(t, d.Default(context.Background(), ra))
+		})
+	}
 }
 
 func findComponent(t *testing.T, ra *radixv1.RadixApplication, name string) *radixv1.RadixComponent {

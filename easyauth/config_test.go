@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,9 @@ func TestParse_HappyPath(t *testing.T) {
 		Enforced:             true,
 		Annotation:           "radix.equinor.com/easyauth",
 		IssuerURL:            "https://simpleauth.dev.radix.equinor.com",
+		ClusterName:          "weekly-01",
+		DNSZone:              "dev.radix.equinor.com",
+		AppAliasBaseURL:      "app.dev.radix.equinor.com",
 		EnableLeaderElection: true,
 		LeaderId:             "radix-easyauth.easyauth.radix.equinor.com",
 		LogLevel:             "debug",
@@ -44,6 +48,8 @@ func TestParse_HappyPath(t *testing.T) {
 			GRPCAddress: "radix-easyauth-dex.radix-easyauth.svc:5557",
 			CertsDir:    "/run/dex-client-certs",
 		},
+		CleanupEnabled:  true,
+		CleanupInterval: time.Hour,
 	}
 	assert.Equal(t, expected, cfg)
 }
@@ -80,6 +86,18 @@ func TestParse_Validation(t *testing.T) {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.IssuerURL = "" },
 			expectedError: `field "IssuerURL" is required but not set`,
 		},
+		"missing clusterName should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.ClusterName = "" },
+			expectedError: `field "ClusterName" is required but not set`,
+		},
+		"missing dnsZone should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.DNSZone = "" },
+			expectedError: `field "DNSZone" is required but not set`,
+		},
+		"missing appAliasBaseURL should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.AppAliasBaseURL = "" },
+			expectedError: `field "AppAliasBaseURL" is required but not set`,
+		},
 		"missing logLevel should fail": {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.LogLevel = "" },
 			expectedError: `field "LogLevel" is required but not set`,
@@ -99,6 +117,32 @@ func TestParse_Validation(t *testing.T) {
 		"missing certsDir should fail": {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.CertsDir = "" },
 			expectedError: `field "CertsDir" is required but not set`,
+		},
+		"missing dex should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.Dex = DexConfig{} },
+			expectedError: `field "Dex" is required but not set`,
+		},
+		"missing dex grpcAddress should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.Dex.GRPCAddress = "" },
+			expectedError: `field "Dex.GRPCAddress" is required but not set`,
+		},
+		"missing dex certsDir should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.Dex.CertsDir = "" },
+			expectedError: `field "Dex.CertsDir" is required but not set`,
+		},
+		"cleanup enabled without interval should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.CleanupInterval = 0 },
+			expectedError: `field "CleanupEnabled" did not pass validation expression`,
+		},
+		"cleanup enabled with interval below 1m should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.CleanupInterval = 30 * time.Second },
+			expectedError: `field "CleanupEnabled" did not pass validation expression`,
+		},
+		"cleanup disabled without interval should pass": {
+			mutate: func(cfg *EasyAuthConfig) {
+				cfg.CleanupEnabled = false
+				cfg.CleanupInterval = 0
+			},
 		},
 	}
 

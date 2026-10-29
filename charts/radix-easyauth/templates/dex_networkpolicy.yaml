@@ -1,4 +1,4 @@
-{{- if and .Values.dex.enabled .Values.dex.networkPolicy.enabled }}
+{{- if .Values.dex.networkPolicy.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

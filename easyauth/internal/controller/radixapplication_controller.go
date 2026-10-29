@@ -3,11 +3,14 @@ package controller
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
+	api "github.com/dexidp/dex/api/v2"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,25 +18,29 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
+	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	radixdeployment "github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/uncachedclient"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	// ClientSecretName is the name of the Secret in the app namespace that holds the OAuth2 client secret of the application
-	ClientSecretName = "easyauth-client-secret"
-	// ClientSecretKey is the key in ClientSecretName that holds the OAuth2 client secret
+	// ClientSecretKey is the key in the OAuth2 proxy Secret that holds the OAuth2 client secret
 	ClientSecretKey = defaults.OAuthClientSecretKeyName
+	// RestartPendingAnnotation is set on the OAuth2 proxy Secret when the client secret has changed, until the OAuth2 proxy is restarted
+	RestartPendingAnnotation = "easyauth.radix.equinor.com/restart-pending"
+	// RestartedAtAnnotation is set on the pod template of the OAuth2 proxy Deployment to restart it
+	RestartedAtAnnotation = "easyauth.radix.equinor.com/restartedAt"
 
 	DefaultResyncInterval = time.Hour
 )
@@ -41,24 +48,31 @@ const (
 // RadixApplicationReconciler reconciles a RadixApplication object
 type RadixApplicationReconciler struct {
 	client.Client
-	// APIReader reads objects that are not in the manager cache, like the client secret in the app namespace
-	APIReader client.Reader
-	Scheme    *runtime.Scheme
+	Scheme *runtime.Scheme
+	// Dex gRPC API, where the OAuth2 client of each application is stored
+	Dex api.DexClient
 	// Annotation that enables EasyAuth on a RadixApplication
 	Annotation string
 	// OIDC issuer URL set on the OAuth2 configuration of public components
 	OAuth2IssuerURL string
+	// Cluster name, DNS zone and app alias base URL of radix-operator, used to build the public hostnames of components
+	ClusterName     string
+	DNSZone         string
+	AppAliasBaseURL string
 	// How often each RadixApplication is reconciled to correct drift. Defaults to DefaultResyncInterval
 	ResyncInterval time.Duration
 }
 
 // +kubebuilder:rbac:groups=radix.equinor.com,resources=radixapplications,verbs=get;list;watch
+// +kubebuilder:rbac:groups=radix.equinor.com,resources=radixregistrations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=radix.equinor.com,resources=radixdeployments,verbs=get;list;watch;patch
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
 
-// Reconcile ensures that RadixApplications with the EasyAuth annotation have an OAuth2 client secret,
-// that the secret is synced to the OAuth2 proxy of each public component, and that all RadixDeployments
-// of the application have the EasyAuth OAuth2 configuration on their public components.
+// Reconcile ensures that RadixApplications with the EasyAuth annotation have an OAuth2 client in Dex with
+// redirect URIs for all public hosts, that the client secret from Dex is synced to the OAuth2 proxy of each
+// public component, and that all RadixDeployments of the application have the EasyAuth OAuth2 configuration
+// on their public components.
 func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.Ctx(ctx).With().Str("controller", "radixapplication").Str("radixApplication", req.String()).Logger()
 	ctx = logger.WithContext(ctx)
@@ -74,51 +88,79 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	clientSecret, err := r.ensureClientSecret(ctx, ra)
+	clientID, err := dex.ClientIDForApp(ctx, r.Client, ra.Name)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to ensure client secret: %w", err)
+		return ctrl.Result{}, err
 	}
 
-	if err := r.syncComponentSecrets(ctx, ra, clientSecret); err != nil {
+	redirectURIs, err := r.redirectURIs(ctx, ra)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get redirect URIs: %w", err)
+	}
+
+	clientSecret, err := dex.EnsureClient(ctx, r.Dex, clientID, ra.Name, redirectURIs)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.syncComponentSecrets(ctx, ra, []byte(clientSecret)); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to sync client secret to components: %w", err)
 	}
 
-	if err := r.syncRadixDeployments(ctx, ra); err != nil {
+	if err := r.syncRadixDeployments(ctx, ra, clientID); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to sync OAuth2 config to RadixDeployments: %w", err)
 	}
 
-	logger.Debug().Msg("Reconciled RadixApplication")
+	logger.Debug().Str("clientId", clientID).Msg("Reconciled RadixApplication")
 	return ctrl.Result{RequeueAfter: r.resyncInterval()}, nil
 }
 
-// ensureClientSecret returns the client secret of the application, and generates it if it doesn't exist
-func (r *RadixApplicationReconciler) ensureClientSecret(ctx context.Context, ra *radixv1.RadixApplication) ([]byte, error) {
-	secret := &corev1.Secret{Name: ClientSecretName, Namespace: ra.Namespace}
-	// The client secret is not in the manager cache, so CreateOrUpdate must read it from the API server
-	op, err := controllerutil.CreateOrUpdate(ctx, uncachedclient.New(r.Client, r.APIReader), secret, func() error {
-		if secret.Labels == nil {
-			secret.Labels = map[string]string{}
+// redirectURIs returns the OAuth2 callback URL for every public host of the active RadixDeployment in each environment
+// of the application. The hosts are the same as radix-operator creates HTTPRoutes for: the cluster, active cluster,
+// app alias and external DNS hosts of each public component, and the DNS aliases of the component in the environment.
+func (r *RadixApplicationReconciler) redirectURIs(ctx context.Context, ra *radixv1.RadixApplication) ([]string, error) {
+	var uris []string
+	for _, env := range ra.Spec.Environments {
+		rd, err := r.activeRadixDeployment(ctx, utils.GetEnvironmentNamespace(ra.Name, env.Name))
+		if err != nil {
+			return nil, fmt.Errorf("environment %s: %w", env.Name, err)
 		}
-		secret.Labels[kube.RadixAppLabel] = ra.Name
-		if secret.Type == "" {
-			secret.Type = corev1.SecretTypeOpaque
+		if rd == nil {
+			continue
 		}
-		if len(secret.Data[ClientSecretKey]) == 0 {
-			if secret.Data == nil {
-				secret.Data = map[string][]byte{}
+		for i := range rd.Spec.Components {
+			component := &rd.Spec.Components[i]
+			if !component.IsPublic() {
+				continue
 			}
-			secret.Data[ClientSecretKey] = generateClientSecret()
+			var hosts []string
+			hosts = append(hosts, radixdeployment.GetComponentFQDNs(component, *rd, r.ClusterName, r.DNSZone, r.AppAliasBaseURL)...)
+			for _, alias := range ra.Spec.DNSAlias {
+				if alias.Environment == env.Name && alias.Component == component.Name {
+					hosts = append(hosts, dnsalias.GetHostName(alias.Alias, r.DNSZone))
+				}
+			}
+			for _, host := range hosts {
+				uris = append(uris, dex.RedirectURI(host))
+			}
 		}
-		// Deleted together with the RadixApplication
-		return ctrl.SetControllerReference(ra, secret, r.Scheme)
-	})
-	if err != nil {
+	}
+	slices.Sort(uris)
+	return slices.Compact(uris), nil
+}
+
+// activeRadixDeployment returns the active RadixDeployment in namespace, or nil if there is none
+func (r *RadixApplicationReconciler) activeRadixDeployment(ctx context.Context, namespace string) (*radixv1.RadixDeployment, error) {
+	rdList := &radixv1.RadixDeploymentList{}
+	if err := r.List(ctx, rdList, client.InNamespace(namespace)); err != nil {
 		return nil, err
 	}
-	if op != controllerutil.OperationResultNone {
-		log.Ctx(ctx).Info().Str("secret", ClientSecretName).Str("operation", string(op)).Msg("Reconciled client secret")
+	for i := range rdList.Items {
+		if rdList.Items[i].IsActive() {
+			return &rdList.Items[i], nil
+		}
 	}
-	return secret.Data[ClientSecretKey], nil
+	return nil, nil
 }
 
 // syncComponentSecrets writes the client secret to the OAuth2 proxy Secret of each public component in each environment.
@@ -140,33 +182,75 @@ func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, r
 	return errors.Join(errs...)
 }
 
+// syncComponentSecret writes the client secret to the OAuth2 proxy Secret of a component, and restarts the OAuth2 proxy
+// when an existing client secret is changed, since the OAuth2 proxy only reads it at startup.
+// A missing client secret doesn't need a restart, since the OAuth2 proxy container can't start without it.
 func (r *RadixApplicationReconciler) syncComponentSecret(ctx context.Context, namespace, componentName string, clientSecret []byte) error {
 	name := utils.GetAuxiliaryComponentSecretName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, secret); err != nil {
 		return client.IgnoreNotFound(err)
 	}
-	if bytes.Equal(secret.Data[ClientSecretKey], clientSecret) {
-		return nil
+
+	if !bytes.Equal(secret.Data[ClientSecretKey], clientSecret) {
+		original := secret.DeepCopy()
+		// The pending restart is stored with the new value, so it is retried if the restart fails
+		if len(secret.Data[ClientSecretKey]) > 0 {
+			if secret.Annotations == nil {
+				secret.Annotations = map[string]string{}
+			}
+			secret.Annotations[RestartPendingAnnotation] = "true"
+		}
+		if secret.Data == nil {
+			secret.Data = map[string][]byte{}
+		}
+		secret.Data[ClientSecretKey] = clientSecret
+		if err := r.Patch(ctx, secret, client.MergeFrom(original)); err != nil {
+			return err
+		}
+		log.Ctx(ctx).Info().Str("namespace", namespace).Str("secret", name).Msg("Synced client secret")
 	}
 
-	original := secret.DeepCopy()
-	if secret.Data == nil {
-		secret.Data = map[string][]byte{}
+	if _, ok := secret.Annotations[RestartPendingAnnotation]; !ok {
+		return nil
 	}
-	secret.Data[ClientSecretKey] = clientSecret
-	if err := r.Patch(ctx, secret, client.MergeFrom(original)); err != nil {
+	if err := r.restartOAuthProxy(ctx, namespace, componentName); err != nil {
+		return fmt.Errorf("failed to restart OAuth2 proxy: %w", err)
+	}
+	original := secret.DeepCopy()
+	delete(secret.Annotations, RestartPendingAnnotation)
+	return r.Patch(ctx, secret, client.MergeFrom(original))
+}
+
+// restartOAuthProxy triggers a rollout of the OAuth2 proxy Deployment of a component, the same way as kubectl rollout restart.
+// radix-operator removes the annotation the next time it syncs the RadixDeployment, which causes one more rollout.
+func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, namespace, componentName string) error {
+	deployment := &appsv1.Deployment{
+		Name:      utils.GetAuxiliaryComponentDeploymentName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix),
+		Namespace: namespace,
+	}
+	patch, err := json.Marshal(map[string]any{
+		"spec": map[string]any{"template": map[string]any{"metadata": map[string]any{"annotations": map[string]string{
+			RestartedAtAnnotation: time.Now().UTC().Format(time.RFC3339),
+		}}}},
+	})
+	if err != nil {
 		return err
 	}
-	log.Ctx(ctx).Info().Str("namespace", namespace).Str("secret", name).Msg("Synced client secret")
+	// Patched without reading it first, so Deployments are not cached. A missing Deployment is created by
+	// radix-operator with the new client secret, and doesn't need a restart.
+	if err := r.Patch(ctx, deployment, client.RawPatch(types.MergePatchType, patch)); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	log.Ctx(ctx).Info().Str("namespace", namespace).Str("deployment", deployment.Name).Msg("Restarted OAuth2 proxy")
 	return nil
 }
 
 // syncRadixDeployments sets the EasyAuth OAuth2 config on public components of all RadixDeployments in the
 // environments of the application. This covers RadixDeployments created before the annotation was added,
 // and keeps inactive RadixDeployments correct in case they are promoted later.
-func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) error {
-	desired := defaulter.OAuth2Config(ra.Name, r.OAuth2IssuerURL)
+func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
+	desired := defaulter.OAuth2Config(clientID, r.OAuth2IssuerURL)
 
 	var errs []error
 	for _, env := range ra.Spec.Environments {
@@ -220,10 +304,6 @@ func (r *RadixApplicationReconciler) resyncInterval() time.Duration {
 	return DefaultResyncInterval
 }
 
-func generateClientSecret() []byte {
-	return []byte(rand.Text())
-}
-
 // isPublicDeployComponent mirrors how the operator determines if a deployed component is exposed to the internet
 func isPublicDeployComponent(component *radixv1.RadixDeployComponent) bool {
 	//nolint:staticcheck
@@ -239,6 +319,16 @@ func mapToRadixApplication(_ context.Context, obj client.Object) []reconcile.Req
 	return []reconcile.Request{{Namespace: utils.GetAppNamespace(appName), Name: appName}}
 }
 
+// conditionChangedPredicate triggers when a RadixDeployment becomes active or inactive, which is a status change
+// that doesn't change the generation
+var conditionChangedPredicate = predicate.Funcs{
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		oldRD, okOld := e.ObjectOld.(*radixv1.RadixDeployment)
+		newRD, okNew := e.ObjectNew.(*radixv1.RadixDeployment)
+		return okOld && okNew && oldRD.Status.Condition != newRD.Status.Condition
+	},
+}
+
 func isOAuthProxySecret(obj client.Object) bool {
 	return obj.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel] == radixv1.OAuthProxyAuxiliaryComponentType
 }
@@ -247,9 +337,10 @@ func isOAuthProxySecret(obj client.Object) bool {
 func (r *RadixApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&radixv1.RadixApplication{}).
+		// The public hosts, and therefore the redirect URIs in Dex, come from the active RadixDeployment
 		Watches(&radixv1.RadixDeployment{},
 			handler.EnqueueRequestsFromMapFunc(mapToRadixApplication),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			builder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, conditionChangedPredicate)),
 		).
 		// The OAuth2 proxy Secret is created by radix-operator after the RadixDeployment, so it must be watched to sync the client secret
 		Watches(&corev1.Secret{},

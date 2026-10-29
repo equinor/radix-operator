@@ -188,6 +188,7 @@ radixwebhook: temp-resources
 temp-resources: bootstrap
 	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
 	controller-gen +webhook paths=./webhook/validation/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
+	controller-gen +crd +webhook paths="./easyauth/webhook" paths="./pkg/apis/radix/v1" output:crd:artifacts:config=config/crd/bases
 	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
 
 .PHONY: delete-temp-resources
@@ -221,6 +222,11 @@ HELM-ARGS:= \
 	--set config.apiServer.prometheusUrl=http://prometheus.svc \
 	--set config.apiServer.authenticators.azure.issuer=https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/ \
 	--set config.apiServer.authenticators.azure.audience=6dae42f8-4368-4678-94ff-3960e28e3630
+
+EASYAUTH-HELM-ARGS:= \
+	--set dex.storage.postgres.host=postgres.example.com \
+	--set dex.storage.postgres.passwordSecret.name=dex-postgres \
+	--set dex.httpRoute.parentRefs[0].name=gateway
 
 .PHONY: lint-helm
 lint-helm: lint-helm-operator lint-helm-easyauth
@@ -284,7 +290,3 @@ bootstrap-e2e:
 	curl -fsSL -o $(E2E_ASSETS_DIR)/keda-crds.yaml https://github.com/kedacore/keda/releases/download/v$(E2E_KEDA_VERSION)/keda-$(E2E_KEDA_VERSION)-crds.yaml
 	curl -fsSL -o $(E2E_ASSETS_DIR)/prometheus-operator-stripped-down-crds.yaml https://github.com/prometheus-operator/prometheus-operator/releases/download/$(E2E_PROMETHEUS_OP_VERSION)/stripped-down-crds.yaml
 	curl -fsSL -o $(E2E_ASSETS_DIR)/gateway-api-standard-install.yaml https://github.com/kubernetes-sigs/gateway-api/releases/download/$(E2E_GATEWAY_API_VERSION)/standard-install.yaml
-
-.PHONY: manifests
-manifests: ## Generate WebhookConfiguration, ClusterRole and CRD objects.
-	controller-gen +crd +webhook paths="./easyauth/webhook" paths="./pkg/apis/radix/v1" output:crd:artifacts:config=config/crd/bases

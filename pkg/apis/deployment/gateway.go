@@ -123,6 +123,12 @@ func (deploy *Deployment) reconcileHTTPRouteComponent(ctx context.Context, compo
 	return nil
 }
 
+// GetComponentFQDNs returns the app alias, external DNS, active cluster and cluster hostnames of a public component,
+// the same hostnames that radix-operator creates HTTPRoutes for
+func GetComponentFQDNs(component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, clusterName, dnsZone, appAliasBaseURL string) []string {
+	return slice.Map(getComponentDNSInfo(component, rd, clusterName, dnsZone, appAliasBaseURL), func(host dnsInfo) string { return host.fqdn })
+}
+
 func getComponentDNSInfo(component radixv1.RadixCommonDeployComponent, rd radixv1.RadixDeployment, clusterName, dnsZone, appAliasBaseURL string) []dnsInfo {
 	var info []dnsInfo
 

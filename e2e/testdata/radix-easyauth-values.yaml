@@ -5,12 +5,16 @@ image:
 config:
   logLevel: debug
   logPrettyPrint: true
+  # The Dex Service, so the OAuth2 proxies in the cluster can reach the issuer without a gateway controller.
   # Must match easyAuthOAuth2IssuerURL in radix_easyauth_test.go
-  issuerUrl: https://simpleauth.dev.radix.equinor.com
+  issuerUrl: http://radix-easyauth-dex.radix-easyauth.svc:5556
+  # Must match config.common in radix-operator-values.yaml
+  clusterName: weekly-e2e
+  dnsZone: radix.example.com
+  appAliasBaseURL: app.example.com
 
 # Dex uses the throwaway Postgres from testdata/dex-postgres.yaml
 dex:
-  enabled: true
   replicaCount: 1
   storage:
     postgres:
@@ -20,10 +24,13 @@ dex:
       ssl:
         mode: disable
   config:
-    connectors:
-      - type: mockCallback
-        id: mock
-        name: Mock
+    # Static user for the login test in radix_easyauth_test.go. The hash is the bcrypt hash of easyAuthTestPassword.
+    enablePasswordDB: true
+    staticPasswords:
+      - email: e2e-user@example.com
+        hash: "$2a$10$Iq9ba6PxTcQcyDx8B18.LO80G/svq.NaAGYesqjYRsrw3nMY/phQy"
+        username: e2e-user
+        userID: faef31b9-22e5-41f0-9833-9f56397c1415
   httpRoute:
     # There is no gateway controller in the kind cluster, so the HTTPRoute is created but never accepted
     parentRefs:

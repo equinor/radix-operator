@@ -26,8 +26,10 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 
+	"github.com/equinor/radix-operator/easyauth/internal/cleanup"
 	"github.com/equinor/radix-operator/easyauth/internal/controller"
 	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
+	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/easyauth/internal/validator"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -100,8 +102,15 @@ func main() {
 		logger.Fatal().Err(err).Msg("Failed to start manager") // Exits
 	}
 
+	dexClient, dexConn, err := dex.NewClient(cfg.Dex.GRPCAddress, cfg.Dex.CertsDir)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create Dex client")
+	}
+	defer func() { _ = dexConn.Close() }()
+
 	// Register the custom mutating webhook
 	err = defaulter.RegisterWithManager(mgr, &defaulter.RadixApplicationDefaulter{
+		Client:          mgr.GetAPIReader(),
 		Annotation:      cfg.Annotation,
 		OAuth2IssuerURL: cfg.IssuerURL,
 	})
@@ -119,13 +128,29 @@ func main() {
 
 	err = (&controller.RadixApplicationReconciler{
 		Client:          mgr.GetClient(),
-		APIReader:       mgr.GetAPIReader(),
 		Scheme:          runtimeScheme,
+		Dex:             dexClient,
 		Annotation:      cfg.Annotation,
 		OAuth2IssuerURL: cfg.IssuerURL,
+		ClusterName:     cfg.ClusterName,
+		DNSZone:         cfg.DNSZone,
+		AppAliasBaseURL: cfg.AppAliasBaseURL,
 	}).SetupWithManager(mgr)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to register controller with manager")
+	}
+
+	if cfg.CleanupEnabled {
+		err = mgr.Add(&cleanup.DexClientCleaner{
+			Client:           mgr.GetClient(),
+			WaitForCacheSync: mgr.GetCache().WaitForCacheSync,
+			Dex:              dexClient,
+			Annotation:       cfg.Annotation,
+			Interval:         cfg.CleanupInterval,
+		})
+		if err != nil {
+			logger.Fatal().Err(err).Msg("unable to register Dex client cleanup with manager")
+		}
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

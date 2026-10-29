@@ -1,4 +1,4 @@
-{{- if and .Values.dex.enabled .Values.dex.httpRoute.enabled }}
+{{- if .Values.dex.httpRoute.enabled }}
 {{- if not .Values.dex.httpRoute.parentRefs }}
 {{- fail "dex.httpRoute.parentRefs must contain at least one Gateway or ListenerSet when dex.httpRoute.enabled is true" }}
 {{- end }}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,7 @@ func createRadixRegistrationAndNamespaceForTest(t *testing.T, c client.Client, a
 	rr := &v1.RadixRegistration{
 		Name: appName,
 		Spec: v1.RadixRegistrationSpec{
+			AppID:             v1.ULID{ULID: ulid.Make()},
 			CloneURL:          "git@github.com:equinor/" + appName + ".git",
 			AdGroups:          []string{"test-group"},
 			ConfigBranch:      "main",

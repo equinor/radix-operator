@@ -1,4 +1,3 @@
-{{- if .Values.dex.enabled }}
 {{- $pg := .Values.dex.storage.postgres }}
 {{- $user := omit (deepCopy .Values.dex.config) "issuer" "storage" "grpc" "telemetry" }}
 {{- $managed := dict
@@ -34,4 +33,3 @@ type: Opaque
 stringData:
   config.yaml: |
     {{- mergeOverwrite $user $managed | toYaml | nindent 4 }}
-{{- end }}

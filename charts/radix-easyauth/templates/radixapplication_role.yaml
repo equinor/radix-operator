@@ -6,11 +6,16 @@ metadata:
     {{- include "radix-easyauth.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["radix.equinor.com"]
-    resources: ["radixapplications"]
+    resources: ["radixapplications", "radixregistrations"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["radix.equinor.com"]
     resources: ["radixdeployments"]
     verbs: ["get", "list", "watch", "patch"]
+  # The client secret from Dex is written to the OAuth2 proxy Secrets created by radix-operator
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
+    verbs: ["get", "list", "watch", "patch"]
+  # Restarts the OAuth2 proxy when the client secret changes
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch"]
