@@ -53,6 +53,7 @@ authentication:
     scope: openid profile email offline_access
     setAuthorizationHeader: false
     setXAuthRequestHeaders: false
+    setUserHeaders: true
     oidc:
       issuerUrl: <config.issuerUrl>
 ```
@@ -84,7 +85,8 @@ each application it:
    [mutating webhook](#mutating-webhook) on the public components of every `RadixDeployment`, active and inactive,
    in the environments of the application. This covers `RadixDeployments` created before the annotation was added,
    and inactive `RadixDeployments` that may be promoted later. radix-operator redeploys active `RadixDeployments`
-   when they change. The patch uses optimistic locking, and is retried on conflict.
+   when they change. The patch uses optimistic locking. On a conflict, the `RadixDeployment` is read again and the
+   patch is retried with exponential backoff (up to 5 attempts, starting at 10ms and growing 5x).
 5. Requeues every hour to correct drift. Errors, for example when Dex is unavailable, are retried with backoff.
 
 Only Secrets and `RadixDeployments` in the environment namespaces of the application's `RadixApplication` are
@@ -273,7 +275,7 @@ running an application share one client. The controller must therefore:
   Stale redirect URIs, for example from a removed component, are removed when the client is deleted.
 - **Only run the cleanup loop in one cluster.** A cluster can't see which applications exist in other clusters,
   so it could delete a client another cluster still uses. The cleanup loop is enabled with `cleanupEnabled`,
-  which should only be `true` in the active cluster. If it deletes a client used by an application that only
+  which defaults to `true` and must be set to `false` in every cluster except the active one. If it deletes a client used by an application that only
   exists in another cluster, that cluster's reconcile loop recreates the client with a new secret, and logins for
   that application fail until it has done so.
 
@@ -297,7 +299,7 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 | `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
 | `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
 | `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
-| `cleanupEnabled`         | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `false`                                            |
+| `cleanupEnabled`         | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `true`, set to `false` in all but one cluster      |
 | `cleanupInterval`        | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled                               |
 | `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h` |
 

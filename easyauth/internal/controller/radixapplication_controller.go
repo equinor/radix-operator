@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -305,7 +306,22 @@ func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, r
 	return errors.Join(errs...)
 }
 
+// syncRadixDeployment patches rd with the desired OAuth2 config. On a conflict, the RadixDeployment is read again and
+// the patch is retried with exponential backoff.
 func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd *radixv1.RadixDeployment, desired *radixv1.OAuth2) error {
+	firstAttempt := true
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if !firstAttempt {
+			if err := r.Get(ctx, client.ObjectKeyFromObject(rd), rd); err != nil {
+				return client.IgnoreNotFound(err)
+			}
+		}
+		firstAttempt = false
+		return r.patchRadixDeployment(ctx, rd, desired)
+	})
+}
+
+func (r *RadixApplicationReconciler) patchRadixDeployment(ctx context.Context, rd *radixv1.RadixDeployment, desired *radixv1.OAuth2) error {
 	original := rd.DeepCopy()
 	changed := false
 	for i := range rd.Spec.Components {

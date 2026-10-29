@@ -40,6 +40,7 @@ func expectedOAuth2() *radixv1.OAuth2 {
 		Scope:                  "openid profile email offline_access",
 		SetAuthorizationHeader: new(false),
 		SetXAuthRequestHeaders: new(false),
+		SetUserHeaders:         new(true),
 		OIDC:                   &radixv1.OAuth2OIDC{IssuerURL: issuerURL},
 	}
 }

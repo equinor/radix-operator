@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -283,6 +285,56 @@ func TestReconcile_SetsOAuth2ConfigOnAllRadixDeployments(t *testing.T) {
 	assert.Equal(t, expected, getRD(t, r, devNs, "dev-inactive").Spec.Components[0].Authentication.OAuth2)
 	assert.Equal(t, expected, getRD(t, r, prodNs, "prod-active").Spec.Components[0].Authentication.OAuth2)
 	assert.Nil(t, getRD(t, r, "my-app-other", "other").Spec.Components[0].Authentication, "RadixDeployments outside the app environments must not be changed")
+}
+
+func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
+	rd := newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})
+	conflicts := 2
+	patches := 0
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
+		WithObjects(newRA(true), newRR(), rd).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				if _, ok := obj.(*radixv1.RadixDeployment); ok {
+					patches++
+					if patches <= conflicts {
+						return kerrors.NewConflict(schema.GroupResource{Resource: "radixdeployments"}, obj.GetName(), errors.New("modified"))
+					}
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).Build()
+	r := newReconcilerWithClient(c, dextest.NewFakeDex())
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	assert.Equal(t, conflicts+1, patches)
+	assert.Equal(t, defaulter.OAuth2Config(clientID, issuerURL), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+}
+
+func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {
+	rd := newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})
+	patches := 0
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
+		WithObjects(newRA(true), newRR(), rd).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				if _, ok := obj.(*radixv1.RadixDeployment); ok {
+					patches++
+					return kerrors.NewConflict(schema.GroupResource{Resource: "radixdeployments"}, obj.GetName(), errors.New("modified"))
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).Build()
+	r := newReconcilerWithClient(c, dextest.NewFakeDex())
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.Error(t, err)
+	var statusErr *kerrors.StatusError
+	require.ErrorAs(t, err, &statusErr)
+	assert.True(t, kerrors.IsConflict(statusErr))
+	assert.Equal(t, RadixDeploymentPatchBackoff.Steps, patches)
 }
 
 func TestReconcile_IsIdempotent(t *testing.T) {

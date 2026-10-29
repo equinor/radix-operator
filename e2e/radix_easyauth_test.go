@@ -161,6 +161,7 @@ func expectedEasyAuthOAuth2(appID v1.ULID) *v1.OAuth2 {
 		Scope:                  "openid profile email offline_access",
 		SetAuthorizationHeader: new(false),
 		SetXAuthRequestHeaders: new(false),
+		SetUserHeaders:         new(true),
 		OIDC:                   &v1.OAuth2OIDC{IssuerURL: easyAuthOAuth2IssuerURL},
 	}
 }
