@@ -17,6 +17,8 @@ jobs:
           - pipeline.Dockerfile
           - webhook.Dockerfile
           - job-scheduler.Dockerfile
+          - api-server.Dockerfile
+          - easyauth.Dockerfile
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Docker Buildx
@@ -112,3 +114,20 @@ jobs:
       - name: Helm Lint
         run: |
           helm lint charts/radix-operator --set rbac.createApp.groups[0]="group1"
+      - name: Helm Lint EasyAuth
+        env:
+          EASYAUTH_HELM_ARGS: >-
+            --set config.clusterName=mycluster
+            --set config.dnsZone=radix.example.com
+            --set config.appAliasBaseURL=app.radix.example.com
+            --set dex.storage.postgres.host=postgres.example.com
+            --set dex.storage.postgres.passwordSecret.name=dex-postgres
+            --set dex.httpRoute.parentRefs[0].name=gateway
+        run: |
+          helm lint charts/radix-easyauth $EASYAUTH_HELM_ARGS
+          helm lint charts/radix-easyauth $EASYAUTH_HELM_ARGS --set config.enforced=true
+          helm template radix-easyauth charts/radix-easyauth $EASYAUTH_HELM_ARGS > /dev/null
+      - name: Helm Package
+        run: |
+          helm package charts/radix-operator --destination "$RUNNER_TEMP" --version 0.0.0-pr --app-version 0.0.0-pr
+          helm package charts/radix-easyauth --destination "$RUNNER_TEMP" --version 0.0.0-pr --app-version 0.0.0-pr
