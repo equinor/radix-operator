@@ -10,6 +10,12 @@ data:
     {{- $chartValues := dict
       "leaderId" (.Values.config.leaderId | default (printf "%s.easyauth.radix.equinor.com" (include "radix-easyauth.fullname" .)))
     -}}
+    {{- if .Values.dex.enabled }}
+    {{- $_ := set $chartValues "dex" (dict
+      "grpcAddress" (include "radix-easyauth.dex.grpcAddress" .)
+      "certsDir" (include "radix-easyauth.dex.clientCertsDir" .)
+    ) }}
+    {{- end }}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

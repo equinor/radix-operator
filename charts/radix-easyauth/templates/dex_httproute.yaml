@@ -1,0 +1,29 @@
+{{- if and .Values.dex.enabled .Values.dex.httpRoute.enabled }}
+{{- if not .Values.dex.httpRoute.parentRefs }}
+{{- fail "dex.httpRoute.parentRefs must contain at least one Gateway or ListenerSet when dex.httpRoute.enabled is true" }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+  {{- with .Values.dex.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.dex.httpRoute.parentRefs | nindent 4 }}
+  hostnames:
+    - {{ (urlParse .Values.config.issuerUrl).hostname | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ include "radix-easyauth.dex.issuerPath" . }}
+      backendRefs:
+        - name: {{ include "radix-easyauth.dex.fullname" . }}
+          port: 5556
+{{- end }}

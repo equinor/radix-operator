@@ -20,6 +20,7 @@ It consists of:
 | ------------------ | ----------- | ------------------------------------------------------------------------------------------------- |
 | Mutating webhook   | Implemented | Overrides the OAuth2 configuration of public components                                           |
 | Validating webhook | Implemented | Optionally rejects `RadixApplications` without the annotation                                     |
+| Dex                | Implemented | OIDC provider that users log in to, installed by the chart when `dex.enabled` is `true`           |
 | Controller         | Planned     | Keeps an OAuth2 client in Dex and the client secret in Radix in sync with each `RadixApplication` |
 
 ## Mutating webhook
@@ -56,6 +57,36 @@ The client ID is temporary. When the controller is implemented, the webhook will
 
 Only installed when `config.enforced` is `true`. Rejects create and update of `RadixApplications` that do not have
 the annotation, making EasyAuth mandatory for all applications in the cluster.
+
+## Dex
+
+The chart installs Dex when `dex.enabled` is `true`:
+
+| Resource                       | Purpose                                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Deployment and Service         | Dex, with the HTTP (5556), gRPC API (5557) and telemetry (5558) ports                              |
+| Secret `<fullname>-dex-config` | Dex configuration, rendered from `config.issuerUrl`, `dex.storage` and the free-form `dex.config`  |
+| HTTPRoute                      | Exposes Dex on the host and path of `config.issuerUrl`, attached to `dex.httpRoute.parentRefs`     |
+| Certificates                   | gRPC serving certificate for Dex, and a client certificate for EasyAuth                            |
+| NetworkPolicy                  | Only EasyAuth pods can reach the gRPC port                                                         |
+| ServiceAccount                 | Without a token or roles, since Dex stores its data in Postgres and doesn't use the Kubernetes API |
+
+- **Issuer:** `config.issuerUrl` is both the Dex issuer and the issuer set on public components by the mutating
+  webhook, so they always match.
+- **Storage:** Dex stores clients, signing keys and sessions in Postgres (`dex.storage.postgres`). The password is
+  read from an existing Secret and passed to Dex as `$DEX_POSTGRES_PASSWORD`, which Dex expands in its config.
+- **Configuration:** connectors and other settings come from `dex.config`. `issuer`, `storage`, `grpc` and
+  `telemetry` are always set by the chart, and `web.http` is always set, but other `web` settings are merged.
+  Secrets for connectors can be added with `dex.extraEnv` and referenced as `$VAR` in `dex.config`.
+- **Routing:** `dex.httpRoute.parentRefs` is passed to the HTTPRoute as is, so it can reference a `Gateway`, a
+  `ListenerSet`, or both.
+- **gRPC authentication:** the gRPC serving certificate and the EasyAuth client certificate are issued by the
+  chart's CA, the same CA as the webhook serving certificate. Dex requires a client certificate signed by this CA
+  (`tlsClientCA`), and only accepts certificates with the `client auth` usage, so the webhook serving certificate
+  can't be used as a client certificate. The client certificate is mounted in EasyAuth, and its location and the
+  Dex gRPC address are added to the EasyAuth config as `dex.certsDir` and `dex.grpcAddress`.
+- **Image entrypoint:** the container runs the `dex` binary directly instead of the image entrypoint, which
+  renders the config with gomplate into `/tmp` and doesn't work with a read-only root filesystem.
 
 ## Dex integration (planned)
 
@@ -160,9 +191,8 @@ running an application share one client. The controller must therefore:
 
 - `UpdateClient` can't change the secret. Rotating a secret requires `DeleteClient` followed by `CreateClient`.
 - Dex clients have no labels or metadata, so ownership is derived from the client ID prefix.
-- The API has no authentication other than TLS client certificates. Dex's gRPC port must require a client
-  certificate (`tlsClientCA`), issued to EasyAuth by cert-manager, and should be limited to EasyAuth with a
-  NetworkPolicy.
+- The API has no authentication other than TLS client certificates. The chart configures Dex to require a client
+  certificate and limits the gRPC port to EasyAuth with a NetworkPolicy, see [Dex](#dex).
 
 ## Configuration
 
@@ -180,11 +210,23 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 The webhook serving certificate is issued by cert-manager, which also injects the CA bundle into the webhook
 configurations.
 
+Dex is configured with the `dex` section:
+
+| Value                       | Description                                                               |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `dex.enabled`               | Install Dex. Defaults to `false`                                          |
+| `dex.storage.postgres`      | Postgres host, port, database, user, password Secret and SSL mode         |
+| `dex.config`                | Free-form Dex configuration, for example connectors and `oauth2` settings |
+| `dex.extraEnv`              | Additional environment variables, for example connector client secrets    |
+| `dex.httpRoute.parentRefs`  | Gateways and/or ListenerSets the Dex HTTPRoute is attached to             |
+| `dex.networkPolicy.enabled` | Limit the gRPC port to EasyAuth pods. Defaults to `true`                  |
+
 ## Testing
 
 - Unit tests: `go test ./easyauth/...`
 - End-to-end tests: `e2e/radix_easyauth_test.go`, see the [e2e README](../e2e/README.md). The e2e setup installs
-  cert-manager and the radix-easyauth chart in the kind cluster.
+  cert-manager, a throwaway Postgres (`e2e/testdata/dex-postgres.yaml`) and the radix-easyauth chart with Dex in the
+  kind cluster, and waits for Dex to be ready.
 
 ## References
 

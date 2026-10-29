@@ -1,0 +1,37 @@
+{{- if .Values.dex.enabled }}
+{{- $pg := .Values.dex.storage.postgres }}
+{{- $user := omit (deepCopy .Values.dex.config) "issuer" "storage" "grpc" "telemetry" }}
+{{- $managed := dict
+  "issuer" .Values.config.issuerUrl
+  "storage" (dict
+    "type" "postgres"
+    "config" (dict
+      "host" (required "dex.storage.postgres.host is required" $pg.host)
+      "port" $pg.port
+      "database" $pg.database
+      "user" $pg.user
+      "password" "$DEX_POSTGRES_PASSWORD"
+      "ssl" (dict "mode" $pg.ssl.mode)
+    )
+  )
+  "web" (dict "http" "0.0.0.0:5556")
+  "grpc" (dict
+    "addr" (printf "0.0.0.0:%s" (include "radix-easyauth.dex.grpcPort" .))
+    "tlsCert" "/etc/dex/grpc/tls.crt"
+    "tlsKey" "/etc/dex/grpc/tls.key"
+    "tlsClientCA" "/etc/dex/grpc/ca.crt"
+  )
+  "telemetry" (dict "http" "0.0.0.0:5558")
+-}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  config.yaml: |
+    {{- mergeOverwrite $user $managed | toYaml | nindent 4 }}
+{{- end }}

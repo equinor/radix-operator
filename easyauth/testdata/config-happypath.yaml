@@ -9,3 +9,6 @@ port: 9443
 metricsPort: 9000
 healthPort: 9440
 certsDir: /run/certs
+dex:
+  grpcAddress: radix-easyauth-dex.radix-easyauth.svc:5557
+  certsDir: /run/dex-client-certs

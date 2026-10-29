@@ -6,5 +6,28 @@ config:
   logLevel: debug
   logPrettyPrint: true
   # Must match easyAuthOAuth2IssuerURL in radix_easyauth_test.go
-  oauth2:
-    issuerUrl: https://simpleauth.dev.radix.equinor.com
+  issuerUrl: https://simpleauth.dev.radix.equinor.com
+
+# Dex uses the throwaway Postgres from testdata/dex-postgres.yaml
+dex:
+  enabled: true
+  replicaCount: 1
+  storage:
+    postgres:
+      host: dex-postgres.radix-easyauth.svc
+      passwordSecret:
+        name: dex-postgres
+      ssl:
+        mode: disable
+  config:
+    connectors:
+      - type: mockCallback
+        id: mock
+        name: Mock
+  httpRoute:
+    # There is no gateway controller in the kind cluster, so the HTTPRoute is created but never accepted
+    parentRefs:
+      - group: gateway.networking.k8s.io
+        kind: Gateway
+        name: e2e-gateway
+        namespace: radix-easyauth

@@ -86,3 +86,59 @@ Name of the release specific radix common config ConfigMap
 {{- define "radix-easyauth.commonConfigKey" -}}
 configYaml
 {{- end }}
+
+{{/*
+Dex
+*/}}
+{{- define "radix-easyauth.dex.fullname" -}}
+{{- printf "%s-dex" (include "radix-easyauth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "radix-easyauth.dex.selectorLabels" -}}
+app.kubernetes.io/name: dex
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: dex
+{{- end }}
+
+{{- define "radix-easyauth.dex.labels" -}}
+helm.sh/chart: {{ include "radix-easyauth.chart" . }}
+{{ include "radix-easyauth.dex.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Values.dex.image.tag | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{- define "radix-easyauth.dex.grpcServerCertificateName" -}}
+{{- printf "%s-grpc" (include "radix-easyauth.dex.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "radix-easyauth.dex.grpcServerCertificateSecretName" -}}
+{{- printf "%s-grpc-tls" (include "radix-easyauth.dex.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/* Client certificate used by EasyAuth to authenticate against the Dex gRPC API */}}
+{{- define "radix-easyauth.dex.grpcClientCertificateName" -}}
+{{- printf "%s-dex-client" (include "radix-easyauth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "radix-easyauth.dex.grpcClientCertificateSecretName" -}}
+{{- printf "%s-dex-client-tls" (include "radix-easyauth.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "radix-easyauth.dex.grpcPort" -}}
+5557
+{{- end }}
+
+{{- define "radix-easyauth.dex.grpcAddress" -}}
+{{- printf "%s.%s.svc:%s" (include "radix-easyauth.dex.fullname" .) .Release.Namespace (include "radix-easyauth.dex.grpcPort" .) }}
+{{- end }}
+
+{{/* Mount path of the Dex gRPC client certificate in the EasyAuth container */}}
+{{- define "radix-easyauth.dex.clientCertsDir" -}}
+/run/dex-client-certs
+{{- end }}
+
+{{/* Parsed config.issuerUrl, used for the Dex issuer and HTTPRoute */}}
+{{- define "radix-easyauth.dex.issuerPath" -}}
+{{- $path := (urlParse .Values.config.issuerUrl).path | trimSuffix "/" }}
+{{- if $path }}{{ $path }}{{ else }}/{{ end }}
+{{- end }}

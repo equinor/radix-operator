@@ -40,6 +40,10 @@ func TestParse_HappyPath(t *testing.T) {
 		MetricsPort:          9000,
 		HealthPort:           9440,
 		CertsDir:             "/run/certs",
+		Dex: DexConfig{
+			GRPCAddress: "radix-easyauth-dex.radix-easyauth.svc:5557",
+			CertsDir:    "/run/dex-client-certs",
+		},
 	}
 	assert.Equal(t, expected, cfg)
 }

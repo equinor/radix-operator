@@ -17,4 +17,14 @@ type EasyAuthConfig struct {
 	HealthPort     int    `json:"healthPort" required:"true"`
 
 	CertsDir string `json:"certsDir" required:"true"`
+
+	// Set by the Helm chart when Dex is enabled
+	Dex DexConfig `json:"dex"`
+}
+
+// DexConfig is the connection to the Dex gRPC API, authenticated with a client certificate
+type DexConfig struct {
+	GRPCAddress string `json:"grpcAddress"`
+	// Directory with tls.crt, tls.key and ca.crt for the gRPC client certificate
+	CertsDir string `json:"certsDir"`
 }

@@ -45,3 +45,14 @@ func InstallDependencyCRDs(ctx context.Context, kubeConfigPath string) error {
 
 	return nil
 }
+
+// ApplyManifestFile applies a manifest file with kubectl
+func ApplyManifestFile(ctx context.Context, kubeConfigPath, file string) error {
+	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeConfigPath, "apply", "--server-side", "-f", file)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to apply %s: %w", file, err)
+	}
+	return nil
+}

@@ -369,12 +369,22 @@ func installEasyAuth(ctx context.Context, c client.Client, kubeConfigPath, image
 		return fmt.Errorf("failed to wait for cert-manager webhook CA bundle: %w", err)
 	}
 
+	// Dex in the radix-easyauth chart needs a Postgres database
+	if err := internal.ApplyManifestFile(ctx, kubeConfigPath, "testdata/dex-postgres.yaml"); err != nil {
+		return fmt.Errorf("failed to deploy Dex postgres: %w", err)
+	}
+	if err := WaitForDeploymentReady(ctx, c, easyAuthNamespace, "dex-postgres"); err != nil {
+		return fmt.Errorf("failed to wait for Dex postgres to be ready: %w", err)
+	}
+
 	helmValues := map[string]string{"image.repository": easyAuthImageName}
 	if err := internal.InstallHelmChart(ctx, kubeConfigPath, easyAuthNamespace, easyAuthReleaseName, "../charts/radix-easyauth", "testdata/radix-easyauth-values.yaml", imageTag, helmValues); err != nil {
 		return fmt.Errorf("failed to install radix-easyauth helm chart: %w", err)
 	}
-	if err := WaitForDeploymentReady(ctx, c, easyAuthNamespace, easyAuthReleaseName); err != nil {
-		return fmt.Errorf("failed to wait for radix-easyauth to be ready: %w", err)
+	for _, name := range []string{easyAuthReleaseName, easyAuthReleaseName + "-dex"} {
+		if err := WaitForDeploymentReady(ctx, c, easyAuthNamespace, name); err != nil {
+			return fmt.Errorf("failed to wait for %s to be ready: %w", name, err)
+		}
 	}
 
 	webhookName := fmt.Sprintf("%s-%s", easyAuthNamespace, easyAuthReleaseName)

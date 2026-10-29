@@ -79,3 +79,96 @@ tolerations: []
 affinity: {}
 podAnnotations: {}
 podLabels: {}
+
+# Dex OIDC provider used by EasyAuth, see easyauth/README.md.
+# The Dex issuer is config.issuerUrl, which is also the issuer set on all public components by the mutating webhook.
+dex:
+  enabled: false
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/dexidp/dex
+    tag: v2.46.0
+    pullPolicy: IfNotPresent
+
+  # Postgres database where Dex stores clients, keys and sessions
+  storage:
+    postgres:
+      host: ""
+      port: 5432
+      database: dex
+      user: dex
+      # Existing Secret with the database password
+      passwordSecret:
+        name: ""
+        key: password
+      ssl:
+        # disable, require, verify-ca or verify-full
+        mode: verify-full
+
+  # Free-form Dex configuration, for example connectors, oauth2, expiry and frontend.
+  # See https://github.com/dexidp/dex/blob/master/examples/config-dev.yaml
+  # issuer, storage, web, grpc and telemetry are set by the chart and can't be overridden here.
+  # Environment variables, for example from extraEnv, can be referenced as $VAR.
+  config: {}
+
+  # Additional environment variables, for example connector client secrets referenced from config
+  extraEnv: []
+  # - name: ENTRA_CLIENT_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: dex-entra
+  #       key: clientSecret
+
+  httpRoute:
+    enabled: true
+    # Gateways or ListenerSets the Dex HTTPRoute is attached to. The hostname and path are taken from config.issuerUrl.
+    parentRefs: []
+    # - group: gateway.networking.k8s.io
+    #   kind: Gateway
+    #   name: gateway
+    #   namespace: istio-system
+    #   sectionName: https
+    # - group: gateway.networking.k8s.io
+    #   kind: ListenerSet
+    #   name: easyauth
+    #   namespace: radix-easyauth
+    annotations: {}
+
+  # Restricts the gRPC API to the EasyAuth pods. The HTTP and telemetry ports are open to all.
+  networkPolicy:
+    enabled: true
+
+  certificate:
+    # Duration and renewal window for the gRPC server and EasyAuth client certificates
+    duration: 2160h # 90 days
+    renewBefore: 360h # 15 days
+
+  resources:
+    limits:
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    privileged: false
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  podLabels: {}
