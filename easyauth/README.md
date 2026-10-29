@@ -21,7 +21,7 @@ It consists of:
 | Mutating webhook   | Implemented | Overrides the OAuth2 configuration of public components                                           |
 | Validating webhook | Implemented | Optionally rejects `RadixApplications` without the annotation                                     |
 | Dex                | Implemented | OIDC provider that users log in to, installed by the chart when `dex.enabled` is `true`           |
-| Controller         | Planned     | Keeps an OAuth2 client in Dex and the client secret in Radix in sync with each `RadixApplication` |
+| Controller         | Partial     | Keeps the OAuth2 client secret and `RadixDeployments` in sync with each `RadixApplication`         |
 
 ## Mutating webhook
 
@@ -57,6 +57,36 @@ The client ID is temporary. When the controller is implemented, the webhook will
 
 Only installed when `config.enforced` is `true`. Rejects create and update of `RadixApplications` that do not have
 the annotation, making EasyAuth mandatory for all applications in the cluster.
+
+## Controller
+
+Reconciles `RadixApplications` with the annotation. `RadixApplications` without the annotation are ignored. For
+each application it:
+
+1. **Ensures a client secret.** Reads the Secret `easyauth-client-secret` (key `ClientSecret`) in the app namespace
+   (`<app>-app`), and generates a random value if the Secret or value is missing. The Secret is owned by the
+   `RadixApplication`, so it is deleted together with it.
+2. **Syncs the client secret to public components.** For every public component in every environment, writes the
+   client secret to the `ClientSecret` key of the OAuth2 proxy Secret (`<component>-aux-oauth-*`). The OAuth2 proxy
+   Secret is created by radix-operator when the component is deployed, and is skipped until it exists. Other keys,
+   like `CookieSecret`, are not changed.
+3. **Syncs the OAuth2 config to `RadixDeployments`.** Sets the OAuth2 configuration from the
+   [mutating webhook](#mutating-webhook) on the public components of every `RadixDeployment`, active and inactive,
+   in the environments of the application. This covers `RadixDeployments` created before the annotation was added,
+   and inactive `RadixDeployments` that may be promoted later. radix-operator redeploys active `RadixDeployments`
+   when they change. The patch uses optimistic locking, and is retried on conflict.
+4. Requeues every hour to correct drift.
+
+Only Secrets and `RadixDeployments` in the environment namespaces of the application's `RadixApplication` are
+changed. The controller also watches `RadixDeployments` and OAuth2 proxy Secrets, mapped to their application by
+the `radix-app` label, so new deployments get the client secret without waiting for the next resync. Only OAuth2
+proxy Secrets (label `radix-aux-component-type=oauth`) are cached.
+
+The client secret is generated locally for now. When the [Dex integration](#dex-integration-planned) is
+implemented, Dex becomes the source of truth for the secret, and the Secret in the app namespace is replaced.
+
+The OAuth2 proxy reads the client secret at startup, so a changed client secret is only picked up when the
+OAuth2 proxy pods are restarted.
 
 ## Dex
 

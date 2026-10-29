@@ -40,9 +40,14 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8sconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	siglog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -60,6 +65,14 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Logger: initLogr(logger),
 		Scheme: runtimeScheme,
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				// Only cache OAuth2 proxy Secrets, to avoid caching every Secret in the cluster
+				&corev1.Secret{}: {Label: labels.SelectorFromSet(labels.Set{
+					kube.RadixAuxiliaryComponentTypeLabel: radixv1.OAuthProxyAuxiliaryComponentType,
+				})},
+			},
+		},
 		Metrics: metricsserver.Options{
 			BindAddress: fmt.Sprintf(":%d", cfg.MetricsPort),
 		},
@@ -105,8 +118,11 @@ func main() {
 	}
 
 	err = (&controller.RadixApplicationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: runtimeScheme,
+		Client:          mgr.GetClient(),
+		APIReader:       mgr.GetAPIReader(),
+		Scheme:          runtimeScheme,
+		Annotation:      cfg.Annotation,
+		OAuth2IssuerURL: cfg.IssuerURL,
 	}).SetupWithManager(mgr)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to register controller with manager")

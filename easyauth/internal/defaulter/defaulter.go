@@ -35,14 +35,14 @@ func (d *RadixApplicationDefaulter) Default(_ context.Context, obj *radixv1.Radi
 
 	for i := range obj.Spec.Components {
 		component := &obj.Spec.Components[i]
-		if !isPublic(component) {
+		if !IsPublic(component) {
 			continue
 		}
 
 		if component.Authentication == nil {
 			component.Authentication = &radixv1.Authentication{}
 		}
-		component.Authentication.OAuth2 = d.oauth2Config(obj.Name)
+		component.Authentication.OAuth2 = OAuth2Config(obj.Name, d.OAuth2IssuerURL)
 
 		// Environment specific OAuth2 config is merged on top of the component config, so it must be
 		// removed for the component config to take effect
@@ -56,7 +56,8 @@ func (d *RadixApplicationDefaulter) Default(_ context.Context, obj *radixv1.Radi
 	return nil
 }
 
-func (d *RadixApplicationDefaulter) oauth2Config(appName string) *radixv1.OAuth2 {
+// OAuth2Config returns the EasyAuth OAuth2 configuration for public components of an application
+func OAuth2Config(appName, issuerURL string) *radixv1.OAuth2 {
 	return &radixv1.OAuth2{
 		ClientID:               fmt.Sprintf("%s.dev.radix.equinor.com", appName),
 		Credentials:            radixv1.Secret,
@@ -64,13 +65,13 @@ func (d *RadixApplicationDefaulter) oauth2Config(appName string) *radixv1.OAuth2
 		SetAuthorizationHeader: new(false),
 		SetXAuthRequestHeaders: new(false),
 		OIDC: &radixv1.OAuth2OIDC{
-			IssuerURL: d.OAuth2IssuerURL,
+			IssuerURL: issuerURL,
 		},
 	}
 }
 
-// isPublic mirrors how the operator determines if a component is exposed to the internet
-func isPublic(component *radixv1.RadixComponent) bool {
+// IsPublic mirrors how the operator determines if a component is exposed to the internet
+func IsPublic(component *radixv1.RadixComponent) bool {
 	//nolint:staticcheck
 	return component.PublicPort != "" || component.Public
 }
