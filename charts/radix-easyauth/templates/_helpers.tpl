@@ -94,6 +94,15 @@ Dex
 {{- printf "%s-dex" (include "radix-easyauth.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{/* Validated storage type of Dex: postgres or kubernetes */}}
+{{- define "radix-easyauth.dex.storageType" -}}
+{{- $type := .Values.dex.storage.type | default "postgres" }}
+{{- if not (has $type (list "postgres" "kubernetes")) }}
+{{- fail (printf "dex.storage.type must be postgres or kubernetes, got %q" $type) }}
+{{- end }}
+{{- $type }}
+{{- end }}
+
 {{- define "radix-easyauth.dex.selectorLabels" -}}
 app.kubernetes.io/name: dex
 app.kubernetes.io/instance: {{ .Release.Name }}

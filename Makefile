@@ -240,6 +240,14 @@ EASYAUTH-HELM-ARGS:= \
 	--set dex.storage.postgres.passwordSecret.name=dex-postgres \
 	--set dex.httpRoute.parentRefs[0].name=gateway
 
+# Postgres values are not required with Kubernetes storage
+EASYAUTH-K8S-STORAGE-HELM-ARGS:= \
+	--set config.clusterName=mycluster \
+	--set config.dnsZone=radix.example.com \
+	--set config.appAliasBaseURL=app.radix.example.com \
+	--set dex.storage.type=kubernetes \
+	--set dex.httpRoute.parentRefs[0].name=gateway
+
 .PHONY: lint-helm
 lint-helm: lint-helm-operator lint-helm-easyauth
 
@@ -250,6 +258,7 @@ lint-helm-operator: bootstrap
 .PHONY: lint-helm-easyauth
 lint-helm-easyauth: bootstrap
 	helm lint ./charts/radix-easyauth $(EASYAUTH-HELM-ARGS)
+	helm lint ./charts/radix-easyauth $(EASYAUTH-K8S-STORAGE-HELM-ARGS)
 
 .PHONY: helm-render
 helm-render:

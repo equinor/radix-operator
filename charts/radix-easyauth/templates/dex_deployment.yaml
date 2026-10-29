@@ -24,7 +24,8 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "radix-easyauth.dex.fullname" . }}
-      automountServiceAccountToken: false
+      # Kubernetes storage uses the service account token to read and write its custom resources
+      automountServiceAccountToken: {{ eq (include "radix-easyauth.dex.storageType" .) "kubernetes" }}
       {{- with .Values.dex.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -65,15 +66,20 @@ spec:
             - /usr/local/bin/dex
             - serve
             - /etc/dex/config/config.yaml
+          {{- $postgres := eq (include "radix-easyauth.dex.storageType" .) "postgres" }}
+          {{- if or $postgres .Values.dex.extraEnv }}
           env:
+            {{- if $postgres }}
             - name: DEX_POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ required "dex.storage.postgres.passwordSecret.name is required" .Values.dex.storage.postgres.passwordSecret.name }}
                   key: {{ .Values.dex.storage.postgres.passwordSecret.key }}
+            {{- end }}
             {{- with .Values.dex.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- end }}
           ports:
             - name: http
               containerPort: 5556

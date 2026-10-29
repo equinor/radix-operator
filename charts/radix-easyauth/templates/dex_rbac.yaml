@@ -1,0 +1,58 @@
+{{- if eq (include "radix-easyauth.dex.storageType" .) "kubernetes" }}
+# Dex creates the CRDs it stores its data in on startup, if they are missing (crdHandling: ensure).
+# The CRDs are not removed when the chart is uninstalled.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "radix-easyauth.clusterScopedName" . }}-dex
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "radix-easyauth.clusterScopedName" . }}-dex
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "radix-easyauth.clusterScopedName" . }}-dex
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "radix-easyauth.dex.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# Dex stores its data as custom resources in the release namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["dex.coreos.com"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "radix-easyauth.dex.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

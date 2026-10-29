@@ -125,12 +125,19 @@ The chart always installs Dex, since EasyAuth stores OAuth2 clients in it:
 | HTTPRoute                      | Exposes Dex on the host and path of `config.issuerUrl`, attached to `dex.httpRoute.parentRefs`     |
 | Certificates                   | gRPC serving certificate for Dex, and a client certificate for EasyAuth                            |
 | NetworkPolicy                  | Only EasyAuth pods can reach the gRPC port                                                         |
-| ServiceAccount                 | Without a token or roles, since Dex stores its data in Postgres and doesn't use the Kubernetes API |
+| ServiceAccount                 | Without a token or roles with Postgres storage. With Kubernetes storage, see **Storage** below     |
 
 - **Issuer:** `config.issuerUrl` is both the Dex issuer and the issuer set on public components by the mutating
   webhook, so they always match.
-- **Storage:** Dex stores clients, signing keys and sessions in Postgres (`dex.storage.postgres`). The password is
-  read from an existing Secret and passed to Dex as `$DEX_POSTGRES_PASSWORD`, which Dex expands in its config.
+- **Storage:** Dex stores clients, signing keys and sessions in the storage selected by `dex.storage.type`:
+  - `postgres` (default): a Postgres database (`dex.storage.postgres`). The password is read from an existing Secret
+    and passed to Dex as `$DEX_POSTGRES_PASSWORD`, which Dex expands in its config.
+  - `kubernetes`: custom resources in the release namespace, only meant for testing and local clusters. The data
+    can't be shared between clusters (see [Multiple clusters](#multiple-clusters)), is lost with the cluster, and
+    Dex warns that it doesn't scale to many users. Dex creates its CRDs (`dex.coreos.com`) on startup if they are
+    missing, so the chart mounts the service account token in the Dex pods, and grants a ClusterRole that can
+    `create` CRDs and a Role for `dex.coreos.com` resources in the release namespace. The CRDs and their resources
+    are not removed when the chart is uninstalled.
 - **Configuration:** connectors and other settings come from `dex.config`. `issuer`, `storage`, `grpc` and
   `telemetry` are always set by the chart, and `web.http` is always set, but other `web` settings are merged.
   Secrets for connectors can be added with `dex.extraEnv` and referenced as `$VAR` in `dex.config`.
@@ -156,9 +163,9 @@ EasyAuth controller keeps these clients in sync using the [Dex gRPC API](https:/
   next restart. Debouncing restarts reduces the number of restarts, but not these problems.
 - Dex documents the gRPC API as the interface for management applications, and `staticClients` as a developer
   convenience.
-- Clients created through the API are stored in Dex's database, which is a persistent database outside the
-  cluster. They survive Dex restarts and are shared by all Dex replicas. Static clients are never stored in the
-  database.
+- Clients created through the API are stored in Dex's database, which in production is a persistent Postgres
+  database outside the cluster. They survive Dex restarts and are shared by all Dex replicas. Static clients are
+  never stored in the database.
 - Client secrets live in the Dex database and per application Secrets, instead of in one shared config object.
 
 ### Client ID
@@ -323,6 +330,7 @@ Dex is configured with the `dex` section:
 
 | Value                       | Description                                                               |
 | --------------------------- | ------------------------------------------------------------------------- |
+| `dex.storage.type`          | `postgres` (default) or `kubernetes`, for testing and local clusters only |
 | `dex.storage.postgres`      | Postgres host, port, database, user, password Secret and SSL mode         |
 | `dex.config`                | Free-form Dex configuration, for example connectors and `oauth2` settings |
 | `dex.extraEnv`              | Additional environment variables, for example connector client secrets    |

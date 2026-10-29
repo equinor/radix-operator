@@ -123,10 +123,18 @@ jobs:
             --set dex.storage.postgres.host=postgres.example.com
             --set dex.storage.postgres.passwordSecret.name=dex-postgres
             --set dex.httpRoute.parentRefs[0].name=gateway
+          # Postgres values are not required with Kubernetes storage
+          EASYAUTH_K8S_STORAGE_HELM_ARGS: >-
+            --set config.clusterName=mycluster
+            --set config.dnsZone=radix.example.com
+            --set config.appAliasBaseURL=app.radix.example.com
+            --set dex.storage.type=kubernetes
+            --set dex.httpRoute.parentRefs[0].name=gateway
         run: |
           helm lint charts/radix-easyauth $EASYAUTH_HELM_ARGS
           helm lint charts/radix-easyauth $EASYAUTH_HELM_ARGS --set config.enforced=true
           helm template radix-easyauth charts/radix-easyauth $EASYAUTH_HELM_ARGS > /dev/null
+          helm lint charts/radix-easyauth $EASYAUTH_K8S_STORAGE_HELM_ARGS
       - name: Helm Package
         run: |
           helm package charts/radix-operator --destination "$RUNNER_TEMP" --version 0.0.0-pr --app-version 0.0.0-pr

@@ -22,7 +22,7 @@ spec:
   selector:
     {{- include "radix-easyauth.dex.selectorLabels" . | nindent 4 }}
 ---
-# Dex stores its data in Postgres and doesn't use the Kubernetes API, so the service account has no roles and no token
+# The token is only mounted in the Dex pods when Dex stores its data in Kubernetes, see dex_rbac.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:

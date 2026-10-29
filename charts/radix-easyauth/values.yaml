@@ -113,8 +113,13 @@ dex:
     tag: v2.46.0
     pullPolicy: IfNotPresent
 
-  # Postgres database where Dex stores clients, keys and sessions
+  # Where Dex stores clients, keys and sessions
   storage:
+    # postgres or kubernetes. kubernetes stores the data as custom resources in the release namespace, and is only
+    # meant for testing and local clusters: the data can't be shared between clusters, and it doesn't scale to many
+    # users. Dex creates its CRDs on startup, so it gets a ClusterRole that can create CRDs.
+    type: postgres
+    # Used when type is postgres
     postgres:
       host: ""
       port: 5432
