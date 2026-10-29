@@ -135,6 +135,8 @@ func main() {
 		ClusterName:     cfg.ClusterName,
 		DNSZone:         cfg.DNSZone,
 		AppAliasBaseURL: cfg.AppAliasBaseURL,
+
+		SecretRotationInterval: cfg.SecretRotationInterval,
 	}).SetupWithManager(mgr)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to register controller with manager")

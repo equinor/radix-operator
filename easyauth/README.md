@@ -14,6 +14,8 @@ metadata:
 ```
 
 EasyAuth runs as a separate deployment, installed with the [radix-easyauth](../charts/radix-easyauth) Helm chart.
+The `ghcr.io/equinor/radix/easyauth` image and the `oci://ghcr.io/equinor/radix/charts/radix-easyauth` chart are
+built in pull requests, and published with the same version as radix-operator on each release.
 It consists of:
 
 | Part               | Status      | Responsibility                                                                                   |
@@ -197,14 +199,40 @@ For each `RadixApplication` with the annotation, the controller:
      another cluster, it is read again with `GetClient`. Dex returns a missing client as gRPC `Unknown` with the
      message `not found`, which is handled the same as `NotFound`.
    - Found: calls `UpdateClient` if redirect URIs are missing or the name differs, and keeps the existing secret.
-     Existing redirect URIs are kept, see [Multiple clusters](#multiple-clusters).
+     Existing redirect URIs are kept, see [Multiple clusters](#multiple-clusters). If the secret is due for
+     rotation, the client is rotated instead, see [Secret rotation](#secret-rotation).
    - Other errors: nothing is created, and the reconcile is retried.
 4. Writes the client secret from Dex to the OAuth2 client secret of each public component, so the OAuth2 proxy can
    authenticate against Dex.
-5. Requeues periodically to correct drift, and retries with backoff if Dex is unavailable.
+5. Requeues periodically to correct drift, or at the secret rotation time if that is sooner, and retries with
+   backoff if Dex is unavailable.
 
 `RadixApplications` without the annotation are ignored by the reconcile loop. Removing clients is handled only by
 the cleanup loop below.
+
+### Secret rotation
+
+Client secrets are rotated when they are older than `config.secretRotationInterval`, 90 days by default.
+
+- **Creation time:** Dex clients have no metadata, so the creation time is stored in the secret itself. A secret is
+  a ULID, which encodes the creation time, followed by `.` and 128 bits of random data from `crypto/rand`. Every
+  cluster sharing the Dex database can tell when a secret must be rotated, without any state in Kubernetes. A secret
+  without a creation time, for example from an older version, is rotated on the next reconcile.
+- **Rotation:** `UpdateClient` can't change the secret, so the client is deleted and created again with the same ID
+  and name, a new secret, and all existing redirect URIs, including the ones from other clusters. If creating fails,
+  the next reconcile creates the client, and other clusters add their redirect URIs again.
+- **Distribution:** the new secret is written to the OAuth2 proxy Secrets, and the OAuth2 proxies are
+  [restarted](#controller), like any other changed client secret.
+- **Timing:** the reconcile loop requeues at the rotation time, plus a random delay of up to a minute, if that is
+  sooner than the hourly resync. Every cluster does this, so they get the new secret within about a minute.
+- **Concurrent rotation:** all clusters rotate, since they all know the rotation time. The first cluster rotates the
+  secret, and the others see a new secret that is not due for rotation. If two clusters rotate at the same time,
+  `CreateClient` returns `AlreadyExists` for one of them, which then uses the secret created by the other. In the
+  rare case where one cluster deletes the client right after another has created it, the secret is rotated twice,
+  and the first cluster picks up the final secret on its next reconcile.
+- **Disruption:** the old secret stops working as soon as the client is deleted. Until the OAuth2 proxies have
+  restarted, logins and token refreshes fail. Existing sessions that don't need a refresh are not affected. Refresh
+  tokens in Dex are kept, since the client ID doesn't change.
 
 ### Cleanup loop
 
@@ -234,8 +262,8 @@ Several Radix clusters may write to the same Dex database, for example the activ
 cluster migration. `RadixRegistrations` keep their AppID when they are moved to another cluster, so all clusters
 running an application share one client. The controller must therefore:
 
-- **Treat Dex as the source of truth for the secret.** It only generates a secret when the client doesn't exist,
-  and otherwise reads it from Dex. Clusters that generate their own secrets would keep overwriting each other.
+- **Treat Dex as the source of truth for the secret.** It only generates a secret when the client doesn't exist or
+  the secret is due for [rotation](#secret-rotation), and otherwise reads it from Dex. Clusters that generate their own secrets would keep overwriting each other.
   This also restores a lost or recreated Kubernetes Secret from Dex.
 - **Merge redirect URIs instead of replacing them,** since each cluster has its own hostnames. The reconcile loop
   adds missing redirect URIs, but never removes URIs, since it can't tell if another cluster still uses them.
@@ -268,6 +296,7 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 | `appAliasBaseURL` | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required |
 | `cleanupEnabled`  | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `false`              |
 | `cleanupInterval` | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled |
+| `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h`. Use for example `24h` in dev. Must be the same in all clusters sharing the Dex database |
 
 `dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
 

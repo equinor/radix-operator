@@ -33,6 +33,9 @@ type EasyAuthConfig struct {
 	CleanupEnabled bool `json:"cleanupEnabled" validate:"!self || compareDuration(config.cleanupInterval, '1m') >= 0"`
 	// How often the cleanup runs. Required, and at least 1m, when CleanupEnabled is true.
 	CleanupInterval time.Duration `json:"cleanupInterval"`
+
+	// How old a client secret can be before it is rotated. Must be the same in all clusters sharing the Dex database.
+	SecretRotationInterval time.Duration `json:"secretRotationInterval" required:"true" validate:"compareDuration(self, '1h') >= 0"`
 }
 
 // DexConfig is the connection to the Dex gRPC API, authenticated with a client certificate

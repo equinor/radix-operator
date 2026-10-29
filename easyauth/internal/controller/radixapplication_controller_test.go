@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	api "github.com/dexidp/dex/api/v2"
 	"github.com/oklog/ulid/v2"
@@ -21,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
+	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -42,6 +45,13 @@ const (
 	dnsZone         = "example.com"
 	appAliasBaseURL = "app.example.com"
 )
+
+const rotationInterval = 90 * 24 * time.Hour
+
+// newDexSecret returns a client secret created a day ago, so it is not rotated.
+func newDexSecret() string {
+	return dex.NewSecret(time.Now().Add(-24 * time.Hour))
+}
 
 var appRequest = ctrl.Request{NamespacedName: types.NamespacedName{Namespace: appNs, Name: appName}}
 
@@ -107,6 +117,8 @@ func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplic
 		ClusterName:     clusterName,
 		DNSZone:         dnsZone,
 		AppAliasBaseURL: appAliasBaseURL,
+
+		SecretRotationInterval: rotationInterval,
 	}
 }
 
@@ -211,7 +223,8 @@ func TestConditionChangedPredicate(t *testing.T) {
 }
 
 func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
-	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "dex-secret"})
+	dexSecret := newDexSecret()
+	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret})
 	r := newReconciler(fakeDex,
 		newRA(true),
 		newRR(),
@@ -226,7 +239,7 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
 
-	value := []byte("dex-secret")
+	value := []byte(dexSecret)
 	webDev := getSecret(t, r, devNs, oauthProxySecret(devNs, "web", nil).Name)
 	assert.Equal(t, value, webDev.Data[ClientSecretKey])
 	assert.Equal(t, []byte("cookie"), webDev.Data["CookieSecret"], "other keys must be kept")
@@ -234,7 +247,7 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 	assert.Equal(t, value, getSecret(t, r, prodNs, oauthProxySecret(prodNs, "web", nil).Name).Data[ClientSecretKey])
 	assert.NotContains(t, getSecret(t, r, devNs, oauthProxySecret(devNs, "api", nil).Name).Data, ClientSecretKey, "private components must not get the client secret")
 	assert.NotContains(t, getSecret(t, r, "my-app-other", oauthProxySecret("my-app-other", "web", nil).Name).Data, ClientSecretKey)
-	assert.Equal(t, "dex-secret", fakeDex.Client(clientID).Secret, "the secret in Dex must not change")
+	assert.Equal(t, dexSecret, fakeDex.Client(clientID).Secret, "the secret in Dex must not change")
 }
 
 func TestReconcile_DexUnavailable(t *testing.T) {
@@ -321,8 +334,9 @@ func getDeployment(t *testing.T, r *RadixApplicationReconciler, namespace, compo
 }
 
 func TestReconcile_RestartsOAuthProxyWhenClientSecretChanges(t *testing.T) {
+	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
-	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "dex-secret"}),
+	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
 		newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"),
 	)
 
@@ -330,29 +344,31 @@ func TestReconcile_RestartsOAuthProxyWhenClientSecretChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	secret := getSecret(t, r, devNs, webSecret.Name)
-	assert.Equal(t, []byte("dex-secret"), secret.Data[ClientSecretKey])
+	assert.Equal(t, []byte(dexSecret), secret.Data[ClientSecretKey])
 	assert.NotContains(t, secret.Annotations, RestartPendingAnnotation, "pending restart must be cleared after the restart")
 	assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[RestartedAtAnnotation])
 }
 
 func TestReconcile_DoesNotRestartOAuthProxyWhenClientSecretIsMissing(t *testing.T) {
+	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{"CookieSecret": []byte("cookie")})
-	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "dex-secret"}),
+	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
 		newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"),
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
 
-	assert.Equal(t, []byte("dex-secret"), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
+	assert.Equal(t, []byte(dexSecret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
 	assert.NotContains(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations, RestartedAtAnnotation)
 }
 
 func TestReconcile_RetriesPendingRestart(t *testing.T) {
+	dexSecret := newDexSecret()
 	// The client secret was synced, but the restart failed in a previous reconcile
-	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("dex-secret")})
+	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte(dexSecret)})
 	webSecret.Annotations = map[string]string{RestartPendingAnnotation: "true"}
-	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "dex-secret"}),
+	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
 		newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"),
 	)
 
@@ -364,6 +380,7 @@ func TestReconcile_RetriesPendingRestart(t *testing.T) {
 }
 
 func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
+	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
 	s := scheme.NewScheme()
 	c := fake.NewClientBuilder().WithScheme(s).
@@ -379,22 +396,25 @@ func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
 	r := &RadixApplicationReconciler{
 		Client:          c,
 		Scheme:          s,
-		Dex:             dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "dex-secret"}),
+		Dex:             dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
 		Annotation:      annotation,
 		OAuth2IssuerURL: issuerURL,
+
+		SecretRotationInterval: rotationInterval,
 	}
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.Error(t, err)
 
 	secret := getSecret(t, r, devNs, webSecret.Name)
-	assert.Equal(t, []byte("dex-secret"), secret.Data[ClientSecretKey])
+	assert.Equal(t, []byte(dexSecret), secret.Data[ClientSecretKey])
 	assert.Contains(t, secret.Annotations, RestartPendingAnnotation, "pending restart must be kept so it is retried")
 }
 
 func TestReconcile_ClearsPendingRestartWithoutOAuthProxyDeployment(t *testing.T) {
+	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
-	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "dex-secret"}),
+	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
 		newRA(true), newRR(), webSecret,
 	)
 
@@ -402,8 +422,43 @@ func TestReconcile_ClearsPendingRestartWithoutOAuthProxyDeployment(t *testing.T)
 	require.NoError(t, err)
 
 	secret := getSecret(t, r, devNs, webSecret.Name)
-	assert.Equal(t, []byte("dex-secret"), secret.Data[ClientSecretKey])
+	assert.Equal(t, []byte(dexSecret), secret.Data[ClientSecretKey])
 	assert.NotContains(t, secret.Annotations, RestartPendingAnnotation)
+}
+
+func TestReconcile_RotatesExpiredClientSecret(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		expired := dex.NewSecret(time.Now().Add(-rotationInterval))
+		fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: expired})
+		webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte(expired)})
+		r := newReconciler(fakeDex, newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"))
+
+		result, err := r.Reconcile(context.Background(), appRequest)
+		require.NoError(t, err)
+
+		rotated := fakeDex.Client(clientID).Secret
+		assert.NotEqual(t, expired, rotated)
+		createdAt, ok := dex.SecretCreatedAt(rotated)
+		require.True(t, ok)
+		assert.WithinDuration(t, time.Now(), createdAt, 0)
+		assert.Equal(t, []byte(rotated), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
+		assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[RestartedAtAnnotation], "OAuth2 proxy must be restarted with the rotated secret")
+		assert.Equal(t, DefaultResyncInterval, result.RequeueAfter)
+	})
+}
+
+func TestReconcile_RequeuesAtRotationTime(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Rotated in 10 minutes, which is sooner than the resync interval
+		secret := dex.NewSecret(time.Now().Add(-rotationInterval + 10*time.Minute))
+		r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: secret}), newRA(true), newRR())
+
+		result, err := r.Reconcile(context.Background(), appRequest)
+		require.NoError(t, err)
+
+		assert.GreaterOrEqual(t, result.RequeueAfter, 10*time.Minute)
+		assert.Less(t, result.RequeueAfter, 11*time.Minute)
+	})
 }
 
 func TestMapToRadixApplication(t *testing.T) {

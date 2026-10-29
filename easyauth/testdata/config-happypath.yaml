@@ -17,3 +17,4 @@ dex:
   certsDir: /run/dex-client-certs
 cleanupEnabled: true
 cleanupInterval: 1h
+secretRotationInterval: 2160h

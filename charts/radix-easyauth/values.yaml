@@ -47,6 +47,9 @@ config:
   certsDir: /run/certs
   cleanupEnabled: true
   cleanupInterval: 1h
+  # How old an OAuth2 client secret can be before it is rotated, at least 1h. Must be the same in all clusters
+  # sharing the Dex database. Use a short interval, for example 24h, in dev to exercise rotation often.
+  secretRotationInterval: 2160h # 90 days
 
 webhook:
   failurePolicy: Fail

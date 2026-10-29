@@ -48,8 +48,9 @@ func TestParse_HappyPath(t *testing.T) {
 			GRPCAddress: "radix-easyauth-dex.radix-easyauth.svc:5557",
 			CertsDir:    "/run/dex-client-certs",
 		},
-		CleanupEnabled:  true,
-		CleanupInterval: time.Hour,
+		CleanupEnabled:         true,
+		CleanupInterval:        time.Hour,
+		SecretRotationInterval: 2160 * time.Hour,
 	}
 	assert.Equal(t, expected, cfg)
 }
@@ -137,6 +138,14 @@ func TestParse_Validation(t *testing.T) {
 		"cleanup enabled with interval below 1m should fail": {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.CleanupInterval = 30 * time.Second },
 			expectedError: `field "CleanupEnabled" did not pass validation expression`,
+		},
+		"missing secretRotationInterval should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.SecretRotationInterval = 0 },
+			expectedError: `field "SecretRotationInterval" is required but not set`,
+		},
+		"secretRotationInterval below 1h should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.SecretRotationInterval = 30 * time.Minute },
+			expectedError: `field "SecretRotationInterval" did not pass validation expression`,
 		},
 		"cleanup disabled without interval should pass": {
 			mutate: func(cfg *EasyAuthConfig) {

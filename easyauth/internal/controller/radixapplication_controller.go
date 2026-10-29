@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"time"
 
@@ -61,6 +62,8 @@ type RadixApplicationReconciler struct {
 	AppAliasBaseURL string
 	// How often each RadixApplication is reconciled to correct drift. Defaults to DefaultResyncInterval
 	ResyncInterval time.Duration
+	// How old a client secret can be before it is rotated
+	SecretRotationInterval time.Duration
 }
 
 // +kubebuilder:rbac:groups=radix.equinor.com,resources=radixapplications,verbs=get;list;watch
@@ -98,7 +101,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("failed to get redirect URIs: %w", err)
 	}
 
-	clientSecret, err := dex.EnsureClient(ctx, r.Dex, clientID, ra.Name, redirectURIs)
+	clientSecret, rotateAt, err := dex.EnsureClient(ctx, r.Dex, dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: redirectURIs}, r.SecretRotationInterval)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -112,7 +115,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	}
 
 	logger.Debug().Str("clientId", clientID).Msg("Reconciled RadixApplication")
-	return ctrl.Result{RequeueAfter: r.resyncInterval()}, nil
+	return ctrl.Result{RequeueAfter: r.requeueAfter(rotateAt)}, nil
 }
 
 // redirectURIs returns the OAuth2 callback URL for every public host of the active RadixDeployment in each environment
@@ -295,6 +298,14 @@ func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd
 	}
 	log.Ctx(ctx).Info().Str("namespace", rd.Namespace).Str("radixDeployment", rd.Name).Msg("Updated OAuth2 config")
 	return nil
+}
+
+// requeueAfter returns the resync interval, or the time until the client secret must be rotated if that is sooner.
+// Every cluster sharing the Dex database requeues at the rotation time, so they get the new secret right after it is
+// rotated. A random delay of up to a minute spreads the clusters, so they are less likely to rotate at the same time.
+func (r *RadixApplicationReconciler) requeueAfter(rotateAt time.Time) time.Duration {
+	untilRotation := max(time.Until(rotateAt), 0) + rand.N(time.Minute)
+	return min(r.resyncInterval(), untilRotation)
 }
 
 func (r *RadixApplicationReconciler) resyncInterval() time.Duration {
