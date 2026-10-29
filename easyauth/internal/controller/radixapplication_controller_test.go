@@ -18,6 +18,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -250,11 +251,57 @@ func TestReconcile_DexUnavailable(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	fakeDex.SetError(status.Error(codes.Unavailable, "connection refused"))
 	webSecret := oauthProxySecret(devNs, "web", nil)
-	r := newReconciler(fakeDex, newRA(true), newRR(), webSecret)
+	r := newReconciler(fakeDex, newRA(true), newRR(), webSecret,
+		activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.Error(t, err)
 	assert.NotContains(t, getSecret(t, r, devNs, webSecret.Name).Data, ClientSecretKey)
+	assert.Equal(t, defaulter.OAuth2Config(clientID, issuerURL), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
+		"RadixDeployments must be protected even when Dex is unavailable")
+}
+
+func TestReconcile_PatchesRadixDeploymentsBeforeDex(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	dexCallsAtPatch := -1
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
+		WithObjects(newRA(true), newRR(), activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				if _, ok := obj.(*radixv1.RadixDeployment); ok {
+					dexCallsAtPatch = fakeDex.Calls("GetClient") + fakeDex.Calls("CreateClient") + fakeDex.Calls("UpdateClient")
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).Build()
+	r := newReconcilerWithClient(c, fakeDex)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+	assert.Zero(t, dexCallsAtPatch, "RadixDeployment must be patched before Dex is called")
+}
+
+func TestReconcile_SyncsDexWhenRadixDeploymentPatchFails(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	webSecret := oauthProxySecret(devNs, "web", nil)
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
+		WithObjects(newRA(true), newRR(), webSecret, activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				if _, ok := obj.(*radixv1.RadixDeployment); ok {
+					return errors.New("patch failed")
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).Build()
+	r := newReconcilerWithClient(c, fakeDex)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.ErrorContains(t, err, "patch failed")
+	dexClient := fakeDex.Client(clientID)
+	require.NotNil(t, dexClient, "Dex client must be created even when the RadixDeployment patch fails")
+	assert.Equal(t, []byte(dexClient.Secret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
 }
 
 func TestReconcile_SetsOAuth2ConfigOnAllRadixDeployments(t *testing.T) {
@@ -334,7 +381,7 @@ func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {
 	var statusErr *kerrors.StatusError
 	require.ErrorAs(t, err, &statusErr)
 	assert.True(t, kerrors.IsConflict(statusErr))
-	assert.Equal(t, RadixDeploymentPatchBackoff.Steps, patches)
+	assert.Equal(t, retry.DefaultRetry.Steps, patches)
 }
 
 func TestReconcile_IsIdempotent(t *testing.T) {

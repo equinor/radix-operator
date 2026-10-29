@@ -106,10 +106,9 @@ func NewRadixApplicationReconciler(
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
 
-// Reconcile ensures that RadixApplications with the EasyAuth annotation have an OAuth2 client in Dex with
-// redirect URIs for all public hosts, that the client secret from Dex is synced to the OAuth2 proxy of each
-// public component, and that all RadixDeployments of the application have the EasyAuth OAuth2 configuration
-// on their public components.
+// Reconcile ensures that RadixApplications with the EasyAuth annotation have the EasyAuth OAuth2 configuration on
+// the public components of all their RadixDeployments, an OAuth2 client in Dex with redirect URIs for all public
+// hosts, and that the client secret from Dex is synced to the OAuth2 proxy of each public component.
 func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.Ctx(ctx).With().Str("controller", "radixapplication").Str("radixApplication", req.String()).Logger()
 	ctx = logger.WithContext(ctx)
@@ -130,27 +129,42 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	// RadixDeployments are synced first, since they only need the client ID. A public component without the EasyAuth
+	// OAuth2 config is exposed without authentication, so this must not wait for Dex. With the OAuth2 config, but
+	// before the client secret is synced, the OAuth2 proxy can't start and the component is unreachable instead.
+	// A failure doesn't stop the Dex sync, and is returned with its errors.
+	var rdErr error
+	if err := r.syncRadixDeployments(ctx, ra, clientID); err != nil {
+		rdErr = fmt.Errorf("failed to sync OAuth2 config to RadixDeployments: %w", err)
+	}
+
+	rotateAt, err := r.syncDexClient(ctx, ra, clientID)
+	if err := errors.Join(rdErr, err); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	logger.Debug().Str("clientId", clientID).Msg("Reconciled RadixApplication")
+	return ctrl.Result{RequeueAfter: r.requeueAfter(rotateAt)}, nil
+}
+
+// syncDexClient ensures the Dex client of the application, and syncs its secret to the OAuth2 proxy of each public
+// component. It returns when the client secret must be rotated.
+func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radixv1.RadixApplication, clientID string) (time.Time, error) {
 	redirectURIs, err := r.redirectURIs(ctx, ra)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get redirect URIs: %w", err)
+		return time.Time{}, fmt.Errorf("failed to get redirect URIs: %w", err)
 	}
 
 	desired := dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: redirectURIs}
 	clientSecret, rotateAt, err := r.dexClients.EnsureClient(ctx, desired, r.secretRotationInterval)
 	if err != nil {
-		return ctrl.Result{}, err
+		return time.Time{}, err
 	}
 
 	if err := r.syncComponentSecrets(ctx, ra, []byte(clientSecret)); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to sync client secret to components: %w", err)
+		return time.Time{}, fmt.Errorf("failed to sync client secret to components: %w", err)
 	}
-
-	if err := r.syncRadixDeployments(ctx, ra, clientID); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to sync OAuth2 config to RadixDeployments: %w", err)
-	}
-
-	logger.Debug().Str("clientId", clientID).Msg("Reconciled RadixApplication")
-	return ctrl.Result{RequeueAfter: r.requeueAfter(rotateAt)}, nil
+	return rotateAt, nil
 }
 
 // redirectURIs returns the OAuth2 callback URL for every public host of the active RadixDeployment in each environment

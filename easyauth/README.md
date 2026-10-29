@@ -76,17 +76,21 @@ Reconciles `RadixApplications` with the annotation. `RadixApplications` without 
 each application it:
 
 1. **Reads the AppID** from the `RadixRegistration` with the same name, and builds the [client ID](#client-id).
-2. **Ensures the Dex client** with the [reconcile loop](#reconcile-loop), and gets the client secret from Dex.
-3. **Syncs the client secret to public components.** For every public component in every environment, writes the
-   client secret to the `ClientSecret` key of the OAuth2 proxy Secret (`<component>-aux-oauth-*`). The OAuth2 proxy
-   Secret is created by radix-operator when the component is deployed, and is skipped until it exists. Other keys,
-   like `CookieSecret`, are not changed.
-4. **Syncs the OAuth2 config to `RadixDeployments`.** Sets the OAuth2 configuration from the
+2. **Syncs the OAuth2 config to `RadixDeployments`.** Sets the OAuth2 configuration from the
    [mutating webhook](#mutating-webhook) on the public components of every `RadixDeployment`, active and inactive,
    in the environments of the application. This covers `RadixDeployments` created before the annotation was added,
    and inactive `RadixDeployments` that may be promoted later. radix-operator redeploys active `RadixDeployments`
    when they change. The patch uses optimistic locking. On a conflict, the `RadixDeployment` is read again and the
    patch is retried with exponential backoff (up to 5 attempts, starting at 10ms and growing 5x).
+   This runs before anything talks to Dex, since it only needs the client ID. A public component without the
+   OAuth2 config is exposed without authentication, so protecting it must not wait for Dex. Until the client secret
+   is synced, the OAuth2 proxy can't start and the component is unreachable instead of unprotected. If this step
+   fails, the next steps still run, and the errors are returned together.
+3. **Ensures the Dex client** with the [reconcile loop](#reconcile-loop), and gets the client secret from Dex.
+4. **Syncs the client secret to public components.** For every public component in every environment, writes the
+   client secret to the `ClientSecret` key of the OAuth2 proxy Secret (`<component>-aux-oauth-*`). The OAuth2 proxy
+   Secret is created by radix-operator when the component is deployed, and is skipped until it exists. Other keys,
+   like `CookieSecret`, are not changed.
 5. Requeues every hour to correct drift. Errors, for example when Dex is unavailable, are retried with backoff.
 
 Only Secrets and `RadixDeployments` in the environment namespaces of the application's `RadixApplication` are
@@ -188,7 +192,8 @@ rule only applies when the old object has a value.
 
 For each `RadixApplication` with the annotation, the controller:
 
-1. Reads the AppID from the `RadixRegistration` with the same name.
+1. Reads the AppID from the `RadixRegistration` with the same name, and syncs the OAuth2 config to
+   `RadixDeployments`, see [Controller](#controller). Dex is only called after this.
 2. Builds the desired client: the [client ID](#client-id), the application name as `name`, and a redirect URI
    `https://<host>/oauth2/callback` for every public host of the active `RadixDeployment` in each environment of the
    application. The hosts are built the same way as radix-operator builds the hosts of its HTTPRoutes, from
