@@ -14,13 +14,19 @@ const Path = "/radix/v1/radixapplication/validate"
 
 // +kubebuilder:webhook:name=radixapplication.validate.easyauth.radix.equinor.com,path=/radix/v1/radixapplication/validate,mutating=false,failurePolicy=fail,matchPolicy=Equivalent,sideEffects=None,servicePort=443,groups=radix.equinor.com,resources=radixapplications,verbs=create;update,versions=v1,admissionReviewVersions={v1}
 
-// RadixApplicationValidator rejects RadixApplications missing the required annotation when Enforced is true
+// RadixApplicationValidator rejects RadixApplications missing the required annotation when enforced is true
 type RadixApplicationValidator struct {
-	Enforced   bool
-	Annotation string
+	annotation string
+	enforced   bool
 }
 
-func RegisterWithManager(mgr ctrl.Manager, v *RadixApplicationValidator) error {
+// NewRadixApplicationValidator returns a validator that rejects RadixApplications without annotation when enforced is true
+func NewRadixApplicationValidator(annotation string, enforced bool) *RadixApplicationValidator {
+	return &RadixApplicationValidator{annotation: annotation, enforced: enforced}
+}
+
+// SetupWithManager registers the validating webhook with the Manager
+func (v *RadixApplicationValidator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr, &radixv1.RadixApplication{}).
 		WithValidator(v).
 		WithValidatorCustomPath(Path).
@@ -40,11 +46,11 @@ func (v *RadixApplicationValidator) ValidateDelete(_ context.Context, _ *radixv1
 }
 
 func (v *RadixApplicationValidator) validate(obj *radixv1.RadixApplication) error {
-	if !v.Enforced {
+	if !v.enforced {
 		return nil
 	}
-	if _, ok := obj.GetAnnotations()[v.Annotation]; !ok {
-		return fmt.Errorf("RadixApplication %s/%s must have the annotation %q", obj.Namespace, obj.Name, v.Annotation)
+	if _, ok := obj.GetAnnotations()[v.annotation]; !ok {
+		return fmt.Errorf("RadixApplication %s/%s must have the annotation %q", obj.Namespace, obj.Name, v.annotation)
 	}
 	return nil
 }

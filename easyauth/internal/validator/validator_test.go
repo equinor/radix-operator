@@ -30,7 +30,7 @@ func TestValidate(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			v := &RadixApplicationValidator{Enforced: tt.enforced, Annotation: annotation}
+			v := NewRadixApplicationValidator(annotation, tt.enforced)
 			ra := newRA(tt.annotations)
 
 			_, createErr := v.ValidateCreate(context.Background(), ra)
@@ -47,7 +47,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestValidateDelete_NeverRejects(t *testing.T) {
-	v := &RadixApplicationValidator{Enforced: true, Annotation: annotation}
+	v := NewRadixApplicationValidator(annotation, true)
 	_, err := v.ValidateDelete(context.Background(), newRA(nil))
 	assert.NoError(t, err)
 }

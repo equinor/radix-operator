@@ -10,6 +10,7 @@ import (
 
 	api "github.com/dexidp/dex/api/v2"
 	"github.com/rs/zerolog/log"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -20,21 +21,39 @@ import (
 // DexClientCleaner periodically deletes Dex clients with the EasyAuth prefix that don't belong to a
 // RadixApplication with the annotation. See "Cleanup loop" in easyauth/README.md.
 type DexClientCleaner struct {
-	// Reads RadixApplications and RadixRegistrations, normally from the manager cache
-	Client client.Reader
-	// Waits for the cache used by Client to sync before the first run
-	WaitForCacheSync func(ctx context.Context) bool
-	Dex              api.DexClient
-	Annotation       string
-	Interval         time.Duration
+	reader client.Reader
+	// Waits for the cache used by reader to sync before the first run. Set by SetupWithManager.
+	waitForCacheSync func(ctx context.Context) bool
+	dex              api.DexClient
+	annotation       string
+	interval         time.Duration
 }
 
-// Start runs the cleanup every Interval until ctx is cancelled. Errors are logged, and the cleanup is retried on the next run.
+// NewDexClientCleaner returns a cleaner that deletes Dex clients every interval, unless they belong to a
+// RadixApplication with annotation. reader reads RadixApplications and RadixRegistrations, normally from the
+// manager cache.
+func NewDexClientCleaner(reader client.Reader, dex api.DexClient, annotation string, interval time.Duration) *DexClientCleaner {
+	return &DexClientCleaner{
+		reader:           reader,
+		waitForCacheSync: func(context.Context) bool { return true },
+		dex:              dex,
+		annotation:       annotation,
+		interval:         interval,
+	}
+}
+
+// SetupWithManager adds the cleaner to the Manager. It waits for the Manager cache to sync before the first run.
+func (c *DexClientCleaner) SetupWithManager(mgr ctrl.Manager) error {
+	c.waitForCacheSync = mgr.GetCache().WaitForCacheSync
+	return mgr.Add(c)
+}
+
+// Start runs the cleanup every interval until ctx is cancelled. Errors are logged, and the cleanup is retried on the next run.
 func (c *DexClientCleaner) Start(ctx context.Context) error {
 	logger := log.Ctx(ctx).With().Str("runnable", "dex-client-cleanup").Logger()
 	ctx = logger.WithContext(ctx)
 
-	if !c.WaitForCacheSync(ctx) {
+	if !c.waitForCacheSync(ctx) {
 		return errors.New("cache did not sync")
 	}
 
@@ -45,7 +64,7 @@ func (c *DexClientCleaner) Start(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-time.Tick(c.Interval):
+		case <-time.Tick(c.interval):
 		}
 	}
 }
@@ -60,7 +79,7 @@ func (c *DexClientCleaner) NeedLeaderElection() bool {
 func (c *DexClientCleaner) Cleanup(ctx context.Context) error {
 	// Clients must be listed before RadixApplications. A client is only created after its RadixApplication exists,
 	// so a client created after this point is never deleted by mistake.
-	resp, err := c.Dex.ListClients(ctx, &api.ListClientReq{})
+	resp, err := c.dex.ListClients(ctx, &api.ListClientReq{})
 	if err != nil {
 		return fmt.Errorf("failed to list Dex clients: %w", err)
 	}
@@ -76,7 +95,7 @@ func (c *DexClientCleaner) Cleanup(ctx context.Context) error {
 		if !strings.HasPrefix(id, dex.ClientIDPrefix) || inUse[id] {
 			continue
 		}
-		if _, err := c.Dex.DeleteClient(ctx, &api.DeleteClientReq{Id: id}); err != nil {
+		if _, err := c.dex.DeleteClient(ctx, &api.DeleteClientReq{Id: id}); err != nil {
 			errs = append(errs, fmt.Errorf("failed to delete Dex client %s: %w", id, err))
 			continue
 		}
@@ -88,11 +107,11 @@ func (c *DexClientCleaner) Cleanup(ctx context.Context) error {
 // clientIDsInUse returns the client IDs of all RadixApplications with the annotation
 func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool, error) {
 	raList := &radixv1.RadixApplicationList{}
-	if err := c.Client.List(ctx, raList); err != nil {
+	if err := c.reader.List(ctx, raList); err != nil {
 		return nil, fmt.Errorf("failed to list RadixApplications: %w", err)
 	}
 	rrList := &radixv1.RadixRegistrationList{}
-	if err := c.Client.List(ctx, rrList); err != nil {
+	if err := c.reader.List(ctx, rrList); err != nil {
 		return nil, fmt.Errorf("failed to list RadixRegistrations: %w", err)
 	}
 
@@ -103,7 +122,7 @@ func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool,
 
 	inUse := map[string]bool{}
 	for _, ra := range raList.Items {
-		if _, ok := ra.Annotations[c.Annotation]; !ok {
+		if _, ok := ra.Annotations[c.annotation]; !ok {
 			continue
 		}
 		if appID, ok := appIDs[ra.Name]; ok && !appID.IsZero() {

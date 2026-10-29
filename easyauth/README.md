@@ -214,6 +214,9 @@ the cleanup loop below.
 
 Client secrets are rotated when they are older than `config.secretRotationInterval`, 90 days by default.
 
+The rotation interval is owned by the controller, and passed to `EnsureClient` of the Dex client manager
+(`internal/dex`), which rotates the secret when it is due and returns when the next rotation is due.
+
 - **Creation time:** Dex clients have no metadata, so the creation time is stored in the secret itself. A secret is
   a ULID, which encodes the creation time, followed by `.` and 128 bits of random data from `crypto/rand`. Every
   cluster sharing the Dex database can tell when a secret must be rotated, without any state in Kubernetes. A secret
@@ -286,17 +289,17 @@ running an application share one client. The controller must therefore:
 Configured with the `config` section in the Helm chart [values](../charts/radix-easyauth/values.yaml), which is
 rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 
-| Value             | Description                                                                             |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| `annotation`      | Annotation that enables EasyAuth on a `RadixApplication`                                |
-| `enforced`        | Reject `RadixApplications` without the annotation                                       |
-| `issuerUrl`       | OIDC issuer URL of Dex, set on all public components                                    |
-| `clusterName`     | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required    |
-| `dnsZone`         | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                   |
-| `appAliasBaseURL` | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required |
-| `cleanupEnabled`  | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `false`              |
-| `cleanupInterval` | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled |
-| `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h`. Use for example `24h` in dev. Must be the same in all clusters sharing the Dex database |
+| Value                    | Description                                                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `annotation`             | Annotation that enables EasyAuth on a `RadixApplication`                                                              |
+| `enforced`               | Reject `RadixApplications` without the annotation                                                                     |
+| `issuerUrl`              | OIDC issuer URL of Dex, set on all public components                                                                  |
+| `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
+| `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
+| `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
+| `cleanupEnabled`         | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `false`                                            |
+| `cleanupInterval`        | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled                               |
+| `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h` |
 
 `dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
 

@@ -42,13 +42,8 @@ func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
 		}
 		objs = append(objs, ra)
 	}
-	return &DexClientCleaner{
-		Client:           fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build(),
-		WaitForCacheSync: func(context.Context) bool { return true },
-		Dex:              fakeDex,
-		Annotation:       annotation,
-		Interval:         time.Hour,
-	}
+	reader := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
+	return NewDexClientCleaner(reader, fakeDex, annotation, time.Hour)
 }
 
 func dexClient(id string) *api.Client {
@@ -100,7 +95,7 @@ func TestCleanup_DeletesNothingWhenKubernetesFails(t *testing.T) {
 	fakeDex := dextest.NewFakeDex(dexClient(dex.ClientID(ulid.Make().String())))
 	c := newCleaner(fakeDex)
 	// The scheme doesn't know the Radix types, so listing RadixApplications fails
-	c.Client = fake.NewClientBuilder().Build()
+	c.reader = fake.NewClientBuilder().Build()
 
 	assert.Error(t, c.Cleanup(context.Background()))
 	assert.Zero(t, fakeDex.Calls("DeleteClient"))
@@ -128,7 +123,7 @@ func TestStart_RunsCleanupUntilCancelled(t *testing.T) {
 func TestStart_FailsWhenCacheDoesNotSync(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	c := newCleaner(fakeDex)
-	c.WaitForCacheSync = func(context.Context) bool { return false }
+	c.waitForCacheSync = func(context.Context) bool { return false }
 
 	assert.Error(t, c.Start(context.Background()))
 	assert.Zero(t, fakeDex.Calls("ListClients"))

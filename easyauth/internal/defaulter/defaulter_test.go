@@ -22,7 +22,7 @@ const (
 
 func newDefaulter(objs ...client.Object) *RadixApplicationDefaulter {
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
-	return &RadixApplicationDefaulter{Client: c, Annotation: annotation, OAuth2IssuerURL: issuerURL}
+	return NewRadixApplicationDefaulter(c, annotation, issuerURL)
 }
 
 func newRR(appName, id string) *radixv1.RadixRegistration {

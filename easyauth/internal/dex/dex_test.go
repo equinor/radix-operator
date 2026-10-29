@@ -43,8 +43,12 @@ func secretCreatedAgo(d time.Duration) string {
 	return NewSecret(time.Now().Add(-d))
 }
 
-func ensure(dexClient api.DexClient, name string, redirectURIs []string) (string, time.Time, error) {
-	return EnsureClient(context.Background(), dexClient, Client{ID: clientID, Name: name, RedirectURIs: redirectURIs}, rotationInterval)
+func desiredClient(name string, redirectURIs ...string) Client {
+	return Client{ID: clientID, Name: name, RedirectURIs: redirectURIs}
+}
+
+func ensure(dexClient api.DexClient, name string, redirectURIs ...string) (string, time.Time, error) {
+	return NewClientManager(dexClient).EnsureClient(context.Background(), desiredClient(name, redirectURIs...), rotationInterval)
 }
 
 func TestIsNotFound(t *testing.T) {
@@ -59,18 +63,18 @@ func TestIsNotFound(t *testing.T) {
 func TestEnsureClient_CreatesMissingClient(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		fakeDex := dextest.NewFakeDex()
-		uris := []string{"https://a.example.com/oauth2/callback"}
+		uri := "https://a.example.com/oauth2/callback"
 
-		secret, rotateAt, err := ensure(fakeDex, "my-app", uris)
+		secret, rotateAt, err := ensure(fakeDex, "my-app", uri)
 		require.NoError(t, err)
-		assert.WithinDuration(t, time.Now().Add(rotationInterval), rotateAt, 0)
 
 		created := fakeDex.Client(clientID)
 		require.NotNil(t, created)
 		assert.NotEmpty(t, secret)
 		assert.Equal(t, secret, created.Secret)
+		assert.WithinDuration(t, time.Now().Add(rotationInterval), rotateAt, 0)
 		assert.Equal(t, "my-app", created.Name)
-		assert.Equal(t, uris, created.RedirectUris)
+		assert.Equal(t, []string{uri}, created.RedirectUris)
 		assert.False(t, created.Public)
 	})
 }
@@ -84,10 +88,10 @@ func TestEnsureClient_KeepsSecretAndMergesRedirectURIs(t *testing.T) {
 		RedirectUris: []string{"https://other-cluster.example.com/oauth2/callback", "https://a.example.com/oauth2/callback"},
 	})
 
-	secret, _, err := ensure(fakeDex, "my-app", []string{
+	secret, _, err := ensure(fakeDex, "my-app",
 		"https://a.example.com/oauth2/callback",
 		"https://b.example.com/oauth2/callback",
-	})
+	)
 	require.NoError(t, err)
 
 	assert.Equal(t, existingSecret, secret)
@@ -110,12 +114,60 @@ func TestEnsureClient_DoesNotUpdateUnchangedClient(t *testing.T) {
 		RedirectUris: []string{"https://a.example.com/oauth2/callback", "https://b.example.com/oauth2/callback"},
 	})
 
-	secret, _, err := ensure(fakeDex, "my-app", []string{"https://b.example.com/oauth2/callback"})
+	secret, _, err := ensure(fakeDex, "my-app", "https://b.example.com/oauth2/callback")
 	require.NoError(t, err)
 
 	assert.Equal(t, existingSecret, secret)
 	assert.Zero(t, fakeDex.Calls("UpdateClient"))
 	assert.Zero(t, fakeDex.Calls("CreateClient"))
+}
+
+func TestEnsureClient_RotatesDueSecret(t *testing.T) {
+	tests := map[string]func() string{
+		"older than the rotation interval": func() string { return secretCreatedAgo(rotationInterval) },
+		"without creation time":            func() string { return "secret-from-an-older-version" },
+	}
+	for name, newOldSecret := range tests {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				oldSecret := newOldSecret()
+				fakeDex := dextest.NewFakeDex(&api.Client{
+					Id:           clientID,
+					Name:         "my-app",
+					Secret:       oldSecret,
+					RedirectUris: []string{"https://other-cluster.example.com/oauth2/callback"},
+				})
+
+				secret, rotateAt, err := ensure(fakeDex, "my-app", "https://a.example.com/oauth2/callback")
+				require.NoError(t, err)
+
+				assert.NotEqual(t, oldSecret, secret)
+				assert.WithinDuration(t, time.Now().Add(rotationInterval), rotateAt, 0)
+				rotated := fakeDex.Client(clientID)
+				assert.Equal(t, secret, rotated.Secret)
+				assert.Equal(t, "my-app", rotated.Name)
+				assert.Equal(t, []string{
+					"https://other-cluster.example.com/oauth2/callback",
+					"https://a.example.com/oauth2/callback",
+				}, rotated.RedirectUris, "redirect URIs of other clusters must be kept")
+				assert.Equal(t, 1, fakeDex.Calls("DeleteClient"))
+			})
+		})
+	}
+}
+
+func TestEnsureClient_DoesNotRotateSecretBeforeInterval(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		notDue := secretCreatedAgo(rotationInterval - time.Minute)
+		fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: notDue})
+
+		secret, rotateAt, err := ensure(fakeDex, "my-app")
+		require.NoError(t, err)
+
+		assert.Equal(t, notDue, secret)
+		assert.WithinDuration(t, time.Now().Add(time.Minute), rotateAt, 0)
+		assert.Zero(t, fakeDex.Calls("DeleteClient"))
+	})
 }
 
 // createdConcurrently returns not found on the first GetClient, as if another cluster created the client right after
@@ -136,7 +188,7 @@ func TestEnsureClient_UsesClientCreatedConcurrently(t *testing.T) {
 	existingSecret := secretCreatedAgo(24 * time.Hour)
 	fakeDex := &createdConcurrently{FakeDex: dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: existingSecret})}
 
-	secret, _, err := ensure(fakeDex, "my-app", nil)
+	secret, _, err := ensure(fakeDex, "my-app")
 	require.NoError(t, err)
 	assert.Equal(t, existingSecret, secret)
 }
@@ -145,7 +197,7 @@ func TestEnsureClient_ReturnsDexErrors(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	fakeDex.SetError(status.Error(codes.Unavailable, "connection refused"))
 
-	_, _, err := ensure(fakeDex, "my-app", nil)
+	_, _, err := ensure(fakeDex, "my-app")
 	require.Error(t, err)
 	assert.Zero(t, fakeDex.Calls("CreateClient"), "must not create a client when Dex returns other errors than not found")
 }
@@ -153,56 +205,8 @@ func TestEnsureClient_ReturnsDexErrors(t *testing.T) {
 func TestEnsureClient_FailsOnClientWithoutSecret(t *testing.T) {
 	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Public: true})
 
-	_, _, err := ensure(fakeDex, "my-app", nil)
+	_, _, err := ensure(fakeDex, "my-app")
 	assert.Error(t, err)
-}
-
-func TestEnsureClient_RotatesExpiredSecret(t *testing.T) {
-	tests := map[string]func() string{
-		"older than the rotation interval": func() string { return secretCreatedAgo(rotationInterval) },
-		"without creation time":            func() string { return "secret-from-an-older-version" },
-	}
-	for name, newOldSecret := range tests {
-		t.Run(name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				oldSecret := newOldSecret()
-				fakeDex := dextest.NewFakeDex(&api.Client{
-					Id:           clientID,
-					Name:         "my-app",
-					Secret:       oldSecret,
-					RedirectUris: []string{"https://other-cluster.example.com/oauth2/callback"},
-				})
-
-				secret, rotateAt, err := ensure(fakeDex, "my-app", []string{"https://a.example.com/oauth2/callback"})
-				require.NoError(t, err)
-
-				assert.NotEqual(t, oldSecret, secret)
-				assert.WithinDuration(t, time.Now().Add(rotationInterval), rotateAt, 0)
-				rotated := fakeDex.Client(clientID)
-				assert.Equal(t, secret, rotated.Secret)
-				assert.Equal(t, "my-app", rotated.Name)
-				assert.Equal(t, []string{
-					"https://other-cluster.example.com/oauth2/callback",
-					"https://a.example.com/oauth2/callback",
-				}, rotated.RedirectUris, "redirect URIs of other clusters must be kept")
-				assert.Equal(t, 1, fakeDex.Calls("DeleteClient"))
-			})
-		})
-	}
-}
-
-func TestEnsureClient_DoesNotRotateSecretBeforeInterval(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		notExpired := secretCreatedAgo(rotationInterval - time.Minute)
-		fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: notExpired})
-
-		secret, rotateAt, err := ensure(fakeDex, "my-app", nil)
-		require.NoError(t, err)
-
-		assert.Equal(t, notExpired, secret)
-		assert.WithinDuration(t, time.Now().Add(time.Minute), rotateAt, 0)
-		assert.Zero(t, fakeDex.Calls("DeleteClient"))
-	})
 }
 
 // rotatedConcurrently creates a new client right after it is deleted, as if another cluster rotated it at the same time
@@ -227,7 +231,7 @@ func TestEnsureClient_UsesSecretRotatedConcurrently(t *testing.T) {
 		otherSecret: otherSecret,
 	}
 
-	secret, _, err := ensure(fakeDex, "my-app", nil)
+	secret, _, err := ensure(fakeDex, "my-app")
 	require.NoError(t, err)
 	assert.Equal(t, otherSecret, secret)
 }

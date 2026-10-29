@@ -108,49 +108,31 @@ func main() {
 	}
 	defer func() { _ = dexConn.Close() }()
 
-	// Register the custom mutating webhook
-	err = defaulter.RegisterWithManager(mgr, &defaulter.RadixApplicationDefaulter{
-		Client:          mgr.GetAPIReader(),
-		Annotation:      cfg.Annotation,
-		OAuth2IssuerURL: cfg.IssuerURL,
-	})
-	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to create webhook")
+	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, cfg.IssuerURL).SetupWithManager(mgr); err != nil {
+		logger.Fatal().Err(err).Msg("unable to create mutating webhook")
 	}
 
-	err = validator.RegisterWithManager(mgr, &validator.RadixApplicationValidator{
-		Enforced:   cfg.Enforced,
-		Annotation: cfg.Annotation,
-	})
-	if err != nil {
+	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.Enforced).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create validating webhook")
 	}
 
-	err = (&controller.RadixApplicationReconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          runtimeScheme,
-		Dex:             dexClient,
-		Annotation:      cfg.Annotation,
-		OAuth2IssuerURL: cfg.IssuerURL,
-		ClusterName:     cfg.ClusterName,
-		DNSZone:         cfg.DNSZone,
-		AppAliasBaseURL: cfg.AppAliasBaseURL,
-
-		SecretRotationInterval: cfg.SecretRotationInterval,
-	}).SetupWithManager(mgr)
-	if err != nil {
+	dexClients := dex.NewClientManager(dexClient)
+	reconciler := controller.NewRadixApplicationReconciler(
+		mgr.GetClient(),
+		dexClients,
+		cfg.Annotation,
+		cfg.IssuerURL,
+		cfg.ClusterName,
+		cfg.DNSZone,
+		cfg.AppAliasBaseURL,
+		cfg.SecretRotationInterval)
+	if err := reconciler.SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to register controller with manager")
 	}
 
 	if cfg.CleanupEnabled {
-		err = mgr.Add(&cleanup.DexClientCleaner{
-			Client:           mgr.GetClient(),
-			WaitForCacheSync: mgr.GetCache().WaitForCacheSync,
-			Dex:              dexClient,
-			Annotation:       cfg.Annotation,
-			Interval:         cfg.CleanupInterval,
-		})
-		if err != nil {
+		cleaner := cleanup.NewDexClientCleaner(mgr.GetClient(), dexClient, cfg.Annotation, cfg.CleanupInterval)
+		if err := cleaner.SetupWithManager(mgr); err != nil {
 			logger.Fatal().Err(err).Msg("unable to register Dex client cleanup with manager")
 		}
 	}

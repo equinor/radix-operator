@@ -10,11 +10,9 @@ import (
 	"slices"
 	"time"
 
-	api "github.com/dexidp/dex/api/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -43,27 +41,62 @@ const (
 	// RestartedAtAnnotation is set on the pod template of the OAuth2 proxy Deployment to restart it
 	RestartedAtAnnotation = "easyauth.radix.equinor.com/restartedAt"
 
+	// DefaultResyncInterval is how often each RadixApplication is reconciled to correct drift
 	DefaultResyncInterval = time.Hour
+	// DefaultSecretRotationInterval is how old a client secret can be before it is rotated, when not set
+	DefaultSecretRotationInterval = 90 * 24 * time.Hour
 )
+
+// DexClientManager ensures that the OAuth2 client of an application exists in Dex
+type DexClientManager interface {
+	// EnsureClient creates or updates the client, rotates its secret when it is older than secretRotationInterval,
+	// and returns the secret and when it must be rotated
+	EnsureClient(ctx context.Context, desired dex.Client, secretRotationInterval time.Duration) (secret string, rotateAt time.Time, err error)
+}
+
+var _ DexClientManager = (*dex.ClientManager)(nil)
 
 // RadixApplicationReconciler reconciles a RadixApplication object
 type RadixApplicationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	// Dex gRPC API, where the OAuth2 client of each application is stored
-	Dex api.DexClient
+	dexClients DexClientManager
 	// Annotation that enables EasyAuth on a RadixApplication
-	Annotation string
+	annotation string
 	// OIDC issuer URL set on the OAuth2 configuration of public components
-	OAuth2IssuerURL string
+	oauth2IssuerURL string
 	// Cluster name, DNS zone and app alias base URL of radix-operator, used to build the public hostnames of components
-	ClusterName     string
-	DNSZone         string
-	AppAliasBaseURL string
-	// How often each RadixApplication is reconciled to correct drift. Defaults to DefaultResyncInterval
-	ResyncInterval time.Duration
-	// How old a client secret can be before it is rotated
-	SecretRotationInterval time.Duration
+	clusterName     string
+	dnsZone         string
+	appAliasBaseURL string
+	// How often each RadixApplication is reconciled to correct drift
+	resyncInterval time.Duration
+	// How old a client secret can be before it is rotated. Must be the same in all clusters sharing the Dex database.
+	secretRotationInterval time.Duration
+}
+
+// NewRadixApplicationReconciler returns a reconciler that reads and writes Kubernetes objects with c, and manages
+// the OAuth2 clients of applications in Dex with dexClients. secretRotationInterval defaults to
+// DefaultSecretRotationInterval when not set.
+func NewRadixApplicationReconciler(
+	c client.Client,
+	dexClients DexClientManager,
+	annotation, oauth2IssuerURL, clusterName, dnsZone, appAliasBaseURL string,
+	secretRotationInterval time.Duration,
+) *RadixApplicationReconciler {
+	if secretRotationInterval <= 0 {
+		secretRotationInterval = DefaultSecretRotationInterval
+	}
+	return &RadixApplicationReconciler{
+		Client:                 c,
+		dexClients:             dexClients,
+		annotation:             annotation,
+		oauth2IssuerURL:        oauth2IssuerURL,
+		clusterName:            clusterName,
+		dnsZone:                dnsZone,
+		appAliasBaseURL:        appAliasBaseURL,
+		resyncInterval:         DefaultResyncInterval,
+		secretRotationInterval: secretRotationInterval,
+	}
 }
 
 // +kubebuilder:rbac:groups=radix.equinor.com,resources=radixapplications,verbs=get;list;watch
@@ -87,7 +120,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if !ra.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}
-	if _, ok := ra.GetAnnotations()[r.Annotation]; !ok {
+	if _, ok := ra.GetAnnotations()[r.annotation]; !ok {
 		return ctrl.Result{}, nil
 	}
 
@@ -101,7 +134,8 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, fmt.Errorf("failed to get redirect URIs: %w", err)
 	}
 
-	clientSecret, rotateAt, err := dex.EnsureClient(ctx, r.Dex, dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: redirectURIs}, r.SecretRotationInterval)
+	desired := dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: redirectURIs}
+	clientSecret, rotateAt, err := r.dexClients.EnsureClient(ctx, desired, r.secretRotationInterval)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -137,10 +171,10 @@ func (r *RadixApplicationReconciler) redirectURIs(ctx context.Context, ra *radix
 				continue
 			}
 			var hosts []string
-			hosts = append(hosts, radixdeployment.GetComponentFQDNs(component, *rd, r.ClusterName, r.DNSZone, r.AppAliasBaseURL)...)
+			hosts = append(hosts, radixdeployment.GetComponentFQDNs(component, *rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
 			for _, alias := range ra.Spec.DNSAlias {
 				if alias.Environment == env.Name && alias.Component == component.Name {
-					hosts = append(hosts, dnsalias.GetHostName(alias.Alias, r.DNSZone))
+					hosts = append(hosts, dnsalias.GetHostName(alias.Alias, r.dnsZone))
 				}
 			}
 			for _, host := range hosts {
@@ -253,7 +287,7 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // environments of the application. This covers RadixDeployments created before the annotation was added,
 // and keeps inactive RadixDeployments correct in case they are promoted later.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
-	desired := defaulter.OAuth2Config(clientID, r.OAuth2IssuerURL)
+	desired := defaulter.OAuth2Config(clientID, r.oauth2IssuerURL)
 
 	var errs []error
 	for _, env := range ra.Spec.Environments {
@@ -305,14 +339,7 @@ func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd
 // rotated. A random delay of up to a minute spreads the clusters, so they are less likely to rotate at the same time.
 func (r *RadixApplicationReconciler) requeueAfter(rotateAt time.Time) time.Duration {
 	untilRotation := max(time.Until(rotateAt), 0) + rand.N(time.Minute)
-	return min(r.resyncInterval(), untilRotation)
-}
-
-func (r *RadixApplicationReconciler) resyncInterval() time.Duration {
-	if r.ResyncInterval > 0 {
-		return r.ResyncInterval
-	}
-	return DefaultResyncInterval
+	return min(r.resyncInterval, untilRotation)
 }
 
 // isPublicDeployComponent mirrors how the operator determines if a deployed component is exposed to the internet

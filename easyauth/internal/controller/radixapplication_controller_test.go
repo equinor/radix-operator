@@ -108,18 +108,12 @@ func activeRD(rd *radixv1.RadixDeployment) *radixv1.RadixDeployment {
 func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplicationReconciler {
 	s := scheme.NewScheme()
 	c := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).Build()
-	return &RadixApplicationReconciler{
-		Client:          c,
-		Scheme:          s,
-		Dex:             fakeDex,
-		Annotation:      annotation,
-		OAuth2IssuerURL: issuerURL,
-		ClusterName:     clusterName,
-		DNSZone:         dnsZone,
-		AppAliasBaseURL: appAliasBaseURL,
+	return newReconcilerWithClient(c, fakeDex)
+}
 
-		SecretRotationInterval: rotationInterval,
-	}
+func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixApplicationReconciler {
+	return NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
+		annotation, issuerURL, clusterName, dnsZone, appAliasBaseURL, rotationInterval)
 }
 
 func getSecret(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *corev1.Secret {
@@ -393,15 +387,7 @@ func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
 				return c.Patch(ctx, obj, patch, opts...)
 			},
 		}).Build()
-	r := &RadixApplicationReconciler{
-		Client:          c,
-		Scheme:          s,
-		Dex:             dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
-		Annotation:      annotation,
-		OAuth2IssuerURL: issuerURL,
-
-		SecretRotationInterval: rotationInterval,
-	}
+	r := newReconcilerWithClient(c, dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}))
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.Error(t, err)
@@ -445,6 +431,39 @@ func TestReconcile_RotatesExpiredClientSecret(t *testing.T) {
 		assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[RestartedAtAnnotation], "OAuth2 proxy must be restarted with the rotated secret")
 		assert.Equal(t, DefaultResyncInterval, result.RequeueAfter)
 	})
+}
+
+func TestReconcile_RotatesClientSecretWithoutCreationTime(t *testing.T) {
+	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: "secret-from-an-older-version"})
+	r := newReconciler(fakeDex, newRA(true), newRR())
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	rotated := fakeDex.Client(clientID).Secret
+	assert.NotEqual(t, "secret-from-an-older-version", rotated)
+	_, ok := dex.SecretCreatedAt(rotated)
+	assert.True(t, ok, "rotated secret must have a creation time")
+}
+
+func TestReconcile_DoesNotRotateClientSecretBeforeInterval(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		notDue := dex.NewSecret(time.Now().Add(-rotationInterval + time.Second))
+		fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: notDue})
+		r := newReconciler(fakeDex, newRA(true), newRR())
+
+		_, err := r.Reconcile(context.Background(), appRequest)
+		require.NoError(t, err)
+
+		assert.Equal(t, notDue, fakeDex.Client(clientID).Secret)
+		assert.Zero(t, fakeDex.Calls("DeleteClient"))
+	})
+}
+
+func TestNewRadixApplicationReconciler_Defaults(t *testing.T) {
+	r := NewRadixApplicationReconciler(nil, nil, annotation, issuerURL, clusterName, dnsZone, appAliasBaseURL, 0)
+	assert.Equal(t, DefaultResyncInterval, r.resyncInterval)
+	assert.Equal(t, DefaultSecretRotationInterval, r.secretRotationInterval)
 }
 
 func TestReconcile_RequeuesAtRotationTime(t *testing.T) {
