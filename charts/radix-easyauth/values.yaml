@@ -1,7 +1,14 @@
 nameOverride: ""
 fullnameOverride: ""
 
-replicaCount: 1
+# The webhooks are served by every replica, the controller only runs on the leader.
+# With webhook.failurePolicy Fail, at least two replicas are needed to keep RadixApplications writable during
+# restarts, node drains and crashes.
+replicaCount: 2
+
+# Created when replicaCount is greater than 1
+podDisruptionBudget:
+  minAvailable: 1
 
 image:
   repository: ghcr.io/equinor/radix/easyauth
@@ -21,6 +28,7 @@ config:
   enforced: false
   annotation: radix.equinor.com/easyauth
   issuerUrl: https://simpleauth.dev.radix.equinor.com
+  # Must be true when replicaCount is greater than 1
   enableLeaderElection: true
   # Lease name used for leader election. Must be unique per release within the namespace.
   # Defaults to <fullname>.easyauth.radix.equinor.com
@@ -51,12 +59,14 @@ certificate:
     commonName: radix-easyauth-ca
     organization: Radix EasyAuth CA
 
+# The controller caches RadixApplications, RadixDeployments and OAuth2 proxy Secrets, which grows with the number of
+# applications. An OOM kill also takes down the webhooks, so leave headroom.
 resources:
   limits:
-    memory: 128Mi
+    memory: 256Mi
   requests:
     cpu: 10m
-    memory: 64Mi
+    memory: 128Mi
 
 podSecurityContext:
   runAsNonRoot: true
@@ -76,6 +86,7 @@ securityContext:
 
 nodeSelector: {}
 tolerations: []
+# Defaults to a preferred pod anti-affinity that spreads replicas across nodes
 affinity: {}
 podAnnotations: {}
 podLabels: {}

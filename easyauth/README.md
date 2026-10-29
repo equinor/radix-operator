@@ -23,6 +23,13 @@ It consists of:
 | Dex                | Implemented | OIDC provider that users log in to, installed by the chart when `dex.enabled` is `true`           |
 | Controller         | Partial     | Keeps the OAuth2 client secret and `RadixDeployments` in sync with each `RadixApplication`         |
 
+The webhooks and the controller run in the same process and Deployment, so they always share configuration and
+version. The webhooks are served by every replica, while the controller only runs on the leader. Since the webhooks
+use `failurePolicy: Fail`, an unavailable EasyAuth blocks all creates and updates of `RadixApplications`. The chart
+therefore defaults to 2 replicas, spread across nodes with a preferred pod anti-affinity (unless `affinity` is set),
+and a PodDisruptionBudget with `minAvailable: 1` when `replicaCount` is greater than 1. The chart fails to render
+if `config.enableLeaderElection` is `false` and `replicaCount` is greater than 1.
+
 ## Mutating webhook
 
 Runs on create and update of `RadixApplications` with the annotation. For each public component (`publicPort`
