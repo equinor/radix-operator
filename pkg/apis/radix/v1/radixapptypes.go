@@ -1672,6 +1672,12 @@ type OAuth2 struct {
 	// +optional
 	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty"`
 
+	// Defines if user information (X-Forwarded-User, X-Forwarded-Email, X-Forwarded-Groups and X-Forwarded-Preferred-Username)
+	// should be passed to the upstream in request headers.
+	// Overrides the user headers setting derived from SetXAuthRequestHeaders when set.
+	// +optional
+	SetUserHeaders *bool `json:"setUserHeaders,omitempty"`
+
 	// Defines the url root path that OAuth Proxy should be nested under.
 	// +optional
 	ProxyPrefix string `json:"proxyPrefix,omitempty"`

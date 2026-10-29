@@ -242,6 +242,12 @@ spec:
                               description: Defines if the IDToken received by the
                                 OAuth Proxy should be added to the Authorization header.
                               type: boolean
+                            setUserHeaders:
+                              description: |-
+                                Defines if user information (X-Forwarded-User, X-Forwarded-Email, X-Forwarded-Groups and X-Forwarded-Preferred-Username)
+                                should be passed to the upstream in request headers.
+                                Overrides the user headers setting derived from SetXAuthRequestHeaders when set.
+                              type: boolean
                             setXAuthRequestHeaders:
                               description: |-
                                 Defines if claims from the access token is added to the X-Auth-Request-User, X-Auth-Request-Groups,
@@ -426,6 +432,12 @@ spec:
                                     description: Defines if the IDToken received by
                                       the OAuth Proxy should be added to the Authorization
                                       header.
+                                    type: boolean
+                                  setUserHeaders:
+                                    description: |-
+                                      Defines if user information (X-Forwarded-User, X-Forwarded-Email, X-Forwarded-Groups and X-Forwarded-Preferred-Username)
+                                      should be passed to the upstream in request headers.
+                                      Overrides the user headers setting derived from SetXAuthRequestHeaders when set.
                                     type: boolean
                                   setXAuthRequestHeaders:
                                     description: |-

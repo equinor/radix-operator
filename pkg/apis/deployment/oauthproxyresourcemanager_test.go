@@ -481,6 +481,53 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_Oauth_DeploymentReplicas(
 	}
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PassUserHeaders() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+
+	tests := map[string]struct {
+		setXAuthRequestHeaders *bool
+		setUserHeaders         *bool
+		expected               string
+		expectedPassAccessTok  string
+	}{
+		"not set":                           {expected: "", expectedPassAccessTok: ""},
+		"only setXAuthRequestHeaders=true":  {setXAuthRequestHeaders: new(true), expected: "true", expectedPassAccessTok: "true"},
+		"only setXAuthRequestHeaders=false": {setXAuthRequestHeaders: new(false), expected: "false", expectedPassAccessTok: "false"},
+		"only setUserHeaders=true":          {setUserHeaders: new(true), expected: "true", expectedPassAccessTok: ""},
+		"setUserHeaders=true overrides":     {setXAuthRequestHeaders: new(false), setUserHeaders: new(true), expected: "true", expectedPassAccessTok: "false"},
+		"setUserHeaders=false overrides":    {setXAuthRequestHeaders: new(true), setUserHeaders: new(false), expected: "false", expectedPassAccessTok: "true"},
+	}
+
+	for name, test := range tests {
+		s.Run(name, func() {
+			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+			rd := utils.NewDeploymentBuilder().
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponent(utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithPublicPort("http").
+					WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 80}}).
+					WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{
+						ClientID:               "client",
+						SetXAuthRequestHeaders: test.setXAuthRequestHeaders,
+						SetUserHeaders:         test.setUserHeaders,
+					}})).
+				BuildRD()
+
+			sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.cfg)
+			s.Require().NoError(sut.Sync(context.Background()))
+
+			deploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(deploys.Items, 1)
+			env := deploys.Items[0].Spec.Template.Spec.Containers[0].Env
+			s.Equal(test.expected, s.getEnvVarValueByName("OAUTH2_PROXY_PASS_USER_HEADERS", env))
+			s.Equal(test.expectedPassAccessTok, s.getEnvVarValueByName("OAUTH2_PROXY_PASS_ACCESS_TOKEN", env))
+		})
+	}
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
