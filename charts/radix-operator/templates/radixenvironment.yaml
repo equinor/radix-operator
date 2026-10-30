@@ -96,6 +96,9 @@ spec:
                     type: array
                 type: object
               envName:
+                maxLength: 63
+                minLength: 1
+                pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                 type: string
                 x-kubernetes-validations:
                 - message: envName must not be empty or 'app'

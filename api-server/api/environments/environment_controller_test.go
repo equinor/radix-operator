@@ -35,6 +35,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	authorizationapiv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -549,6 +550,40 @@ func TestCreateEnvironment(t *testing.T) {
 	responseChannel := environmentControllerTestUtils.ExecuteRequest("POST", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
 	response := <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
+}
+
+func TestCreateEnvironment_ValidatesEnvironmentName(t *testing.T) {
+	testCases := map[string]struct {
+		envName      string
+		expectedCode int
+	}{
+		"valid name":             {envName: "my-env-2", expectedCode: http.StatusOK},
+		"trailing dash":          {envName: "my-env-", expectedCode: http.StatusBadRequest},
+		"leading dash":           {envName: "-my-env", expectedCode: http.StatusBadRequest},
+		"uppercase":              {envName: "MyEnv", expectedCode: http.StatusBadRequest},
+		"invalid character":      {envName: "my_env", expectedCode: http.StatusBadRequest},
+		"reserved name app":      {envName: "app", expectedCode: http.StatusBadRequest},
+		"combined name too long": {envName: strings.Repeat("a", 63-len(anyAppName)), expectedCode: http.StatusBadRequest},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			commonTestUtils, environmentControllerTestUtils, _, _, radixClient, _, _, _, _ := setupTest(t, nil)
+			_, err := commonTestUtils.ApplyApplication(operatorutils.ARadixApplication().WithAppName(anyAppName))
+			require.NoError(t, err)
+
+			responseChannel := environmentControllerTestUtils.ExecuteRequest("POST", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, tc.envName))
+			response := <-responseChannel
+			assert.Equal(t, tc.expectedCode, response.Code)
+
+			_, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), operatorutils.GetEnvironmentNamespace(anyAppName, tc.envName), metav1.GetOptions{})
+			if tc.expectedCode == http.StatusOK {
+				assert.NoError(t, err)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err), "RadixEnvironment should not be created")
+			}
+		})
+	}
 }
 
 func Test_GetEnvironmentEvents_Controller(t *testing.T) {
