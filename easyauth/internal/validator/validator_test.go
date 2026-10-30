@@ -24,7 +24,7 @@ func TestValidate(t *testing.T) {
 		"not enforced, missing annotation":      {enforced: false, annotations: nil, wantErr: false},
 		"enforced, missing annotation":          {enforced: true, annotations: nil, wantErr: true},
 		"enforced, other annotation":            {enforced: true, annotations: map[string]string{"other": "x"}, wantErr: true},
-		"enforced, annotation present":          {enforced: true, annotations: map[string]string{annotation: "true"}, wantErr: false},
+		"enforced, annotation with value":       {enforced: true, annotations: map[string]string{annotation: "true"}, wantErr: true},
 		"enforced, annotation with empty value": {enforced: true, annotations: map[string]string{annotation: ""}, wantErr: false},
 	}
 
