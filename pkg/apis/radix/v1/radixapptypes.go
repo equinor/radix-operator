@@ -202,7 +202,7 @@ type BuildSpec struct {
 
 	// SubPipeline common configuration for all environments.
 	// +optional
-	SubPipeline *SubPipeline `json:"subPipeline,omitempty"`
+	SubPipeline *SubPipeline `json:"subPipeline"`
 }
 
 // Environment contains environment specific configuration.
@@ -226,7 +226,7 @@ type Environment struct {
 
 	// SubPipeline configuration.
 	// +optional
-	SubPipeline *SubPipeline `json:"subPipeline,omitempty"`
+	SubPipeline *SubPipeline `json:"subPipeline"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.
@@ -469,7 +469,7 @@ type RadixComponent struct {
 	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
 	// More info: https://www.radix.equinor.com/radix-config#monitoringconfig
 	// +optional
-	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
 	// More info: https://www.radix.equinor.com/radix-config#monitoring
