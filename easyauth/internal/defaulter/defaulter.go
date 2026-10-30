@@ -17,16 +17,17 @@ const Path = "/radix/v1/radixapplication/mutate"
 
 // RadixApplicationDefaulter mutates RadixApplications that have the configured annotation
 type RadixApplicationDefaulter struct {
-	reader          client.Reader
-	annotation      string
-	oauth2IssuerURL string
+	reader         client.Reader
+	annotation     string
+	oauth2Template *radixv1.OAuth2
 }
 
-// NewRadixApplicationDefaulter returns a defaulter for RadixApplications with annotation, that sets oauth2IssuerURL on
-// public components. reader reads the RadixRegistration of the application, to get the AppID used in the client ID.
-// It should read from the API server and not a cache, since the RadixRegistration may have just been created.
-func NewRadixApplicationDefaulter(reader client.Reader, annotation, oauth2IssuerURL string) *RadixApplicationDefaulter {
-	return &RadixApplicationDefaulter{reader: reader, annotation: annotation, oauth2IssuerURL: oauth2IssuerURL}
+// NewRadixApplicationDefaulter returns a defaulter for RadixApplications with annotation, that sets the OAuth2
+// configuration from oauth2Template (see NewOAuth2Template) on public components. reader reads the RadixRegistration
+// of the application, to get the AppID used in the client ID. It should read from the API server and not a cache,
+// since the RadixRegistration may have just been created.
+func NewRadixApplicationDefaulter(reader client.Reader, annotation string, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
+	return &RadixApplicationDefaulter{reader: reader, annotation: annotation, oauth2Template: oauth2Template}
 }
 
 // SetupWithManager registers the mutating webhook with the Manager
@@ -56,7 +57,7 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 		if component.Authentication == nil {
 			component.Authentication = &radixv1.Authentication{}
 		}
-		component.Authentication.OAuth2 = OAuth2Config(clientID, d.oauth2IssuerURL)
+		component.Authentication.OAuth2 = OAuth2Config(d.oauth2Template, clientID)
 
 		// Environment specific OAuth2 config is merged on top of the component config, so it must be
 		// removed for the component config to take effect
@@ -70,20 +71,24 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 	return nil
 }
 
-// OAuth2Config returns the EasyAuth OAuth2 configuration for public components of an application
-func OAuth2Config(clientID, issuerURL string) *radixv1.OAuth2 {
-	return &radixv1.OAuth2{
-		ClientID:               clientID,
-		Credentials:            radixv1.Secret,
-		Scope:                  "openid profile email groups offline_access",
-		SetAuthorizationHeader: new(false),
-		SetXAuthRequestHeaders: new(false),
-		SetUserHeaders:         new(true),
-		SessionStoreType:       radixv1.SessionStoreSystemManaged,
-		OIDC: &radixv1.OAuth2OIDC{
-			IssuerURL: issuerURL,
-		},
+// NewOAuth2Template returns the OAuth2 configuration for public components, without the client ID. It is a copy of
+// oauth2 from the EasyAuth config, with the credentials and OIDC issuer URL that EasyAuth requires.
+func NewOAuth2Template(oauth2 radixv1.OAuth2, issuerURL string) *radixv1.OAuth2 {
+	template := oauth2.DeepCopy()
+	template.ClientID = ""
+	template.Credentials = radixv1.Secret
+	if template.OIDC == nil {
+		template.OIDC = &radixv1.OAuth2OIDC{}
 	}
+	template.OIDC.IssuerURL = issuerURL
+	return template
+}
+
+// OAuth2Config returns the EasyAuth OAuth2 configuration for public components of an application
+func OAuth2Config(template *radixv1.OAuth2, clientID string) *radixv1.OAuth2 {
+	oauth2 := template.DeepCopy()
+	oauth2.ClientID = clientID
+	return oauth2
 }
 
 // IsPublic mirrors how the operator determines if a component is exposed to the internet

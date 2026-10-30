@@ -1,6 +1,12 @@
 enforced: true
 annotation: radix.equinor.com/easyauth
 issuerUrl: https://simpleauth.dev.radix.equinor.com
+oauth2:
+  scope: openid profile email groups offline_access
+  setAuthorizationHeader: false
+  setXAuthRequestHeaders: false
+  setUserHeaders: true
+  sessionStoreType: systemManaged
 clusterName: weekly-01
 dnsZone: dev.radix.equinor.com
 appAliasBaseURL: app.dev.radix.equinor.com

@@ -38,7 +38,9 @@ if `config.enableLeaderElection` is `false` and `replicaCount` is greater than 1
 Runs on create and update of `RadixApplications` with the annotation. For each public component (`publicPort`
 set, or the deprecated `public: true`) it:
 
-- Replaces `authentication.oauth2` with the EasyAuth configuration below.
+- Replaces `authentication.oauth2` with the EasyAuth configuration below. Everything except `clientId`,
+  `credentials` and `oidc.issuerUrl` comes from [`config.oauth2`](#configuration), the example shows the chart
+  defaults.
 - Removes `authentication.oauth2` from all `environmentConfig` entries, since environment configuration is merged
   on top of the component configuration by radix-operator.
 
@@ -54,6 +56,7 @@ authentication:
     setAuthorizationHeader: false
     setXAuthRequestHeaders: false
     setUserHeaders: true
+    sessionStoreType: systemManaged
     oidc:
       issuerUrl: <config.issuerUrl>
 ```
@@ -313,6 +316,7 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 | `annotation`             | Annotation that enables EasyAuth on a `RadixApplication`                                                              |
 | `enforced`               | Reject `RadixApplications` without the annotation                                                                     |
 | `issuerUrl`              | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |
+| `oauth2`                 | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required          |
 | `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
 | `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
 | `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
@@ -321,6 +325,12 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 | `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h` |
 
 `dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
+
+`oauth2` accepts every setting of `authentication.oauth2` in `radixconfig.yaml`, except `clientId`, `credentials` and
+`oidc.issuerUrl`, which are set by EasyAuth. Config with any of them set is rejected at startup. A changed config
+restarts EasyAuth (the ConfigMap checksum is a pod annotation), and the controller updates the `RadixDeployments` of
+all applications with the annotation when it reconciles them on startup. `RadixApplications` get the new config the
+next time they are applied.
 
 The chart templates `mutating_webhook.yaml` and `validating_webhook.yaml` are generated from the `+kubebuilder:webhook`
 markers in `internal/defaulter` and `internal/validator` by `make helmresources`, with

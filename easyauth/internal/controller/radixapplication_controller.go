@@ -63,8 +63,8 @@ type RadixApplicationReconciler struct {
 	dexClients DexClientManager
 	// Annotation that enables EasyAuth on a RadixApplication
 	annotation string
-	// OIDC issuer URL set on the OAuth2 configuration of public components
-	oauth2IssuerURL string
+	// OAuth2 configuration of public components, without the client ID (see defaulter.NewOAuth2Template)
+	oauth2Template *radixv1.OAuth2
 	// Cluster name, DNS zone and app alias base URL of radix-operator, used to build the public hostnames of components
 	clusterName     string
 	dnsZone         string
@@ -81,7 +81,9 @@ type RadixApplicationReconciler struct {
 func NewRadixApplicationReconciler(
 	c client.Client,
 	dexClients DexClientManager,
-	annotation, oauth2IssuerURL, clusterName, dnsZone, appAliasBaseURL string,
+	annotation string,
+	oauth2Template *radixv1.OAuth2,
+	clusterName, dnsZone, appAliasBaseURL string,
 	secretRotationInterval time.Duration,
 ) *RadixApplicationReconciler {
 	if secretRotationInterval <= 0 {
@@ -91,7 +93,7 @@ func NewRadixApplicationReconciler(
 		Client:                 c,
 		dexClients:             dexClients,
 		annotation:             annotation,
-		oauth2IssuerURL:        oauth2IssuerURL,
+		oauth2Template:         oauth2Template,
 		clusterName:            clusterName,
 		dnsZone:                dnsZone,
 		appAliasBaseURL:        appAliasBaseURL,
@@ -302,7 +304,7 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // environments of the application. This covers RadixDeployments created before the annotation was added,
 // and keeps inactive RadixDeployments correct in case they are promoted later.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
-	desired := defaulter.OAuth2Config(clientID, r.oauth2IssuerURL)
+	desired := defaulter.OAuth2Config(r.oauth2Template, clientID)
 
 	var errs []error
 	for _, env := range ra.Spec.Environments {

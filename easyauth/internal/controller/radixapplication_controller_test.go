@@ -49,6 +49,8 @@ const (
 	appAliasBaseURL = "app.example.com"
 )
 
+var oauth2Template = defaulter.NewOAuth2Template(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true)}, issuerURL)
+
 const rotationInterval = 90 * 24 * time.Hour
 
 // newDexSecret returns a client secret created a day ago, so it is not rotated.
@@ -116,7 +118,7 @@ func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplic
 
 func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixApplicationReconciler {
 	return NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, issuerURL, clusterName, dnsZone, appAliasBaseURL, rotationInterval)
+		annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval)
 }
 
 func getSecret(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *corev1.Secret {
@@ -258,7 +260,7 @@ func TestReconcile_DexUnavailable(t *testing.T) {
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.Error(t, err)
 	assert.NotContains(t, getSecret(t, r, devNs, webSecret.Name).Data, ClientSecretKey)
-	assert.Equal(t, defaulter.OAuth2Config(clientID, issuerURL), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
+	assert.Equal(t, defaulter.OAuth2Config(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
 		"RadixDeployments must be protected even when Dex is unavailable")
 }
 
@@ -305,7 +307,7 @@ func TestReconcile_SyncsDexWhenRadixDeploymentPatchFails(t *testing.T) {
 }
 
 func TestReconcile_SetsOAuth2ConfigOnAllRadixDeployments(t *testing.T) {
-	expected := defaulter.OAuth2Config(clientID, issuerURL)
+	expected := defaulter.OAuth2Config(oauth2Template, clientID)
 	wrongOAuth2 := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "other"}}
 	privateAuth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "private"}}
 
@@ -357,7 +359,7 @@ func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, conflicts+1, patches)
-	assert.Equal(t, defaulter.OAuth2Config(clientID, issuerURL), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+	assert.Equal(t, defaulter.OAuth2Config(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
 }
 
 func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {
@@ -560,7 +562,7 @@ func TestReconcile_DoesNotRotateClientSecretBeforeInterval(t *testing.T) {
 }
 
 func TestNewRadixApplicationReconciler_Defaults(t *testing.T) {
-	r := NewRadixApplicationReconciler(nil, nil, annotation, issuerURL, clusterName, dnsZone, appAliasBaseURL, 0)
+	r := NewRadixApplicationReconciler(nil, nil, annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0)
 	assert.Equal(t, DefaultResyncInterval, r.resyncInterval)
 	assert.Equal(t, DefaultSecretRotationInterval, r.secretRotationInterval)
 }

@@ -202,7 +202,7 @@ type BuildSpec struct {
 
 	// SubPipeline common configuration for all environments.
 	// +optional
-	SubPipeline *SubPipeline `json:"subPipeline"`
+	SubPipeline *SubPipeline `json:"subPipeline,omitempty"`
 }
 
 // Environment contains environment specific configuration.
@@ -226,7 +226,7 @@ type Environment struct {
 
 	// SubPipeline configuration.
 	// +optional
-	SubPipeline *SubPipeline `json:"subPipeline"`
+	SubPipeline *SubPipeline `json:"subPipeline,omitempty"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.

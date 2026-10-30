@@ -108,7 +108,8 @@ func main() {
 	}
 	defer func() { _ = dexConn.Close() }()
 
-	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, cfg.IssuerURL).SetupWithManager(mgr); err != nil {
+	oauth2Template := defaulter.NewOAuth2Template(cfg.OAuth2, cfg.IssuerURL)
+	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, oauth2Template).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create mutating webhook")
 	}
 
@@ -121,7 +122,7 @@ func main() {
 		mgr.GetClient(),
 		dexClients,
 		cfg.Annotation,
-		cfg.IssuerURL,
+		oauth2Template,
 		cfg.ClusterName,
 		cfg.DNSZone,
 		cfg.AppAliasBaseURL,

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/configcodec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,9 +31,16 @@ func TestParse_HappyPath(t *testing.T) {
 	require.NoError(t, configcodec.Decode(configHappyYaml, &cfg))
 
 	expected := EasyAuthConfig{
-		Enforced:             true,
-		Annotation:           "radix.equinor.com/easyauth",
-		IssuerURL:            "https://simpleauth.dev.radix.equinor.com",
+		Enforced:   true,
+		Annotation: "radix.equinor.com/easyauth",
+		IssuerURL:  "https://simpleauth.dev.radix.equinor.com",
+		OAuth2: radixv1.OAuth2{
+			Scope:                  "openid profile email groups offline_access",
+			SetAuthorizationHeader: new(false),
+			SetXAuthRequestHeaders: new(false),
+			SetUserHeaders:         new(true),
+			SessionStoreType:       radixv1.SessionStoreSystemManaged,
+		},
 		ClusterName:          "weekly-01",
 		DNSZone:              "dev.radix.equinor.com",
 		AppAliasBaseURL:      "app.dev.radix.equinor.com",
@@ -86,6 +94,25 @@ func TestParse_Validation(t *testing.T) {
 		"missing issuerUrl should fail": {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.IssuerURL = "" },
 			expectedError: `field "IssuerURL" is required but not set`,
+		},
+		"missing oauth2 should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2 = radixv1.OAuth2{} },
+			expectedError: `field "OAuth2" is required but not set`,
+		},
+		"oauth2 with clientId should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.ClientID = "any" },
+			expectedError: `field "OAuth2" did not pass validation expression`,
+		},
+		"oauth2 with credentials should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.Credentials = radixv1.Secret },
+			expectedError: `field "OAuth2" did not pass validation expression`,
+		},
+		"oauth2 with oidc issuerUrl should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.OIDC = &radixv1.OAuth2OIDC{IssuerURL: "https://any"} },
+			expectedError: `field "OAuth2" did not pass validation expression`,
+		},
+		"oauth2 with other oidc settings should pass": {
+			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.OIDC = &radixv1.OAuth2OIDC{SkipDiscovery: new(true)} },
 		},
 		"missing clusterName should fail": {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.ClusterName = "" },

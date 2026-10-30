@@ -1,12 +1,20 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
 
 type EasyAuthConfig struct {
 	// When true, RadixApplications without RequiredAnnotation are rejected by the validating webhook
 	Enforced   bool   `json:"enforced"`
 	Annotation string `json:"annotation" required:"true"`
 	IssuerURL  string `json:"issuerUrl" required:"true"`
+
+	// OAuth2 configuration set on all public components by the mutating webhook and the controller.
+	// clientId, credentials and oidc.issuerUrl are set by EasyAuth and must not be set here.
+	OAuth2 radixv1.OAuth2 `json:"oauth2" required:"true" validate:"self.clientId == '' && !has(self.credentials) && (!has(self.oidc) || !has(self.oidc.issuerUrl))"`
 
 	// Must match config.common of radix-operator in the same cluster, used to build the redirect URIs of public hosts
 	ClusterName     string `json:"clusterName" required:"true"`

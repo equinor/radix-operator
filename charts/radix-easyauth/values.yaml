@@ -29,6 +29,14 @@ config:
   annotation: radix.equinor.com/easyauth
   # Required. The Dex issuer, set on all public components by the mutating webhook. Overrides dex.config.issuer.
   issuerUrl: https://simpleauth.dev.radix.equinor.com
+  # OAuth2 configuration set on all public components, see authentication.oauth2 in the radixconfig.yaml
+  # documentation for all settings. clientId, credentials and oidc.issuerUrl are set by EasyAuth and must not be set.
+  oauth2:
+    scope: openid profile email groups offline_access
+    setAuthorizationHeader: false
+    setXAuthRequestHeaders: false
+    setUserHeaders: true
+    sessionStoreType: systemManaged
   # Required. Must match config.common.clusterName, dnsZone and appAliasBaseURL of radix-operator in the same cluster,
   # since they are used to build the OAuth2 redirect URIs of the public hosts of each application
   clusterName: ""
