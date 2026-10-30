@@ -76,9 +76,10 @@ func OAuth2Config(clientID, issuerURL string) *radixv1.OAuth2 {
 		ClientID:               clientID,
 		Credentials:            radixv1.Secret,
 		Scope:                  "openid profile email offline_access",
-		SetAuthorizationHeader: new(false),
-		SetXAuthRequestHeaders: new(false),
+		SetAuthorizationHeader: new(true), // todo revert to false
+		SetXAuthRequestHeaders: new(true), // todo revert to false
 		SetUserHeaders:         new(true),
+		SessionStoreType:       radixv1.SessionStoreSystemManaged,
 		OIDC: &radixv1.OAuth2OIDC{
 			IssuerURL: issuerURL,
 		},

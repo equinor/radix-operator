@@ -49,9 +49,15 @@ func (v *RadixApplicationValidator) validate(obj *radixv1.RadixApplication) erro
 	if !v.enforced {
 		return nil
 	}
-	if _, ok := obj.GetAnnotations()[v.annotation]; !ok {
-		return fmt.Errorf("RadixApplication %s/%s must have the annotation %q", obj.Namespace, obj.Name, v.annotation)
+
+	value, ok := obj.GetAnnotations()[v.annotation]
+	if !ok {
+		return fmt.Errorf("RadixApplication %s must have the annotation %q", obj.Name, v.annotation)
 	}
+	if value != "" {
+		return fmt.Errorf("RadixApplication %s annotation %q must be empty", obj.Name, v.annotation)
+	}
+
 	return nil
 }
 
