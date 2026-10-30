@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
 	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -305,7 +306,8 @@ func TestDeleteEnvironment_OneOrphanedEnvironment_OnlyOrphanedCanBeDeleted(t *te
 	anyOrphanedEnvironment := "feature-1"
 
 	// Setup
-	commonTestUtils, environmentControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
+	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
+	allowEnvironmentAdministration(t, kubeClient)
 	_, err := commonTestUtils.ApplyApplication(operatorutils.
 		NewRadixApplicationBuilder().
 		WithAppName(anyAppName).
@@ -540,7 +542,8 @@ func TestRestartEnvrionment_ApplicationWithDeployment_EnvironmentConsistent(t *t
 
 func TestCreateEnvironment(t *testing.T) {
 	// Setup
-	commonTestUtils, environmentControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
+	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
+	allowEnvironmentAdministration(t, kubeClient)
 	_, err := commonTestUtils.ApplyApplication(operatorutils.
 		ARadixApplication().
 		WithAppName(anyAppName))
@@ -568,7 +571,8 @@ func TestCreateEnvironment_ValidatesEnvironmentName(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			commonTestUtils, environmentControllerTestUtils, _, _, radixClient, _, _, _, _ := setupTest(t, nil)
+			commonTestUtils, environmentControllerTestUtils, _, kubeClient, radixClient, _, _, _, _ := setupTest(t, nil)
+			allowEnvironmentAdministration(t, kubeClient)
 			_, err := commonTestUtils.ApplyApplication(operatorutils.ARadixApplication().WithAppName(anyAppName))
 			require.NoError(t, err)
 
@@ -583,6 +587,89 @@ func TestCreateEnvironment_ValidatesEnvironmentName(t *testing.T) {
 				assert.True(t, kubeerrors.IsNotFound(err), "RadixEnvironment should not be created")
 			}
 		})
+	}
+}
+
+func TestCreateEnvironment_Authorization(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		status       authorizationapiv1.SubjectAccessReviewStatus
+		reviewError  error
+		expectedCode int
+	}{
+		{name: "reader denied", status: authorizationapiv1.SubjectAccessReviewStatus{Denied: true}, expectedCode: http.StatusForbidden},
+		{name: "review returns neither allow nor deny", expectedCode: http.StatusForbidden},
+		{name: "access review API error", reviewError: kubeerrors.NewInternalError(fmt.Errorf("access review unavailable")), expectedCode: http.StatusInternalServerError},
+		{name: "application admins allowed", status: authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, expectedCode: http.StatusOK},
+	} {
+		for _, exists := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/environment already exists=%t", tc.name, exists), func(t *testing.T) {
+				controllerTestUtils, userClient, radixClient := setupEnvironmentAuthorizationTest(t, exists)
+				mockEnvironmentAdminAccessReview(t, userClient, tc.status, tc.reviewError)
+				createCount := 0
+				radixClient.PrependReactor("create", "radixenvironments", func(testing2.Action) (bool, runtime.Object, error) {
+					createCount++
+					return false, nil, nil
+				})
+
+				response := <-controllerTestUtils.ExecuteRequest("POST", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
+				assert.Equal(t, tc.expectedCode, response.Code, response.Body.String())
+				assert.Len(t, userClient.Actions(), 1, "authorization must be checked exactly once using the caller's client")
+				if tc.status.Allowed {
+					assert.Equal(t, 1, createCount)
+				} else {
+					assert.Zero(t, createCount, "denied requests must not attempt a privileged create")
+				}
+				envName := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+				_, err := radixClient.RadixV1().RadixEnvironments().Get(context.Background(), envName, metav1.GetOptions{})
+				if exists || tc.status.Allowed {
+					require.NoError(t, err)
+				} else {
+					assert.True(t, kubeerrors.IsNotFound(err))
+				}
+			})
+		}
+	}
+}
+
+func TestDeleteEnvironment_Authorization(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		status       authorizationapiv1.SubjectAccessReviewStatus
+		reviewError  error
+		expectedCode int
+	}{
+		{name: "reader denied", status: authorizationapiv1.SubjectAccessReviewStatus{Denied: true}, expectedCode: http.StatusForbidden},
+		{name: "review returns neither allow nor deny", expectedCode: http.StatusForbidden},
+		{name: "access review API error", reviewError: kubeerrors.NewInternalError(fmt.Errorf("access review unavailable")), expectedCode: http.StatusInternalServerError},
+		{name: "application admins allowed", status: authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, expectedCode: http.StatusOK},
+	} {
+		for _, orphanedByTimestamp := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/orphaned by timestamp=%t", tc.name, orphanedByTimestamp), func(t *testing.T) {
+				controllerTestUtils, userClient, radixClient := setupEnvironmentAuthorizationTest(t, true)
+				mockEnvironmentAdminAccessReview(t, userClient, tc.status, tc.reviewError)
+				markEnvironmentOrphaned(t, radixClient, orphanedByTimestamp)
+				deleteCount := 0
+				radixClient.PrependReactor("delete", "radixenvironments", func(testing2.Action) (bool, runtime.Object, error) {
+					deleteCount++
+					return false, nil, nil
+				})
+
+				response := <-controllerTestUtils.ExecuteRequest("DELETE", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
+
+				assert.Equal(t, tc.expectedCode, response.Code, response.Body.String())
+				assert.Len(t, userClient.Actions(), 1, "authorization must use the caller's client exactly once")
+				envName := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+				_, err := radixClient.RadixV1().RadixEnvironments().Get(context.Background(), envName, metav1.GetOptions{})
+				if tc.status.Allowed {
+					assert.Equal(t, 1, deleteCount)
+					assert.True(t, kubeerrors.IsNotFound(err))
+				} else {
+					assert.Zero(t, deleteCount, "denied requests must not attempt a privileged delete")
+					require.NoError(t, err, "the environment must remain intact")
+				}
+			})
+		}
 	}
 }
 
@@ -1040,7 +1127,8 @@ func TestGetSecret_ExistingSecretInConfig_ReturnsAPendingSecret(t *testing.T) {
 
 func TestCreateSecret(t *testing.T) {
 	// Setup
-	commonTestUtils, environmentControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
+	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
+	allowEnvironmentAdministration(t, kubeClient)
 	_, err := commonTestUtils.ApplyApplication(operatorutils.
 		ARadixApplication().
 		WithAppName(anyAppName))
@@ -1167,6 +1255,71 @@ func createRadixDeploymentWithReplicas(tu *commontest.Utils, appName, envName st
 	)
 
 	return rd, err
+}
+
+func allowEnvironmentAdministration(t *testing.T, kubeClient *kubefake.Clientset) {
+	t.Helper()
+	mockEnvironmentAdminAccessReview(t, kubeClient, authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, nil)
+}
+
+func mockEnvironmentAdminAccessReview(t *testing.T, kubeClient *kubefake.Clientset, status authorizationapiv1.SubjectAccessReviewStatus, reviewError error) {
+	t.Helper()
+	kubeClient.PrependReactor("create", "selfsubjectaccessreviews", func(action testing2.Action) (bool, runtime.Object, error) {
+		review := action.(testing2.CreateAction).GetObject().(*authorizationapiv1.SelfSubjectAccessReview)
+		assert.Equal(t, &authorizationapiv1.ResourceAttributes{
+			Verb:     "patch",
+			Group:    v1.GroupName,
+			Resource: v1.ResourceRadixRegistrations,
+			Version:  "*",
+			Name:     anyAppName,
+		}, review.Spec.ResourceAttributes)
+		review.Status = status
+		return true, review, reviewError
+	})
+}
+
+func setupEnvironmentAuthorizationTest(t *testing.T, environmentExists bool) (*controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset) {
+	t.Helper()
+	commonTestUtils, _, _, serviceClient, radixClient, kedaClient, _, secretClient, certClient := setupTest(t, nil)
+	userClient := kubefake.NewClientset()
+	serviceClient.PrependReactor("create", "selfsubjectaccessreviews", func(testing2.Action) (bool, runtime.Object, error) {
+		t.Error("authorization must use the caller's client")
+		return true, nil, fmt.Errorf("wrong authorization client")
+	})
+
+	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))
+	mockValidator.EXPECT().ValidateToken(gomock.Any(), gomock.Any()).AnyTimes().Return(controllertest.NewTestPrincipal(true), nil)
+	controller := NewEnvironmentController(func(a accounts.Accounts) EnvironmentHandler {
+		a.UserAccount.Client = userClient
+		return Init(WithAccounts(a))
+	})
+	controllerTestUtils := controllertest.NewTestUtils(serviceClient, radixClient.(*radixfake.Clientset),
+		kedaClient.(*kedafake.Clientset), secretClient.(*secretproviderfake.Clientset), certClient, nil, mockValidator, controller)
+
+	_, err := commonTestUtils.ApplyApplication(operatorutils.ARadixApplication().WithAppName(anyAppName))
+	require.NoError(t, err)
+	if environmentExists {
+		_, err = radixClient.RadixV1().RadixEnvironments().Create(context.Background(),
+			operatorutils.NewEnvironmentBuilder().WithAppName(anyAppName).WithEnvironmentName(anyEnvironment).BuildRE(), metav1.CreateOptions{})
+		require.NoError(t, err)
+	}
+
+	return &controllerTestUtils, userClient, radixClient.(*radixfake.Clientset)
+}
+
+func markEnvironmentOrphaned(t *testing.T, radixClient radixclient.Interface, byTimestamp bool) {
+	t.Helper()
+	envName := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	re, err := radixClient.RadixV1().RadixEnvironments().Get(context.Background(), envName, metav1.GetOptions{})
+	require.NoError(t, err)
+	if byTimestamp {
+		now := metav1.Now()
+		re.Status.OrphanedTimestamp = &now
+	} else {
+		re.Status.Orphaned = true
+	}
+	_, err = radixClient.RadixV1().RadixEnvironments().UpdateStatus(context.Background(), re, metav1.UpdateOptions{})
+	require.NoError(t, err)
 }
 
 func contains(secrets []secretModels.Secret, name string) bool {

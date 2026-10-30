@@ -1190,6 +1190,7 @@
         "tags": [
           "environment"
         ],
+        "description": "Requires application administrator access.",
         "summary": "Creates application environment",
         "operationId": "createEnvironment",
         "parameters": [
@@ -1226,6 +1227,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Application administrator access required"
           }
         }
       },
@@ -1233,6 +1237,7 @@
         "tags": [
           "environment"
         ],
+        "description": "Requires application administrator access. Only orphaned environments can be deleted.",
         "summary": "Deletes application environment",
         "operationId": "deleteEnvironment",
         "parameters": [
@@ -1269,6 +1274,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Application administrator access required"
           },
           "404": {
             "description": "Not found"

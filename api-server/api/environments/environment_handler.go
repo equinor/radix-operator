@@ -220,6 +220,14 @@ func (eh EnvironmentHandler) CreateEnvironment(ctx context.Context, appName, env
 		return nil, err
 	}
 
+	allowed, err := kubequery.IsRadixApplicationAdmin(ctx, eh.accounts.UserAccount.Client, appName)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, http.ForbiddenError("you must be administrator to create an environment")
+	}
+
 	// idempotent creation of RadixEnvironment
 	re, err := eh.accounts.ServiceAccount.RadixClient.RadixV1().RadixEnvironments().Create(ctx, k8sObjectUtils.
 		NewEnvironmentBuilder().
@@ -252,6 +260,14 @@ func validateEnvironmentName(appName, envName string) error {
 
 // DeleteEnvironment Handler for DeleteEnvironment. Deletes an environment if it is considered orphaned
 func (eh EnvironmentHandler) DeleteEnvironment(ctx context.Context, appName, envName string) error {
+	allowed, err := kubequery.IsRadixApplicationAdmin(ctx, eh.accounts.UserAccount.Client, appName)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return http.ForbiddenError("you must be administrator to delete an environment")
+	}
+
 	re, err := kubequery.GetRadixEnvironment(ctx, eh.accounts.ServiceAccount.RadixClient, appName, envName)
 	if err != nil {
 		return err
