@@ -1187,10 +1187,10 @@
         }
       },
       "post": {
+        "description": "Requires application administrator access.",
         "tags": [
           "environment"
         ],
-        "description": "Requires application administrator access.",
         "summary": "Creates application environment",
         "operationId": "createEnvironment",
         "parameters": [
@@ -1234,10 +1234,10 @@
         }
       },
       "delete": {
+        "description": "Requires application administrator access. Only orphaned environments can be deleted.",
         "tags": [
           "environment"
         ],
-        "description": "Requires application administrator access. Only orphaned environments can be deleted.",
         "summary": "Deletes application environment",
         "operationId": "deleteEnvironment",
         "parameters": [
