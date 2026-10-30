@@ -236,16 +236,17 @@ EASYAUTH-HELM-ARGS:= \
 	--set config.clusterName=mycluster \
 	--set config.dnsZone=radix.example.com \
 	--set config.appAliasBaseURL=app.radix.example.com \
-	--set dex.storage.postgres.host=postgres.example.com \
-	--set dex.storage.postgres.passwordSecret.name=dex-postgres \
+	--set dex.config.storage.type=postgres \
+	--set dex.config.storage.config.host=postgres.example.com \
 	--set dex.httpRoute.parentRefs[0].name=gateway
 
-# Postgres values are not required with Kubernetes storage
+# Renders the RBAC for Dex Kubernetes storage
 EASYAUTH-K8S-STORAGE-HELM-ARGS:= \
 	--set config.clusterName=mycluster \
 	--set config.dnsZone=radix.example.com \
 	--set config.appAliasBaseURL=app.radix.example.com \
-	--set dex.storage.type=kubernetes \
+	--set dex.config.storage.type=kubernetes \
+	--set dex.config.storage.config.inCluster=true \
 	--set dex.httpRoute.parentRefs[0].name=gateway
 
 .PHONY: lint-helm

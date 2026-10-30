@@ -94,13 +94,9 @@ Dex
 {{- printf "%s-dex" (include "radix-easyauth.fullname" .) | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/* Validated storage type of Dex: postgres or kubernetes */}}
-{{- define "radix-easyauth.dex.storageType" -}}
-{{- $type := .Values.dex.storage.type | default "postgres" }}
-{{- if not (has $type (list "postgres" "kubernetes")) }}
-{{- fail (printf "dex.storage.type must be postgres or kubernetes, got %q" $type) }}
-{{- end }}
-{{- $type }}
+{{/* "true" when Dex stores its data as custom resources through the Kubernetes API */}}
+{{- define "radix-easyauth.dex.kubernetesStorage" -}}
+{{- if eq (toString (dig "storage" "type" "" (.Values.dex.config | default dict))) "kubernetes" }}true{{ end }}
 {{- end }}
 
 {{- define "radix-easyauth.dex.selectorLabels" -}}
@@ -146,7 +142,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 /run/dex-client-certs
 {{- end }}
 
-{{/* Parsed config.issuerUrl, used for the Dex issuer and HTTPRoute */}}
+{{/* Path of the Dex issuer, used for the HTTPRoute */}}
 {{- define "radix-easyauth.dex.issuerPath" -}}
 {{- $path := (urlParse .Values.config.issuerUrl).path | trimSuffix "/" }}
 {{- if $path }}{{ $path }}{{ else }}/{{ end }}

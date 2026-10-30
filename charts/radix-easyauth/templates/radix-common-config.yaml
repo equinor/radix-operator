@@ -17,6 +17,10 @@ data:
       "grpcAddress" (include "radix-easyauth.dex.grpcAddress" .)
       "certsDir" (include "radix-easyauth.dex.clientCertsDir" .)
     ) }}
+    {{- /* Dex doesn't implement ListClients for Kubernetes storage */ -}}
+    {{- if include "radix-easyauth.dex.kubernetesStorage" . }}
+    {{- $_ := set $chartValues "cleanupEnabled" false }}
+    {{- end }}
     {{- mergeOverwrite (deepCopy .Values.config) $chartValues | toYaml | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

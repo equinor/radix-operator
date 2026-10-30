@@ -1,25 +1,6 @@
-{{- $storage := dict }}
-{{- if eq (include "radix-easyauth.dex.storageType" .) "postgres" }}
-{{- $pg := .Values.dex.storage.postgres }}
-{{- $storage = dict
-  "type" "postgres"
-  "config" (dict
-    "host" (required "dex.storage.postgres.host is required" $pg.host)
-    "port" $pg.port
-    "database" $pg.database
-    "user" $pg.user
-    "password" "$DEX_POSTGRES_PASSWORD"
-    "ssl" (dict "mode" $pg.ssl.mode)
-  )
-}}
-{{- else }}
-{{- /* Dex reads the namespace from the mounted service account token, and creates its CRDs if they are missing */}}
-{{- $storage = dict "type" "kubernetes" "config" (dict "inCluster" true) }}
-{{- end }}
-{{- $user := omit (deepCopy .Values.dex.config) "issuer" "storage" "grpc" "telemetry" }}
+{{- $user := omit (deepCopy (.Values.dex.config | default dict)) "issuer" "grpc" "telemetry" }}
 {{- $managed := dict
-  "issuer" .Values.config.issuerUrl
-  "storage" $storage
+  "issuer" (required "config.issuerUrl is required" .Values.config.issuerUrl)
   "web" (dict "http" "0.0.0.0:5556")
   "grpc" (dict
     "addr" (printf "0.0.0.0:%s" (include "radix-easyauth.dex.grpcPort" .))

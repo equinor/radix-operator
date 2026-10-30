@@ -37,7 +37,7 @@ func expectedOAuth2() *radixv1.OAuth2 {
 	return &radixv1.OAuth2{
 		ClientID:               "easyauth." + appID,
 		Credentials:            radixv1.Secret,
-		Scope:                  "openid profile email offline_access",
+		Scope:                  "openid profile email groups offline_access",
 		SetAuthorizationHeader: new(false),
 		SetXAuthRequestHeaders: new(false),
 		SetUserHeaders:         new(true),

@@ -50,7 +50,7 @@ authentication:
   oauth2:
     clientId: easyauth.<appID>
     credentials: secret
-    scope: openid profile email offline_access
+    scope: openid profile email groups offline_access
     setAuthorizationHeader: false
     setXAuthRequestHeaders: false
     setUserHeaders: true
@@ -118,28 +118,33 @@ permission on them.
 
 The chart always installs Dex, since EasyAuth stores OAuth2 clients in it:
 
-| Resource                       | Purpose                                                                                            |
-| ------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Deployment and Service         | Dex, with the HTTP (5556), gRPC API (5557) and telemetry (5558) ports                              |
-| Secret `<fullname>-dex-config` | Dex configuration, rendered from `config.issuerUrl`, `dex.storage` and the free-form `dex.config`  |
-| HTTPRoute                      | Exposes Dex on the host and path of `config.issuerUrl`, attached to `dex.httpRoute.parentRefs`     |
-| Certificates                   | gRPC serving certificate for Dex, and a client certificate for EasyAuth                            |
-| NetworkPolicy                  | Only EasyAuth pods can reach the gRPC port                                                         |
-| ServiceAccount                 | Without a token or roles with Postgres storage. With Kubernetes storage, see **Storage** below     |
+| Resource                       | Purpose                                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Deployment and Service         | Dex, with the HTTP (5556), gRPC API (5557) and telemetry (5558) ports                          |
+| Secret `<fullname>-dex-config` | Dex configuration, rendered from `config.issuerUrl` and `dex.config`                           |
+| HTTPRoute                      | Exposes Dex on the host and path of `config.issuerUrl`, attached to `dex.httpRoute.parentRefs` |
+| Certificates                   | gRPC serving certificate for Dex, and a client certificate for EasyAuth                        |
+| NetworkPolicy                  | Only EasyAuth pods can reach the gRPC port                                                     |
+| ServiceAccount                 | Without a token or roles, except with Kubernetes storage, see **Storage** below                |
 
 - **Issuer:** `config.issuerUrl` is both the Dex issuer and the issuer set on public components by the mutating
-  webhook, so they always match.
-- **Storage:** Dex stores clients, signing keys and sessions in the storage selected by `dex.storage.type`:
-  - `postgres` (default): a Postgres database (`dex.storage.postgres`). The password is read from an existing Secret
-    and passed to Dex as `$DEX_POSTGRES_PASSWORD`, which Dex expands in its config.
-  - `kubernetes`: custom resources in the release namespace, only meant for testing and local clusters. The data
-    can't be shared between clusters (see [Multiple clusters](#multiple-clusters)), is lost with the cluster, and
-    Dex warns that it doesn't scale to many users. Dex creates its CRDs (`dex.coreos.com`) on startup if they are
-    missing, so the chart mounts the service account token in the Dex pods, and grants a ClusterRole that can
-    `create` CRDs and a Role for `dex.coreos.com` resources in the release namespace. The CRDs and their resources
-    are not removed when the chart is uninstalled.
-- **Configuration:** connectors and other settings come from `dex.config`. `issuer`, `storage`, `grpc` and
-  `telemetry` are always set by the chart, and `web.http` is always set, but other `web` settings are merged.
+  webhook, so they always match. It overrides `issuer` in `dex.config`.
+- **Storage:** Dex stores clients, signing keys and sessions in `dex.config.storage`, which supports every
+  [storage](https://dexidp.io/docs/configuration/storage/) Dex supports. Production uses Postgres,
+  shared by all clusters, see [Multiple clusters](#multiple-clusters). Secrets, like the database password, are
+  added with `dex.extraEnv` and referenced as `$VAR`, which Dex expands in its config. With `type: kubernetes`:
+  - Data is stored as custom resources, only meant for testing and local clusters. The data can't be shared
+    between clusters, is lost with the cluster, and Dex warns that it doesn't scale to many users.
+  - Dex creates its CRDs (`dex.coreos.com`) on startup if they are missing, so the chart mounts the service account
+    token in the Dex pods, and grants a ClusterRole that can `create` CRDs and a Role for `dex.coreos.com`
+    resources in the release namespace. The CRDs and their resources are not removed when the chart is
+    uninstalled. Set `storage.config.inCluster: true` to use the release namespace.
+  - Dex doesn't implement `ListClients` for Kubernetes storage, so the chart always sets `config.cleanupEnabled`
+    to `false`.
+- **Configuration:** connectors, logging and other settings come from `dex.config`, see the
+  [example config](https://github.com/dexidp/dex/blob/master/examples/config-dev.yaml). It defaults to `logger`
+  with level `info` and format `json`. `issuer`, `grpc` and `telemetry` are always set by the chart, and
+  `web.http` is always set, but other `web` settings are merged.
   Secrets for connectors can be added with `dex.extraEnv` and referenced as `$VAR` in `dex.config`.
 - **Routing:** `dex.httpRoute.parentRefs` is passed to the HTTPRoute as is, so it can reference a `Gateway`, a
   `ListenerSet`, or both.
@@ -307,7 +312,7 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | `annotation`             | Annotation that enables EasyAuth on a `RadixApplication`                                                              |
 | `enforced`               | Reject `RadixApplications` without the annotation                                                                     |
-| `issuerUrl`              | OIDC issuer URL of Dex, set on all public components                                                                  |
+| `issuerUrl`              | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |
 | `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
 | `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
 | `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
@@ -328,14 +333,12 @@ configurations.
 
 Dex is configured with the `dex` section:
 
-| Value                       | Description                                                               |
-| --------------------------- | ------------------------------------------------------------------------- |
-| `dex.storage.type`          | `postgres` (default) or `kubernetes`, for testing and local clusters only |
-| `dex.storage.postgres`      | Postgres host, port, database, user, password Secret and SSL mode         |
-| `dex.config`                | Free-form Dex configuration, for example connectors and `oauth2` settings |
-| `dex.extraEnv`              | Additional environment variables, for example connector client secrets    |
-| `dex.httpRoute.parentRefs`  | Gateways and/or ListenerSets the Dex HTTPRoute is attached to             |
-| `dex.networkPolicy.enabled` | Limit the gRPC port to EasyAuth pods. Defaults to `true`                  |
+| Value                       | Description                                                     |
+| --------------------------- | --------------------------------------------------------------- |
+| `dex.config`                | Dex configuration, including the required `storage`             |
+| `dex.extraEnv`              | Additional environment variables, for example storage passwords |
+| `dex.httpRoute.parentRefs`  | Gateways and/or ListenerSets the Dex HTTPRoute is attached to   |
+| `dex.networkPolicy.enabled` | Limit the gRPC port to EasyAuth pods. Defaults to `true`        |
 
 ## Testing
 

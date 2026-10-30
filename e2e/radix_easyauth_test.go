@@ -158,7 +158,7 @@ func expectedEasyAuthOAuth2(appID v1.ULID) *v1.OAuth2 {
 	return &v1.OAuth2{
 		ClientID:               "easyauth." + appID.String(),
 		Credentials:            v1.Secret,
-		Scope:                  "openid profile email offline_access",
+		Scope:                  "openid profile email groups offline_access",
 		SetAuthorizationHeader: new(false),
 		SetXAuthRequestHeaders: new(false),
 		SetUserHeaders:         new(true),

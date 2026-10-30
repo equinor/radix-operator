@@ -16,14 +16,23 @@ config:
 # Dex uses the throwaway Postgres from testdata/dex-postgres.yaml
 dex:
   replicaCount: 1
-  storage:
-    postgres:
-      host: dex-postgres.radix-easyauth.svc
-      passwordSecret:
-        name: dex-postgres
-      ssl:
-        mode: disable
+  extraEnv:
+    - name: DEX_POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: dex-postgres
+          key: password
   config:
+    storage:
+      type: postgres
+      config:
+        host: dex-postgres.radix-easyauth.svc
+        port: 5432
+        database: dex
+        user: dex
+        password: $DEX_POSTGRES_PASSWORD
+        ssl:
+          mode: disable
     # Static user for the login test in radix_easyauth_test.go. The hash is the bcrypt hash of easyAuthTestPassword.
     enablePasswordDB: true
     staticPasswords:

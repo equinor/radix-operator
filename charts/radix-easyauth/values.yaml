@@ -27,6 +27,7 @@ config:
   # When true, applying a RadixApplication without requiredAnnotation is rejected by the validating webhook
   enforced: false
   annotation: radix.equinor.com/easyauth
+  # Required. The Dex issuer, set on all public components by the mutating webhook. Overrides dex.config.issuer.
   issuerUrl: https://simpleauth.dev.radix.equinor.com
   # Required. Must match config.common.clusterName, dnsZone and appAliasBaseURL of radix-operator in the same cluster,
   # since they are used to build the OAuth2 redirect URIs of the public hosts of each application
@@ -46,7 +47,7 @@ config:
   # Mount path for the cert-manager generated webhook serving certificate
   certsDir: /run/certs
   # Deletes Dex clients that no longer belong to an application. Set to false in all but one of the clusters
-  # sharing the Dex database, see easyauth/README.md.
+  # sharing the Dex database, see easyauth/README.md. Always false with Dex Kubernetes storage.
   cleanupEnabled: true
   cleanupInterval: 1h
   # How old an OAuth2 client secret can be before it is rotated, at least 1h. Must be the same in all clusters
@@ -113,35 +114,37 @@ dex:
     tag: v2.46.0
     pullPolicy: IfNotPresent
 
-  # Where Dex stores clients, keys and sessions
-  storage:
-    # postgres or kubernetes. kubernetes stores the data as custom resources in the release namespace, and is only
-    # meant for testing and local clusters: the data can't be shared between clusters, and it doesn't scale to many
-    # users. Dex creates its CRDs on startup, so it gets a ClusterRole that can create CRDs.
-    type: postgres
-    # Used when type is postgres
-    postgres:
-      host: ""
-      port: 5432
-      database: dex
-      user: dex
-      # Existing Secret with the database password
-      passwordSecret:
-        name: ""
-        key: password
-      ssl:
-        # disable, require, verify-ca or verify-full
-        mode: verify-full
-
-  # Free-form Dex configuration, for example connectors, oauth2, expiry and frontend.
-  # See https://github.com/dexidp/dex/blob/master/examples/config-dev.yaml
-  # issuer, storage, grpc, telemetry and web.http are set by the chart and can't be overridden here. Other web
-  # settings are merged with the chart's.
+  # Dex configuration, merged with these defaults. See https://github.com/dexidp/dex/blob/master/examples/config-dev.yaml
+  # for all settings. issuer (from config.issuerUrl), grpc, telemetry and web.http are set by the chart and can't be
+  # overridden here. Other web settings are merged with the chart's.
   # Environment variables, for example from extraEnv, can be referenced as $VAR.
-  config: {}
+  config:
+    # Where Dex stores clients, keys and sessions. Required, see https://dexidp.io/docs/configuration/storage/.
+    # With type kubernetes, Dex gets access to its custom resources and CRDs, and config.cleanupEnabled is always
+    # false, since Dex can't list clients in Kubernetes storage.
+    storage: {}
+    # type: postgres
+    # config:
+    #   host: postgres.example.com
+    #   port: 5432
+    #   database: dex
+    #   user: dex
+    #   password: $DEX_POSTGRES_PASSWORD
+    #   ssl:
+    #     mode: verify-full
+    logger:
+      # debug, info, warn or error
+      level: info
+      # json or text
+      format: json
 
-  # Additional environment variables, for example connector client secrets referenced from config
+  # Additional environment variables, for example storage passwords or connector client secrets referenced from config
   extraEnv: []
+  # - name: DEX_POSTGRES_PASSWORD
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: dex-postgres
+  #       key: password
   # - name: ENTRA_CLIENT_SECRET
   #   valueFrom:
   #     secretKeyRef:
