@@ -24,3 +24,4 @@ jobs:
       cliff-config-path: cliff.toml
       extra-files: |
         charts/radix-operator/Chart.yaml
+        charts/radix-easyauth/Chart.yaml

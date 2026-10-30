@@ -1,0 +1,45 @@
+{{- if .Values.config.enforced }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "radix-easyauth.clusterScopedName" . }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+  annotations:
+    # cert-manager cainjector populates clientConfig.caBundle from this Certificate
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "radix-easyauth.servingCertificateName" . }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "radix-easyauth.serviceName" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /radix/v1/radixapplication/validate
+      port: 443
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  matchPolicy: Equivalent
+  name: radixapplication.validate.easyauth.radix.equinor.com
+  rules:
+  - apiGroups:
+    - radix.equinor.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - radixapplications
+    scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+      - {{ .Release.Namespace }}
+      {{- range .Values.webhook.excludedNamespaces }}
+      - {{ . }}
+      {{- end }}
+{{- end }}

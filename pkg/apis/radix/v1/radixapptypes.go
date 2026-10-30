@@ -202,7 +202,7 @@ type BuildSpec struct {
 
 	// SubPipeline common configuration for all environments.
 	// +optional
-	SubPipeline *SubPipeline `json:"subPipeline"`
+	SubPipeline *SubPipeline `json:"subPipeline,omitempty"`
 }
 
 // Environment contains environment specific configuration.
@@ -226,7 +226,7 @@ type Environment struct {
 
 	// SubPipeline configuration.
 	// +optional
-	SubPipeline *SubPipeline `json:"subPipeline"`
+	SubPipeline *SubPipeline `json:"subPipeline,omitempty"`
 }
 
 // EnvBuild contains configuration used to determine how to build an environment.
@@ -469,12 +469,12 @@ type RadixComponent struct {
 	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
 	// More info: https://www.radix.equinor.com/radix-config#monitoringconfig
 	// +optional
-	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
 	// More info: https://www.radix.equinor.com/radix-config#monitoring
 	// +optional
-	Monitoring *bool `json:"monitoring"`
+	Monitoring *bool `json:"monitoring,omitempty"`
 
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	// +optional
@@ -1671,6 +1671,12 @@ type OAuth2 struct {
 	// Defines if the IDToken received by the OAuth Proxy should be added to the Authorization header.
 	// +optional
 	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty"`
+
+	// Defines if user information (X-Forwarded-User, X-Forwarded-Email, X-Forwarded-Groups and X-Forwarded-Preferred-Username)
+	// should be passed to the upstream in request headers.
+	// Overrides the user headers setting derived from SetXAuthRequestHeaders when set.
+	// +optional
+	SetUserHeaders *bool `json:"setUserHeaders,omitempty"`
 
 	// Defines the url root path that OAuth Proxy should be nested under.
 	// +optional

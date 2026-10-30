@@ -628,6 +628,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("%s://:%v", "http", defaults.OAuthProxyPortNumber)})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_UPSTREAM_TIMEOUT", Value: "0s"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_REDIRECT_URL", Value: fmt.Sprintf("%s/callback", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))})
+	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_APPROVAL_PROMPT", Value: "auto"})
 
 	upstreamPort, err := getUpstreamComponentPort(component)
 	if err != nil {
@@ -650,7 +651,11 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 
 	addEnvVarIfSet("OAUTH2_PROXY_CLIENT_ID", oauth.ClientID)
 	addEnvVarIfSet("OAUTH2_PROXY_SCOPE", oauth.Scope)
-	addEnvVarIfSet("OAUTH2_PROXY_PASS_USER_HEADERS", oauth.SetXAuthRequestHeaders)
+	if oauth.SetUserHeaders != nil {
+		addEnvVarIfSet("OAUTH2_PROXY_PASS_USER_HEADERS", oauth.SetUserHeaders)
+	} else {
+		addEnvVarIfSet("OAUTH2_PROXY_PASS_USER_HEADERS", oauth.SetXAuthRequestHeaders)
+	}
 	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders)
 	addEnvVarIfSet("OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
 	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))

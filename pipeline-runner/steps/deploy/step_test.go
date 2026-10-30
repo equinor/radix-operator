@@ -98,6 +98,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 								OAuth2: &radixv1.OAuth2{
 									ClientID:               "client-id",
 									SetXAuthRequestHeaders: new(true),
+									SetUserHeaders:         new(false),
 								},
 							},
 						).
@@ -192,6 +193,7 @@ func (s *deployTestSuite) TestDeploy_PromotionSetup_ShouldCreateNamespacesForAll
 			OAuth2: &radixv1.OAuth2{
 				ClientID:               "client-id",
 				SetXAuthRequestHeaders: new(true),
+				SetUserHeaders:         new(false),
 			},
 		}
 

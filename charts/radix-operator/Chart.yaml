@@ -4,13 +4,13 @@ version: 1.133.1-rc.1 # x-patch-semver
 appVersion: 1.133.1-rc.1 # x-patch-semver
 kubeVersion: ">=1.24.0"
 description: Radix Operator
-icon:  https://radix.equinor.com/images/logos/logo.svg
+icon: https://radix.equinor.com/images/logos/logo.svg
 keywords:
   - radix
 home: radix.equinor.com
 sources:
   - https://github.com/equinor/radix-operator
 maintainers:
-  - name: Omnia Radix Development Team
+  - name: Radix Development Team
     email: Radix@StatoilSRM.onmicrosoft.com
 deprecated: false

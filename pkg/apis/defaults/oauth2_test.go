@@ -90,6 +90,14 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_SetXAuthRequestHeaders() {
 	s.Equal(expected, actual)
 }
 
+func (s *oauth2DefaultConfigOptionsTestSuite) Test_SetUserHeaders() {
+	expected := s.oauthConfig()
+	expected.SetUserHeaders = new(true)
+	actual, err := MergeOAuth2(expected, v1.OAuth2{SetUserHeaders: new(true)})
+	s.Nil(err)
+	s.Equal(expected, actual)
+}
+
 func (s *oauth2DefaultConfigOptionsTestSuite) Test_Cookie_Expire() {
 	expected := s.oauthConfig()
 	expected.Cookie.Expire = "newexpire"

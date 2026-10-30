@@ -97,5 +97,10 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 }
 
 func (s *syncer) getHostName() string {
-	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config.Common.DNSZone)
+	return GetHostName(s.radixDNSAlias.Name, s.config.Common.DNSZone)
+}
+
+// GetHostName returns the hostname of a DNS alias
+func GetHostName(alias, dnsZone string) string {
+	return fmt.Sprintf("%s.%s", alias, dnsZone)
 }

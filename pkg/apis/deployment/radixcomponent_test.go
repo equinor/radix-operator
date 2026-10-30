@@ -50,9 +50,9 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		{name: "should return environment when component is nil", env: &radixv1.OAuth2{}, expected: &radixv1.OAuth2{}},
 		{
 			name:     "should override OAuth2 from environment",
-			comp:     &radixv1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: new(true), SessionStoreType: "cookie"},
-			env:      &radixv1.OAuth2{Scope: "email", SetXAuthRequestHeaders: new(false), SetAuthorizationHeader: new(true), SessionStoreType: "redis"},
-			expected: &radixv1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: new(false), SetAuthorizationHeader: new(true), SessionStoreType: "redis"},
+			comp:     &radixv1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: new(true), SetUserHeaders: new(true), SessionStoreType: "cookie"},
+			env:      &radixv1.OAuth2{Scope: "email", SetXAuthRequestHeaders: new(false), SetAuthorizationHeader: new(true), SetUserHeaders: new(false), SessionStoreType: "redis"},
+			expected: &radixv1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: new(false), SetAuthorizationHeader: new(true), SetUserHeaders: new(false), SessionStoreType: "redis"},
 		},
 		{
 			name:     "should override OAuth2.RedisStore from environment",

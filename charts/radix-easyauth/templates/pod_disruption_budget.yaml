@@ -1,0 +1,14 @@
+{{- if gt (int .Values.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "radix-easyauth.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "radix-easyauth.selectorLabels" . | nindent 6 }}
+{{- end }}

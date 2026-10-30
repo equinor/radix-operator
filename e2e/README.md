@@ -17,7 +17,8 @@ ateway-api-standard-install.yaml
 - **Automated Image Building**: Builds `radix-operator`, `radix-webhook`, and `radix-job-scheduler` images with unique tags
 - **Image Loading**: Automatically loads built images into the Kind cluster
 - **Custom Image Tags**: Uses dynamically generated tags (e.g., `e2e-20241110-150405-abc1234`) for each test run
-- **Helm Integration**: Installs the Helm chart with custom image tags
+- **Helm Integration**: Installs the `radix-operator` and `radix-easyauth` Helm charts with custom image tags
+- **cert-manager**: Installs cert-manager, which issues the `radix-easyauth` webhook serving certificate
 
 ## Prerequisites
 

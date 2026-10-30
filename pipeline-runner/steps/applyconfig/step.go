@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -91,9 +92,12 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 	existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
-			if _, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{}); err != nil {
+			mutatedRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{})
+			if err != nil {
 				return fmt.Errorf("failed to create radix application: %w", err)
 			}
+
+			pipelineInfo.RadixApplication = mutatedRA
 			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
 			return nil
 		}
@@ -101,7 +105,8 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 	}
 
 	log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)
-	if reflect.DeepEqual(ra.Spec, existingRA.Spec) {
+	// Annotations are compared since they can change admission webhook behavior (e.g. radix-easyauth)
+	if reflect.DeepEqual(ra.Spec, existingRA.Spec) && maps.Equal(ra.GetAnnotations(), existingRA.GetAnnotations()) {
 		log.Ctx(ctx).Info().Msgf("No changes to RadixApplication %s in namespace %s", ra.Name, namespace)
 		return nil
 	}
@@ -110,9 +115,11 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 	log.Ctx(ctx).Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", ra.Name, namespace)
 	// For an update, ResourceVersion of the new object must be the same with the old object
 	ra.SetResourceVersion(existingRA.GetResourceVersion())
-	if _, err = step.GetRadixClient().RadixV1().RadixApplications(namespace).Update(ctx, ra, metav1.UpdateOptions{}); err != nil {
+	mutatedRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Update(ctx, ra, metav1.UpdateOptions{})
+	if err != nil {
 		return fmt.Errorf("failed to update existing radix application: %w", err)
 	}
+	pipelineInfo.RadixApplication = mutatedRA
 	log.Ctx(ctx).Info().Msgf("RadixApplication %s updated in namespace %s", ra.Name, namespace)
 	return nil
 }

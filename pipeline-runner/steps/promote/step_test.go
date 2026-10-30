@@ -501,6 +501,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 										OAuth2: &v1.OAuth2{
 											ClientID:               "client-id",
 											SetXAuthRequestHeaders: new(true),
+											SetUserHeaders:         new(false),
 										},
 									},
 								),
@@ -540,6 +541,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 		OAuth2: &v1.OAuth2{
 			ClientID:               "client-id",
 			SetXAuthRequestHeaders: new(true),
+			SetUserHeaders:         new(false),
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)

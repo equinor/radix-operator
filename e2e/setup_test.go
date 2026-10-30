@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,7 +83,20 @@ var componentSpecs = []struct {
 		ImageName:    "local-kind-repo/api-server",
 		HelmValueKey: "radixApiServer.image",
 	},
+	{
+		// Installed with its own Helm chart, see installEasyAuth
+		Name:       "radix-easyauth",
+		Dockerfile: "easyauth.Dockerfile",
+		ImageName:  easyAuthImageName,
+	},
 }
+
+const (
+	easyAuthImageName   = "local-kind-repo/easyauth"
+	easyAuthNamespace   = "radix-easyauth"
+	easyAuthReleaseName = "radix-easyauth"
+	certManagerNs       = "cert-manager"
+)
 
 type Config struct {
 	SetupParallelism uint `envconfig:"E2E_SETUP_PARALLELISM" default:"0" desc:"Limits the number of active goroutines for building images and setting up kind cluster. Value 0 indicates no limit."`
@@ -175,9 +189,12 @@ func TestMain(m *testing.M) {
 		log.Fatal().Err(err).Msg("failed to create cleanup client")
 	}
 	log.Info().Msgf("Cleaning up resources from previous test runs...")
-	// Uninstall the radix-operator release first so the running operator does not fail when its
-	// CRDs are removed below.
-	if err := internal.UninstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator"); err != nil {
+	// Uninstall the radix-operator and radix-easyauth releases first so the running components do
+	// not fail when their CRDs are removed below.
+	if err := internal.UninstallHelmRelease(testContext, testCluster.KubeConfigPath, easyAuthNamespace, easyAuthReleaseName); err != nil {
+		log.Fatal().Err(err).Msg("failed to uninstall radix-easyauth helm release")
+	}
+	if err := internal.UninstallHelmRelease(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator"); err != nil {
 		log.Fatal().Err(err).Msg("failed to uninstall radix-operator helm release")
 	}
 	if err := cleanupClusterResources(testContext, cleanupClient); err != nil {
@@ -228,8 +245,12 @@ func TestMain(m *testing.M) {
 		}
 		helmValues[fmt.Sprintf("%s.repository", spec.HelmValueKey)] = spec.ImageName
 	}
-	if err = internal.InstallRadixOperator(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", "testdata/radix-operator-values.yaml", imageTag, helmValues); err != nil {
+	if err = internal.InstallHelmChart(testContext, testCluster.KubeConfigPath, "radix-system", "radix-operator", "../charts/radix-operator", "testdata/radix-operator-values.yaml", imageTag, helmValues); err != nil {
 		log.Fatal().Err(err).Msg("failed to install radix-operator helm chart")
+	}
+
+	if err = installEasyAuth(testContext, cleanupClient, testCluster.KubeConfigPath, imageTag); err != nil {
+		log.Fatal().Err(err).Msg("failed to install radix-easyauth")
 	}
 
 	// Start the manager in the background
@@ -330,6 +351,94 @@ func WaitForDeploymentReady(ctx context.Context, c client.Client, namespace, nam
 		}
 
 		return false, nil
+	})
+}
+
+// installEasyAuth installs the radix-easyauth Helm chart once cert-manager (installed together with
+// the dependency CRDs) is able to issue its webhook serving certificate, and waits until the CA
+// bundle is injected into the webhook configuration so RadixApplication requests can be admitted.
+func installEasyAuth(ctx context.Context, c client.Client, kubeConfigPath, imageTag string) error {
+	for _, name := range []string{"cert-manager", "cert-manager-cainjector", "cert-manager-webhook"} {
+		if err := WaitForDeploymentReady(ctx, c, certManagerNs, name); err != nil {
+			return fmt.Errorf("failed to wait for deployment %s: %w", name, err)
+		}
+	}
+	// cert-manager validates its own resources, so the chart can't be installed before the
+	// cert-manager webhook has its CA bundle
+	if err := waitForWebhookCABundle(ctx, c, &admissionregistrationv1.ValidatingWebhookConfiguration{}, "cert-manager-webhook"); err != nil {
+		return fmt.Errorf("failed to wait for cert-manager webhook CA bundle: %w", err)
+	}
+
+	// Dex in the radix-easyauth chart needs a Postgres database
+	if err := internal.ApplyManifestFile(ctx, kubeConfigPath, "testdata/dex-postgres.yaml"); err != nil {
+		return fmt.Errorf("failed to deploy Dex postgres: %w", err)
+	}
+	if err := WaitForDeploymentReady(ctx, c, easyAuthNamespace, "dex-postgres"); err != nil {
+		return fmt.Errorf("failed to wait for Dex postgres to be ready: %w", err)
+	}
+
+	helmValues := map[string]string{"image.repository": easyAuthImageName}
+	if err := internal.InstallHelmChart(ctx, kubeConfigPath, easyAuthNamespace, easyAuthReleaseName, "../charts/radix-easyauth", "testdata/radix-easyauth-values.yaml", imageTag, helmValues); err != nil {
+		return fmt.Errorf("failed to install radix-easyauth helm chart: %w", err)
+	}
+	for _, name := range []string{easyAuthReleaseName, easyAuthReleaseName + "-dex"} {
+		if err := WaitForDeploymentReady(ctx, c, easyAuthNamespace, name); err != nil {
+			return fmt.Errorf("failed to wait for %s to be ready: %w", name, err)
+		}
+	}
+
+	webhookName := fmt.Sprintf("%s-%s", easyAuthNamespace, easyAuthReleaseName)
+	if err := waitForWebhookCABundle(ctx, c, &admissionregistrationv1.MutatingWebhookConfiguration{}, webhookName); err != nil {
+		return fmt.Errorf("failed to wait for radix-easyauth webhook CA bundle: %w", err)
+	}
+	if err := waitForEasyAuthWebhookReachable(ctx, c); err != nil {
+		return fmt.Errorf("failed to wait for radix-easyauth webhook to be reachable: %w", err)
+	}
+	return nil
+}
+
+// waitForEasyAuthWebhookReachable sends dry-run RadixApplication requests until the API server is
+// able to call the radix-easyauth mutating webhook. A ready pod is not enough, since the Service
+// endpoints may not be programmed yet. Errors from other admission plugins are ignored.
+func waitForEasyAuthWebhookReachable(ctx context.Context, c client.Client) error {
+	return wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (bool, error) {
+		ra := &radixv1.RadixApplication{
+			Name:      "easyauth-probe",
+			Namespace: corev1.NamespaceDefault,
+		}
+		err := c.Create(ctx, ra, client.DryRunAll)
+		return err == nil || !strings.Contains(err.Error(), "mutate.easyauth.radix.equinor.com"), nil
+	})
+}
+
+// waitForWebhookCABundle waits until every webhook in the given webhook configuration has a CA bundle
+func waitForWebhookCABundle(ctx context.Context, c client.Client, obj client.Object, name string) error {
+	return wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (bool, error) {
+		if err := c.Get(ctx, client.ObjectKey{Name: name}, obj); err != nil {
+			return false, nil
+		}
+		var bundles [][]byte
+		switch cfg := obj.(type) {
+		case *admissionregistrationv1.MutatingWebhookConfiguration:
+			for _, w := range cfg.Webhooks {
+				bundles = append(bundles, w.ClientConfig.CABundle)
+			}
+		case *admissionregistrationv1.ValidatingWebhookConfiguration:
+			for _, w := range cfg.Webhooks {
+				bundles = append(bundles, w.ClientConfig.CABundle)
+			}
+		default:
+			return false, fmt.Errorf("unsupported webhook configuration type %T", obj)
+		}
+		if len(bundles) == 0 {
+			return false, nil
+		}
+		for _, b := range bundles {
+			if len(b) == 0 {
+				return false, nil
+			}
+		}
+		return true, nil
 	})
 }
 

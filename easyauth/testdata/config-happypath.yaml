@@ -1,0 +1,26 @@
+enforced: true
+annotation: radix.equinor.com/easyauth
+issuerUrl: https://simpleauth.dev.radix.equinor.com
+oauth2:
+  scope: openid profile email groups offline_access
+  setAuthorizationHeader: false
+  setXAuthRequestHeaders: false
+  setUserHeaders: true
+  sessionStoreType: systemManaged
+clusterName: weekly-01
+dnsZone: dev.radix.equinor.com
+appAliasBaseURL: app.dev.radix.equinor.com
+enableLeaderElection: true
+leaderId: radix-easyauth.easyauth.radix.equinor.com
+logLevel: debug
+logPrettyPrint: true
+port: 9443
+metricsPort: 9000
+healthPort: 9440
+certsDir: /run/certs
+dex:
+  grpcAddress: radix-easyauth-dex.radix-easyauth.svc:5557
+  certsDir: /run/dex-client-certs
+cleanupEnabled: true
+cleanupInterval: 1h
+secretRotationInterval: 2160h

@@ -1,0 +1,43 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: easyauth-test
+  annotations:
+    radix.equinor.com/easyauth: ""
+spec:
+  environments:
+    - name: dev
+      build:
+        from: dev
+  components:
+    # Public component, user defined OAuth2 config must be overridden by radix-easyauth
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http
+      authentication:
+        oauth2:
+          clientId: user-defined
+          scope: openid
+          sessionStoreType: cookie
+          skipAuthRoutes:
+            - ^/healthz$
+          oidc:
+            issuerUrl: https://login.example.com
+      environmentConfig:
+        - environment: dev
+          authentication:
+            oauth2:
+              clientId: env-defined
+    # Private component, must not be changed by radix-easyauth
+    - name: api
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080

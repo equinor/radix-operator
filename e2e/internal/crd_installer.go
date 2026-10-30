@@ -15,7 +15,8 @@ import (
 //go:embed manifests
 var dependencyCRDs embed.FS
 
-// InstallDependencyCRDs installs the third-party CRDs required by radix-operator
+// InstallDependencyCRDs installs the third-party CRDs required by radix-operator, and cert-manager
+// which issues the radix-easyauth webhook certificate
 func InstallDependencyCRDs(ctx context.Context, kubeConfigPath string) error {
 	entries, err := dependencyCRDs.ReadDir("manifests")
 	if err != nil {
@@ -42,5 +43,16 @@ func InstallDependencyCRDs(ctx context.Context, kubeConfigPath string) error {
 		}
 	}
 
+	return nil
+}
+
+// ApplyManifestFile applies a manifest file with kubectl
+func ApplyManifestFile(ctx context.Context, kubeConfigPath, file string) error {
+	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeConfigPath, "apply", "--server-side", "-f", file)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to apply %s: %w", file, err)
+	}
 	return nil
 }

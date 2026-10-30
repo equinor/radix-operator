@@ -55,6 +55,8 @@ jobs:
             repository: /equinor/radix/job-scheduler
           - file: api-server.Dockerfile
             repository: /equinor/radix/api-server
+          - file: easyauth.Dockerfile
+            repository: /equinor/radix/easyauth
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
@@ -106,15 +108,17 @@ jobs:
             --password ${{ secrets.GITHUB_TOKEN }}
       - name: Helm package and push
         id: deploy-helm
-        working-directory: charts/radix-operator
+        working-directory: charts
         run: |
           set -Eeuo pipefail
 
           version=${{ needs.metadata.outputs.version }}
           helm_repo=${{ env.HELM_CHART_REGISTRY }}/equinor/radix/charts
 
-          helm package --version $version --app-version $version .
-          helm push radix-operator-$version.tgz $helm_repo
+          for chart in radix-operator radix-easyauth; do
+            helm package --version $version --app-version $version $chart
+            helm push $chart-$version.tgz $helm_repo
+          done
 
           # Use git to get list of generated packages
           helm_packages=$(ls *.tgz)
@@ -123,7 +127,7 @@ jobs:
         if: needs.metadata.outputs.release-exist == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: charts/radix-operator
+        working-directory: charts
         run: |
           set -Eeuo pipefail
 
