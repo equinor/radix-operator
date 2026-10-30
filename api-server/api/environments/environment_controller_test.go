@@ -358,6 +358,68 @@ func TestDeleteEnvironment_OneOrphanedEnvironment_OnlyOrphanedCanBeDeleted(t *te
 	assert.Equal(t, 1, len(environments))
 }
 
+func TestDeleteEnvironment_RejectsEnvironmentSpecMismatch(t *testing.T) {
+	tests := []struct {
+		name        string
+		urlAppName  string
+		urlEnvName  string
+		specAppName string
+		specEnvName string
+	}{
+		{
+			name:        "application name mismatch",
+			urlAppName:  anyAppName,
+			urlEnvName:  anyEnvironment,
+			specAppName: "another-app",
+			specEnvName: anyEnvironment,
+		},
+		{
+			name:        "environment name mismatch",
+			urlAppName:  anyAppName,
+			urlEnvName:  anyEnvironment,
+			specAppName: anyAppName,
+			specEnvName: "another-environment",
+		},
+		{
+			name:        "concatenated resource name collision",
+			urlAppName:  "any-app",
+			urlEnvName:  "dev",
+			specAppName: "any",
+			specEnvName: "app-dev",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			controllerTestUtils, userClient, radixClient := setupEnvironmentAuthorizationTest(t, false)
+			mockEnvironmentAdminAccessReview(t, userClient, authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, nil)
+
+			re := operatorutils.NewEnvironmentBuilder().
+				WithAppName(tc.specAppName).
+				WithEnvironmentName(tc.specEnvName).
+				WithOrphaned(true).
+				BuildRE()
+			re.Name = operatorutils.GetEnvironmentNamespace(tc.urlAppName, tc.urlEnvName)
+			re, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
+			require.NoError(t, err)
+			require.Equal(t, operatorutils.GetEnvironmentNamespace(tc.urlAppName, tc.urlEnvName), re.Name)
+
+			deleteCount := 0
+			radixClient.PrependReactor("delete", "radixenvironments", func(testing2.Action) (bool, runtime.Object, error) {
+				deleteCount++
+				return false, nil, nil
+			})
+
+			response := <-controllerTestUtils.ExecuteRequest("DELETE", fmt.Sprintf("/api/v1/applications/%s/environments/%s", tc.urlAppName, tc.urlEnvName))
+			assert.Equal(t, http.StatusNotFound, response.Code, response.Body.String())
+			assert.Zero(t, deleteCount, "mismatched environment specs must not be deleted")
+
+			_, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
+			require.NoError(t, err, "the environment must remain intact")
+		})
+	}
+}
+
 func TestGetEnvironment_NoExistingEnvironment_ReturnsAnError(t *testing.T) {
 	anyNonExistingEnvironment := "non-existing-environment"
 
