@@ -3,6 +3,7 @@ package watcher
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/equinor/radix-operator/job-scheduler/models/v1/events"
@@ -31,13 +32,16 @@ type watcher struct {
 	radixInformerFactory radixinformers.SharedInformerFactory
 	batchInformer        v1.RadixBatchInformer
 	stop                 chan struct{}
+	stopOnce             sync.Once
 	logger               zerolog.Logger
 	jobHistory           batch.History
 }
 
 // Stop Stops the watcher
 func (w *watcher) Stop() {
-	w.stop <- struct{}{}
+	w.stopOnce.Do(func() {
+		close(w.stop)
+	})
 }
 
 // NewRadixBatchWatcher New RadixBatch watcher, notifying on adding and changing of RadixBatches and their jobs
