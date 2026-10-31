@@ -81,43 +81,45 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	s.True(hasSynced)
 
 	// Initial Sync for the two alerts
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	_, err = s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert1, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync of alert1")
 
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert2Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	_, err = s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert2, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("initial sync of alert2")
 
 	// Update adGroups should trigger sync of alert1
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	rr.Spec.AdGroups = []string{"another-admin-group"}
 	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on adGroups update")
 
-	// Update adGroups should trigger sync of alert1
-	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
-	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	// Update readerAdGroups should trigger sync of alert1
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	rr.Spec.ReaderAdGroups = []string{"another-reader-group"}
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 	s.WaitForSynced("sync on ReaderAdGroups update")
 
 	// Update adUsers should trigger sync of alert1
-	rr.Spec.AdUsers = []string{"another-user"}
-	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(1)
+	rr.Spec.AdUsers = []string{"another-user"}
+	rr, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	s.Require().NoError(err)
 	s.WaitForSynced("sync on AdUsers update")
 
 	// Update other props on RR should not trigger sync of alert1
+	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	rr.Spec.Owner = "owner"
 	_, err = s.RadixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	s.Handler.EXPECT().Sync(gomock.Any(), namespace, alert1Name).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	s.WaitForNotSynced("Sync should not be called when updating other RR props")
 }
