@@ -269,11 +269,10 @@ The rotation interval is owned by the controller, and passed to `EnsureClient` o
   [restarted](#controller), like any other changed client secret.
 - **Timing:** the reconcile loop requeues at the rotation time, plus a random delay of up to a minute, if that is
   sooner than the hourly resync. Every cluster does this, so they get the new secret within about a minute.
-- **Concurrent rotation:** all clusters rotate, since they all know the rotation time. The first cluster rotates the
-  secret, and the others see a new secret that is not due for rotation. If two clusters rotate at the same time,
-  `CreateClient` returns `AlreadyExists` for one of them, which then uses the secret created by the other. In the
-  rare case where one cluster deletes the client right after another has created it, the secret is rotated twice,
-  and the first cluster picks up the final secret on its next reconcile.
+- **Concurrent rotation:** running EasyAuth in several clusters at the same time is not supported, see
+  [Multiple clusters](#multiple-clusters). If it happens anyway, `CreateClient` returns `AlreadyExists` for one of
+  the clusters, which then uses the secret created by the other, but its redirect URIs are not added until its next
+  reconcile.
 - **Disruption:** the old secret stops working as soon as the client is deleted. Until the OAuth2 proxies have
   restarted, logins and token refreshes fail. Existing sessions that don't need a refresh are not affected. Refresh
   tokens in Dex are kept, since the client ID doesn't change.
@@ -302,21 +301,45 @@ was deleted and recreated with the same name.
 
 ### Multiple clusters
 
-Several Radix clusters may write to the same Dex database, for example the active and passive cluster during a
+Several Radix clusters may share the same Dex database, for example the active and passive cluster during a
 cluster migration. `RadixRegistrations` keep their AppID when they are moved to another cluster, so all clusters
-running an application share one client. The controller must therefore:
+running an application share one client.
+
+Running EasyAuth in several clusters at the same time is out of scope. Dex's `UpdateClient` replaces the
+redirect URIs, and the API has no compare-and-swap, so two clusters updating the same client concurrently can drop
+each other's redirect URIs, and a cluster that loses a concurrent `CreateClient` during
+[rotation](#secret-rotation) doesn't add its own redirect URIs until its next reconcile. EasyAuth doesn't
+serialize writes across clusters. **Cluster operators must suspend EasyAuth in all but one of the clusters sharing
+the Dex database while migrating,** and only resume it in the new cluster after it has been suspended in the old
+one.
+
+EasyAuth is suspended manually by suspending its Flux `HelmRelease`, so Flux doesn't restore the replicas, and
+then scaling down the EasyAuth Deployment:
+
+```sh
+flux suspend helmrelease <release> -n <namespace>
+kubectl scale deployment <deployment> -n <namespace> --replicas=0
+```
+
+It is resumed with `flux resume helmrelease <release> -n <namespace>`, which reconciles the release and restores
+`replicaCount`. While EasyAuth is scaled down, its webhooks are unavailable, so with `webhook.failurePolicy: Fail`
+creating and updating `RadixApplications` in that cluster is rejected.
+
+The controller is still designed so that the cluster running EasyAuth can be switched without losing state:
 
 - **Treat Dex as the source of truth for the secret.** It only generates a secret when the client doesn't exist or
-  the secret is due for [rotation](#secret-rotation), and otherwise reads it from Dex. Clusters that generate their own secrets would keep overwriting each other.
-  This also restores a lost or recreated Kubernetes Secret from Dex.
+  the secret is due for [rotation](#secret-rotation), and otherwise reads it from Dex, so a cluster taking over
+  keeps using the existing secret. This also restores a lost or recreated Kubernetes Secret from Dex.
 - **Merge redirect URIs instead of replacing them,** since each cluster has its own hostnames. The reconcile loop
-  adds missing redirect URIs, but never removes URIs, since it can't tell if another cluster still uses them.
-  Stale redirect URIs, for example from a removed component, are removed when the client is deleted.
+  adds missing redirect URIs, but never removes URIs, so redirect URIs added by the previous cluster keep working
+  until DNS has moved. Stale redirect URIs, for example from a removed component, are removed when the client is
+  deleted.
 - **Only run the cleanup loop in one cluster.** A cluster can't see which applications exist in other clusters,
   so it could delete a client another cluster still uses. The cleanup loop is enabled with `cleanupEnabled`,
-  which defaults to `true` and must be set to `false` in every cluster except the active one. If it deletes a client used by an application that only
-  exists in another cluster, that cluster's reconcile loop recreates the client with a new secret, and logins for
-  that application fail until it has done so.
+  which defaults to `true` and must be set to `false` in every cluster except the active one. If it deletes a
+  client used by an application that only exists in another cluster, that cluster's reconcile loop recreates the
+  client with a new secret when EasyAuth is resumed there, and logins for that application fail until it has done
+  so.
 
 ### Dex API constraints
 
