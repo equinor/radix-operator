@@ -228,6 +228,36 @@ rule only applies when the old object has a value.
 
 ### Reconcile loop
 
+```mermaid
+flowchart TD
+    start([RadixApplication event,<br/>RadixDeployment / OAuth2 proxy Secret event,<br/>or requeue]) --> annotated{Has EasyAuth<br/>annotation?}
+    annotated -- No --> ignore([Ignore])
+    annotated -- Yes --> appID[Read AppID from RadixRegistration<br/>client ID = easyauth.&lt;appID&gt;]
+    appID -- Missing --> fail([Return error, retry with backoff])
+    appID --> syncRD[Set EasyAuth OAuth2 config on public components<br/>of all RadixDeployments, active and inactive]
+    syncRD --> activeRD[Read active RadixDeployment<br/>of each environment]
+    activeRD --> desired[Build desired client:<br/>name + redirect URIs<br/>https://&lt;host&gt;&lt;proxyPrefix&gt;/callback]
+    desired --> get{GetClient}
+    get -- Not found --> create[CreateClient with new secret]
+    create -- AlreadyExists --> reread[GetClient again]
+    create -- Created --> rotate
+    reread --> rotate
+    get -- Error --> fail
+    get -- Found --> rotate{Secret older than<br/>secretRotationInterval?}
+    rotate -- Yes --> recreate[DeleteClient + CreateClient<br/>new secret, merged redirect URIs]
+    rotate -- No --> changed{Redirect URIs missing<br/>or name differs?}
+    changed -- Yes --> update[UpdateClient<br/>merged redirect URIs, keep secret]
+    changed -- No --> secrets
+    update --> secrets
+    recreate --> secrets[Write client secret to OAuth2 proxy Secret<br/>of public components of the active RadixDeployments]
+    secrets --> restart{Existing client<br/>secret changed?}
+    restart -- Yes --> rollout[Restart OAuth2 proxy Deployment]
+    restart -- No --> requeue
+    rollout --> requeue([Requeue at resync interval<br/>or rotation time, whichever is sooner])
+```
+
+`RadixDeployment` sync errors don't stop the Dex steps; they are returned together with any Dex error at the end.
+
 For each `RadixApplication` with the annotation, the controller:
 
 1. Reads the AppID from the `RadixRegistration` with the same name, and syncs the OAuth2 config to
@@ -364,7 +394,7 @@ rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 | `annotation`             | Annotation that enables EasyAuth on a `RadixApplication`                                                              |
 | `enforced`               | Reject `RadixApplications` without the annotation                                                                     |
 | `issuerUrl`              | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |
-| `oauth2`                 | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required          |
+| `oauth2`                 | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required         |
 | `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
 | `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
 | `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
