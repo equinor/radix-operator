@@ -50,6 +50,7 @@ func expectedOAuth2() *radixv1.OAuth2 {
 		SetXAuthRequestHeaders: new(false),
 		SetUserHeaders:         new(true),
 		SessionStoreType:       radixv1.SessionStoreSystemManaged,
+		ProxyPrefix:            DefaultProxyPrefix,
 		OIDC:                   &radixv1.OAuth2OIDC{IssuerURL: issuerURL},
 	}
 }
@@ -74,6 +75,11 @@ func TestNewOAuth2Template(t *testing.T) {
 		assert.Equal(t, radixv1.Secret, template.Credentials)
 		assert.Equal(t, &radixv1.OAuth2OIDC{IssuerURL: issuerURL, SkipDiscovery: new(true)}, template.OIDC)
 		assert.Equal(t, "https://other.example.com", in.OIDC.IssuerURL)
+	})
+
+	t.Run("keeps a configured proxy prefix", func(t *testing.T) {
+		template := NewOAuth2Template(radixv1.OAuth2{ProxyPrefix: "/auth"}, issuerURL)
+		assert.Equal(t, "/auth", template.ProxyPrefix)
 	})
 }
 

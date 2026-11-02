@@ -162,55 +162,70 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // syncDexClient ensures the Dex client of the application, and syncs its secret to the OAuth2 proxy of each public
 // component. It returns when the client secret must be rotated.
 func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radixv1.RadixApplication, clientID string) (time.Time, error) {
-	redirectURIs, err := r.redirectURIs(ctx, ra)
+	deployments, err := r.activeRadixDeployments(ctx, ra)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to get redirect URIs: %w", err)
+		return time.Time{}, fmt.Errorf("failed to get active RadixDeployments: %w", err)
 	}
 
-	desired := dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: redirectURIs}
+	desired := dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: r.redirectURIs(ra, deployments)}
 	clientSecret, rotateAt, err := r.dexClients.EnsureClient(ctx, desired, r.secretRotationInterval)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	if err := r.syncComponentSecrets(ctx, ra, []byte(clientSecret)); err != nil {
+	if err := r.syncComponentSecrets(ctx, deployments, []byte(clientSecret)); err != nil {
 		return time.Time{}, fmt.Errorf("failed to sync client secret to components: %w", err)
 	}
 	return rotateAt, nil
 }
 
-// redirectURIs returns the OAuth2 callback URL for every public host of the active RadixDeployment in each environment
-// of the application. The hosts are the same as radix-operator creates HTTPRoutes for: the cluster, active cluster,
-// app alias and external DNS hosts of each public component, and the DNS aliases of the component in the environment.
-func (r *RadixApplicationReconciler) redirectURIs(ctx context.Context, ra *radixv1.RadixApplication) ([]string, error) {
-	var uris []string
+// environmentDeployment is the active RadixDeployment of an environment
+type environmentDeployment struct {
+	env string
+	rd  *radixv1.RadixDeployment
+}
+
+// activeRadixDeployments returns the active RadixDeployment of each environment of the application that has one
+func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) ([]environmentDeployment, error) {
+	var deployments []environmentDeployment
 	for _, env := range ra.Spec.Environments {
 		rd, err := r.activeRadixDeployment(ctx, utils.GetEnvironmentNamespace(ra.Name, env.Name))
 		if err != nil {
 			return nil, fmt.Errorf("environment %s: %w", env.Name, err)
 		}
-		if rd == nil {
-			continue
+		if rd != nil {
+			deployments = append(deployments, environmentDeployment{env: env.Name, rd: rd})
 		}
-		for i := range rd.Spec.Components {
-			component := &rd.Spec.Components[i]
-			if !component.IsPublic() {
+	}
+	return deployments, nil
+}
+
+// redirectURIs returns the OAuth2 callback URL for every public host of the active RadixDeployment in each environment
+// of the application. The hosts are the same as radix-operator creates HTTPRoutes for: the cluster, active cluster,
+// app alias and external DNS hosts of each public component, and the DNS aliases of the component in the environment.
+// The callback path is built from the proxy prefix of the EasyAuth OAuth2 config, which is set on every public component.
+func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, deployments []environmentDeployment) []string {
+	var uris []string
+	for _, d := range deployments {
+		for i := range d.rd.Spec.Components {
+			component := &d.rd.Spec.Components[i]
+			if !isPublicDeployComponent(component) {
 				continue
 			}
 			var hosts []string
-			hosts = append(hosts, radixdeployment.GetComponentFQDNs(component, *rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
+			hosts = append(hosts, radixdeployment.GetComponentFQDNs(component, *d.rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
 			for _, alias := range ra.Spec.DNSAlias {
-				if alias.Environment == env.Name && alias.Component == component.Name {
+				if alias.Environment == d.env && alias.Component == component.Name {
 					hosts = append(hosts, dnsalias.GetHostName(alias.Alias, r.dnsZone))
 				}
 			}
 			for _, host := range hosts {
-				uris = append(uris, dex.RedirectURI(host))
+				uris = append(uris, dex.RedirectURI(host, r.oauth2Template.ProxyPrefix))
 			}
 		}
 	}
 	slices.Sort(uris)
-	return slices.Compact(uris), nil
+	return slices.Compact(uris)
 }
 
 // activeRadixDeployment returns the active RadixDeployment in namespace, or nil if there is none
@@ -227,19 +242,20 @@ func (r *RadixApplicationReconciler) activeRadixDeployment(ctx context.Context, 
 	return nil, nil
 }
 
-// syncComponentSecrets writes the client secret to the OAuth2 proxy Secret of each public component in each environment.
+// syncComponentSecrets writes the client secret to the OAuth2 proxy Secret of each public component of the active
+// RadixDeployment in each environment. These are the components that run an OAuth2 proxy with the EasyAuth config,
+// which may differ from the latest RadixApplication until it is deployed.
 // The OAuth2 proxy Secret is created by radix-operator when a component is deployed, and is skipped until it exists.
-func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, ra *radixv1.RadixApplication, clientSecret []byte) error {
+func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, deployments []environmentDeployment, clientSecret []byte) error {
 	var errs []error
-	for _, env := range ra.Spec.Environments {
-		namespace := utils.GetEnvironmentNamespace(ra.Name, env.Name)
-		for i := range ra.Spec.Components {
-			component := &ra.Spec.Components[i]
-			if !defaulter.IsPublic(component) {
+	for _, d := range deployments {
+		for i := range d.rd.Spec.Components {
+			component := &d.rd.Spec.Components[i]
+			if !isPublicDeployComponent(component) {
 				continue
 			}
-			if err := r.syncComponentSecret(ctx, namespace, component.Name, clientSecret); err != nil {
-				errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, env.Name, err))
+			if err := r.syncComponentSecret(ctx, d.rd.Namespace, component.Name, clientSecret); err != nil {
+				errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, d.env, err))
 			}
 		}
 	}

@@ -51,6 +51,17 @@ func ensure(dexClient api.DexClient, name string, redirectURIs ...string) (strin
 	return NewClientManager(dexClient).EnsureClient(context.Background(), desiredClient(name, redirectURIs...), rotationInterval)
 }
 
+func TestRedirectURI(t *testing.T) {
+	for prefix, expected := range map[string]string{
+		"/oauth2":   "https://a.example.com/oauth2/callback",
+		"oauth2":    "https://a.example.com/oauth2/callback",
+		"/auth/":    "https://a.example.com/auth/callback",
+		"/a/../b c": "https://a.example.com/b%20c/callback",
+	} {
+		assert.Equal(t, expected, RedirectURI("a.example.com", prefix), prefix)
+	}
+}
+
 func TestIsNotFound(t *testing.T) {
 	assert.True(t, IsNotFound(status.Error(codes.Unknown, "not found")))
 	assert.True(t, IsNotFound(status.Error(codes.NotFound, "client missing")))

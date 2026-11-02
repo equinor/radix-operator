@@ -110,6 +110,11 @@ func activeRD(rd *radixv1.RadixDeployment) *radixv1.RadixDeployment {
 	return rd
 }
 
+// webRD returns an active RadixDeployment in dev with the public web component
+func webRD() *radixv1.RadixDeployment {
+	return activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
+}
+
 func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplicationReconciler {
 	s := scheme.NewScheme()
 	c := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).Build()
@@ -213,6 +218,23 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 	}, dexClient.RedirectUris)
 }
 
+func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	template := defaulter.NewOAuth2Template(radixv1.OAuth2{ProxyPrefix: "auth/"}, issuerURL)
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
+	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
+		annotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"https://web-my-app-dev.cluster.example.com/auth/callback",
+		"https://web-my-app-dev.example.com/auth/callback",
+	}, fakeDex.Client(clientID).RedirectUris)
+	assert.Equal(t, "auth/", getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2.ProxyPrefix)
+}
+
 func TestConditionChangedPredicate(t *testing.T) {
 	inactive := newRD(devNs, "dev-1")
 	active := activeRD(newRD(devNs, "dev-1"))
@@ -224,12 +246,32 @@ func TestConditionChangedPredicate(t *testing.T) {
 func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 	dexSecret := newDexSecret()
 	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret})
+	ra := newRA(true)
+	// removed is no longer in the RadixApplication, and private is no longer public, but both are still public in the
+	// active RadixDeployment, so their OAuth2 proxies still run with the EasyAuth config
+	ra.Spec.Components = append(ra.Spec.Components, radixv1.RadixComponent{Name: "private"})
 	r := newReconciler(fakeDex,
-		newRA(true),
+		ra,
 		newRR(),
+		activeRD(newRD(devNs, "dev-active",
+			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"},
+			radixv1.RadixDeployComponent{Name: "legacy", Public: true}, //nolint:staticcheck
+			radixv1.RadixDeployComponent{Name: "api"},
+			radixv1.RadixDeployComponent{Name: "removed", PublicPort: "http"},
+			radixv1.RadixDeployComponent{Name: "private", PublicPort: "http"},
+		)),
+		// Inactive RadixDeployments are ignored
+		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "old", PublicPort: "http"}),
+		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+		activeRD(newRD("my-app-other", "other", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
 		oauthProxySecret(devNs, "web", map[string][]byte{"CookieSecret": []byte("cookie")}),
 		oauthProxySecret(devNs, "legacy", nil),
+		oauthProxySecret(devNs, "removed", nil),
+		oauthProxySecret(devNs, "private", nil),
+		oauthProxySecret(devNs, "old", nil),
 		oauthProxySecret(prodNs, "web", map[string][]byte{ClientSecretKey: []byte("stale")}),
+		// Public in the RadixApplication, but not in the active RadixDeployment
+		oauthProxySecret(prodNs, "legacy", nil),
 		oauthProxySecret(devNs, "api", map[string][]byte{"CookieSecret": []byte("cookie")}),
 		// Not an environment of the application
 		oauthProxySecret("my-app-other", "web", nil),
@@ -243,7 +285,11 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 	assert.Equal(t, value, webDev.Data[ClientSecretKey])
 	assert.Equal(t, []byte("cookie"), webDev.Data["CookieSecret"], "other keys must be kept")
 	assert.Equal(t, value, getSecret(t, r, devNs, oauthProxySecret(devNs, "legacy", nil).Name).Data[ClientSecretKey])
+	assert.Equal(t, value, getSecret(t, r, devNs, oauthProxySecret(devNs, "removed", nil).Name).Data[ClientSecretKey])
+	assert.Equal(t, value, getSecret(t, r, devNs, oauthProxySecret(devNs, "private", nil).Name).Data[ClientSecretKey])
 	assert.Equal(t, value, getSecret(t, r, prodNs, oauthProxySecret(prodNs, "web", nil).Name).Data[ClientSecretKey])
+	assert.NotContains(t, getSecret(t, r, devNs, oauthProxySecret(devNs, "old", nil).Name).Data, ClientSecretKey, "components of inactive RadixDeployments must not get the client secret")
+	assert.NotContains(t, getSecret(t, r, prodNs, oauthProxySecret(prodNs, "legacy", nil).Name).Data, ClientSecretKey, "components not in the active RadixDeployment must not get the client secret")
 	assert.NotContains(t, getSecret(t, r, devNs, oauthProxySecret(devNs, "api", nil).Name).Data, ClientSecretKey, "private components must not get the client secret")
 	assert.NotContains(t, getSecret(t, r, "my-app-other", oauthProxySecret("my-app-other", "web", nil).Name).Data, ClientSecretKey)
 	assert.Equal(t, dexSecret, fakeDex.Client(clientID).Secret, "the secret in Dex must not change")
@@ -469,7 +515,7 @@ func TestReconcile_RestartsOAuthProxyWhenClientSecretChanges(t *testing.T) {
 	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
 	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
-		newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"),
+		newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web"),
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
@@ -485,7 +531,7 @@ func TestReconcile_DoesNotRestartOAuthProxyWhenClientSecretIsMissing(t *testing.
 	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{"CookieSecret": []byte("cookie")})
 	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
-		newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"),
+		newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web"),
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
@@ -501,7 +547,7 @@ func TestReconcile_RetriesPendingRestart(t *testing.T) {
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte(dexSecret)})
 	webSecret.Annotations = map[string]string{RestartPendingAnnotation: "true"}
 	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
-		newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"),
+		newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web"),
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
@@ -516,7 +562,7 @@ func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
 	s := scheme.NewScheme()
 	c := fake.NewClientBuilder().WithScheme(s).
-		WithObjects(newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web")).
+		WithObjects(newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web")).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 				if _, ok := obj.(*appsv1.Deployment); ok {
@@ -539,7 +585,7 @@ func TestReconcile_ClearsPendingRestartWithoutOAuthProxyDeployment(t *testing.T)
 	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
 	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
-		newRA(true), newRR(), webSecret,
+		newRA(true), newRR(), webSecret, webRD(),
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
@@ -555,7 +601,7 @@ func TestReconcile_RotatesExpiredClientSecret(t *testing.T) {
 		expired := dex.NewSecret(time.Now().Add(-rotationInterval))
 		fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: expired})
 		webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte(expired)})
-		r := newReconciler(fakeDex, newRA(true), newRR(), webSecret, oauthProxyDeployment(devNs, "web"))
+		r := newReconciler(fakeDex, newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web"))
 
 		result, err := r.Reconcile(context.Background(), appRequest)
 		require.NoError(t, err)

@@ -1,4 +1,5 @@
 nameOverride: ""
+# Truncated to 47 characters, to leave room for the suffixes of derived resource names
 fullnameOverride: ""
 
 # The webhooks are served by every replica, the controller only runs on the leader.

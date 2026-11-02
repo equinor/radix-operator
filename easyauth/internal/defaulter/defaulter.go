@@ -71,12 +71,21 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 	return nil
 }
 
+// DefaultProxyPrefix is the OAuth2 proxy prefix set on public components when config.oauth2.proxyPrefix is empty.
+// The prefix is always set, instead of using the radix-operator default, since EasyAuth must know the callback path to
+// register the redirect URIs in Dex.
+const DefaultProxyPrefix = "/oauth2"
+
 // NewOAuth2Template returns the OAuth2 configuration for public components, without the client ID. It is a copy of
-// oauth2 from the EasyAuth config, with the credentials and OIDC issuer URL that EasyAuth requires.
+// oauth2 from the EasyAuth config, with the credentials and OIDC issuer URL that EasyAuth requires, and
+// DefaultProxyPrefix if no proxy prefix is set.
 func NewOAuth2Template(oauth2 radixv1.OAuth2, issuerURL string) *radixv1.OAuth2 {
 	template := oauth2.DeepCopy()
 	template.ClientID = ""
 	template.Credentials = radixv1.Secret
+	if template.ProxyPrefix == "" {
+		template.ProxyPrefix = DefaultProxyPrefix
+	}
 	if template.OIDC == nil {
 		template.OIDC = &radixv1.OAuth2OIDC{}
 	}

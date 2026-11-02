@@ -7,16 +7,18 @@ Expand the name of the chart.
 
 {{/*
 Create a default fully qualified app name.
+Truncated to 47 characters, leaving room for the longest suffix appended to it (-leader-election), so derived
+resource names stay within 63 characters and don't collide.
 */}}
 {{- define "radix-easyauth.fullname" -}}
 {{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- .Values.fullnameOverride | trunc 47 | trimSuffix "-" }}
 {{- else }}
 {{- $name := default .Chart.Name .Values.nameOverride }}
 {{- if contains $name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- .Release.Name | trunc 47 | trimSuffix "-" }}
 {{- else }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-%s" .Release.Name $name | trunc 47 | trimSuffix "-" }}
 {{- end }}
 {{- end }}
 {{- end }}

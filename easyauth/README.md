@@ -40,7 +40,8 @@ set, or the deprecated `public: true`) it:
 
 - Replaces `authentication.oauth2` with the EasyAuth configuration below. Everything except `clientId`,
   `credentials` and `oidc.issuerUrl` comes from [`config.oauth2`](#configuration), the example shows the chart
-  defaults.
+  defaults. `proxyPrefix` is set to `/oauth2` if `config.oauth2.proxyPrefix` is empty, instead of relying on the
+  radix-operator default, since the controller must know the callback path to register redirect URIs in Dex.
 - Removes `authentication.oauth2` from all `environmentConfig` entries, since environment configuration is merged
   on top of the component configuration by radix-operator.
 
@@ -57,6 +58,7 @@ authentication:
     setXAuthRequestHeaders: false
     setUserHeaders: true
     sessionStoreType: systemManaged
+    proxyPrefix: /oauth2
     oidc:
       issuerUrl: <config.issuerUrl>
 ```
@@ -90,10 +92,12 @@ each application it:
    is synced, the OAuth2 proxy can't start and the component is unreachable instead of unprotected. If this step
    fails, the next steps still run, and the errors are returned together.
 3. **Ensures the Dex client** with the [reconcile loop](#reconcile-loop), and gets the client secret from Dex.
-4. **Syncs the client secret to public components.** For every public component in every environment, writes the
-   client secret to the `ClientSecret` key of the OAuth2 proxy Secret (`<component>-aux-oauth-*`). The OAuth2 proxy
-   Secret is created by radix-operator when the component is deployed, and is skipped until it exists. Other keys,
-   like `CookieSecret`, are not changed.
+4. **Syncs the client secret to public components.** For every public component of the active `RadixDeployment` in
+   every environment, writes the client secret to the `ClientSecret` key of the OAuth2 proxy Secret
+   (`<component>-aux-oauth-*`). The active `RadixDeployment` is used instead of the `RadixApplication`, since a
+   component that was removed or made private in the `RadixApplication` still runs an OAuth2 proxy until the change
+   is deployed. The OAuth2 proxy Secret is created by radix-operator when the component is deployed, and is skipped
+   until it exists. Other keys, like `CookieSecret`, are not changed.
 5. Requeues every hour to correct drift. Errors, for example when Dex is unavailable, are retried with backoff.
 
 Only Secrets and `RadixDeployments` in the environment namespaces of the application's `RadixApplication` are
@@ -229,8 +233,10 @@ For each `RadixApplication` with the annotation, the controller:
 1. Reads the AppID from the `RadixRegistration` with the same name, and syncs the OAuth2 config to
    `RadixDeployments`, see [Controller](#controller). Dex is only called after this.
 2. Builds the desired client: the [client ID](#client-id), the application name as `name`, and a redirect URI
-   `https://<host>/oauth2/callback` for every public host of the active `RadixDeployment` in each environment of the
-   application. The hosts are built the same way as radix-operator builds the hosts of its HTTPRoutes, from
+   `https://<host><proxyPrefix>/callback` for every public host of the active `RadixDeployment` in each environment
+   of the application. `<proxyPrefix>` is the sanitized `proxyPrefix` of the EasyAuth OAuth2 config, `/oauth2` by
+   default, built the same way as radix-operator builds the OAuth2 proxy redirect URL. The hosts are built the same
+   way as radix-operator builds the hosts of its HTTPRoutes, from
    `config.clusterName`, `config.dnsZone` and `config.appAliasBaseURL`: the cluster, active cluster, app alias and
    external DNS hosts of each public component, and the `dnsAlias` entries of the `RadixApplication` for the
    component and environment. Since the hosts don't depend on the HTTPRoutes, redirect URIs are in Dex before the
@@ -243,8 +249,8 @@ For each `RadixApplication` with the annotation, the controller:
      Existing redirect URIs are kept, see [Multiple clusters](#multiple-clusters). If the secret is due for
      rotation, the client is rotated instead, see [Secret rotation](#secret-rotation).
    - Other errors: nothing is created, and the reconcile is retried.
-4. Writes the client secret from Dex to the OAuth2 client secret of each public component, so the OAuth2 proxy can
-   authenticate against Dex.
+4. Writes the client secret from Dex to the OAuth2 client secret of each public component of the active
+   `RadixDeployment`, so the OAuth2 proxy can authenticate against Dex.
 5. Requeues periodically to correct drift, or at the secret rotation time if that is sooner, and retries with
    backoff if Dex is unavailable.
 

@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
 
 // ClientIDPrefix identifies Dex clients owned by EasyAuth, since Dex clients have no labels or metadata
@@ -49,9 +50,10 @@ func ClientIDForApp(ctx context.Context, c client.Reader, appName string) (strin
 	return ClientID(rr.Spec.AppID.String()), nil
 }
 
-// RedirectURI returns the OAuth2 proxy callback URL for a public host
-func RedirectURI(host string) string {
-	return fmt.Sprintf("https://%s/oauth2/callback", host)
+// RedirectURI returns the OAuth2 proxy callback URL for a public host. The path is built from proxyPrefix the same way
+// as radix-operator builds OAUTH2_PROXY_REDIRECT_URL.
+func RedirectURI(host, proxyPrefix string) string {
+	return fmt.Sprintf("https://%s%s/callback", host, oauthutil.SanitizePathPrefix(proxyPrefix))
 }
 
 // NewClient returns a client for the Dex gRPC API at address, authenticated with the client certificate in certsDir.
