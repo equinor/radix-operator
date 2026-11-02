@@ -249,6 +249,43 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 	assert.Equal(t, dexSecret, fakeDex.Client(clientID).Secret, "the secret in Dex must not change")
 }
 
+func TestReconcile_CompletesSyncWhenCancelled(t *testing.T) {
+	dexSecret := newDexSecret()
+	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret})
+	webSecret := oauthProxySecret(devNs, "web", nil)
+	// Fails like the API server client does when the context is done
+	failIfDone := func(ctx context.Context) error { return ctx.Err() }
+	c := interceptor.NewClient(
+		fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webSecret,
+			activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).Build(),
+		interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				return errors.Join(failIfDone(ctx), c.Get(ctx, key, obj, opts...))
+			},
+			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+				return errors.Join(failIfDone(ctx), c.List(ctx, list, opts...))
+			},
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				if err := failIfDone(ctx); err != nil {
+					return err
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		},
+	)
+	r := newReconcilerWithClient(c, fakeDex)
+
+	// The manager cancels the context of running reconciles on shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := r.Reconcile(ctx, appRequest)
+	require.NoError(t, err)
+
+	assert.NotNil(t, fakeDex.Client(clientID))
+	assert.Equal(t, []byte(dexSecret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
+	assert.Equal(t, defaulter.OAuth2Config(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+}
+
 func TestReconcile_DexUnavailable(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	fakeDex.SetError(status.Error(codes.Unavailable, "connection refused"))

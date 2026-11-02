@@ -117,6 +117,25 @@ start until the key exists, and starts with the new value when it does. radix-op
 The Deployment is patched without being read, so Deployments are not cached and EasyAuth only needs the `patch`
 permission on them.
 
+### Graceful shutdown
+
+Once the controller has started syncing an application, it finishes the sync even if it is shut down, so the Dex
+client, the client secret in the OAuth2 proxy Secrets and the OAuth2 proxy restarts are never left half-done:
+
+- The manager cancels the context of running reconciles on shutdown, so each reconcile runs on a context that is not
+  cancelled with it (`context.WithoutCancel`), bounded by `SyncTimeout` (30s) so a hanging API call can't block
+  shutdown forever. No new reconciles are started after the shutdown signal.
+- A secret rotation deletes the Dex client and creates it again. Once the client is deleted, it is created again on
+  its own context with a 10s timeout, even if the sync has timed out, so the client is not left deleted.
+- The manager waits up to `GracefulShutdownTimeout` (50s) for running reconciles before it releases the leader
+  lease. The next leader doesn't start until the old one has finished.
+- The Pod has `terminationGracePeriodSeconds: 60`, so Kubernetes doesn't kill the container before the manager has
+  stopped. A second `SIGTERM`/`SIGINT` exits immediately.
+
+Each step is safe to retry, so a sync that still fails, for example after a timeout or a crash, is completed by the
+next reconcile. The [cleanup loop](#cleanup-loop) stops when it is shut down. Each client is deleted in a single
+call, so a cleanup that is stopped partway doesn't leave anything half-done, and the rest is deleted on the next run.
+
 ## Dex
 
 The chart always installs Dex, since EasyAuth stores OAuth2 clients in it:

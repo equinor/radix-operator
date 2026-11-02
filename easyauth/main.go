@@ -58,6 +58,10 @@ import (
 
 var runtimeScheme = scheme.NewScheme()
 
+// gracefulShutdownTimeout covers controller.SyncTimeout and the Dex client recreate of a secret rotation that may
+// follow it
+const gracefulShutdownTimeout = controller.SyncTimeout + 20*time.Second
+
 func main() {
 	cfg := loadConfig(context.Background())
 	logger := initLogger(cfg)
@@ -83,6 +87,9 @@ func main() {
 			CertDir: cfg.CertsDir,
 		}),
 		HealthProbeBindAddress: fmt.Sprintf(":%d", cfg.HealthPort),
+		// Must be longer than a sync of one RadixApplication, which is completed on shutdown, and shorter than
+		// terminationGracePeriodSeconds of the Pod
+		GracefulShutdownTimeout: new(gracefulShutdownTimeout),
 
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the

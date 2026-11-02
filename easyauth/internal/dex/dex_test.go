@@ -236,6 +236,41 @@ func TestEnsureClient_UsesSecretRotatedConcurrently(t *testing.T) {
 	assert.Equal(t, otherSecret, secret)
 }
 
+// cancelledAfterDelete cancels the context right after the client is deleted, as if the controller was shut down in
+// the middle of a secret rotation, and fails calls with a cancelled context like gRPC does
+type cancelledAfterDelete struct {
+	*dextest.FakeDex
+	cancel context.CancelFunc
+}
+
+func (c *cancelledAfterDelete) DeleteClient(ctx context.Context, in *api.DeleteClientReq, opts ...grpc.CallOption) (*api.DeleteClientResp, error) {
+	resp, err := c.FakeDex.DeleteClient(ctx, in, opts...)
+	c.cancel()
+	return resp, err
+}
+
+func (c *cancelledAfterDelete) CreateClient(ctx context.Context, in *api.CreateClientReq, opts ...grpc.CallOption) (*api.CreateClientResp, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+	return c.FakeDex.CreateClient(ctx, in, opts...)
+}
+
+func TestEnsureClient_RecreatesRotatedClientWhenCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fakeDex := &cancelledAfterDelete{
+		FakeDex: dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: secretCreatedAgo(rotationInterval)}),
+		cancel:  cancel,
+	}
+
+	secret, _, err := NewClientManager(fakeDex).EnsureClient(ctx, desiredClient("my-app"), rotationInterval)
+	require.NoError(t, err)
+	rotated := fakeDex.Client(clientID)
+	require.NotNil(t, rotated, "the client must not be left deleted")
+	assert.Equal(t, secret, rotated.Secret)
+}
+
 func TestSecretCreatedAt(t *testing.T) {
 	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
 	createdAt, ok := SecretCreatedAt(NewSecret(now))

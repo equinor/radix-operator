@@ -27,6 +27,8 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "radix-easyauth.serviceAccountName" . }}
+      # Longer than the GracefulShutdownTimeout of the manager (50s), so a started sync is completed on shutdown
+      terminationGracePeriodSeconds: 60
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

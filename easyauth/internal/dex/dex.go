@@ -29,6 +29,9 @@ import (
 // ClientIDPrefix identifies Dex clients owned by EasyAuth, since Dex clients have no labels or metadata
 const ClientIDPrefix = "easyauth."
 
+// recreateTimeout is how long rotateSecret waits to create the client again after deleting it
+const recreateTimeout = 10 * time.Second
+
 // ClientID returns the Dex client ID of an application, see easyauth/README.md
 func ClientID(appID string) string {
 	return ClientIDPrefix + appID
@@ -148,12 +151,15 @@ func (m *ClientManager) EnsureClient(ctx context.Context, desired Client, secret
 }
 
 // rotateSecret replaces the secret of the client. Dex can't change the secret of an existing client, so the client is
-// deleted and created again with the same ID, name and redirect URIs. If creating fails, the next EnsureClient creates
-// the client again, and other clusters add their redirect URIs again.
+// deleted and created again with the same ID, name and redirect URIs. Once deleted, the client is created on a context
+// that is not cancelled with ctx, so a cancellation never leaves the client deleted. If creating still fails, the next
+// EnsureClient creates the client again, and other clusters add their redirect URIs again.
 func (m *ClientManager) rotateSecret(ctx context.Context, desired Client) (string, error) {
 	if _, err := m.dex.DeleteClient(ctx, &api.DeleteClientReq{Id: desired.ID}); err != nil {
 		return "", fmt.Errorf("failed to delete Dex client %s for secret rotation: %w", desired.ID, err)
 	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recreateTimeout)
+	defer cancel()
 	created, err := createClient(ctx, m.dex, desired.ID, desired.Name, desired.RedirectURIs)
 	if err != nil {
 		return "", err

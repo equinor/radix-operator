@@ -46,6 +46,9 @@ const (
 	DefaultResyncInterval = time.Hour
 	// DefaultSecretRotationInterval is how old a client secret can be before it is rotated, when not set
 	DefaultSecretRotationInterval = 90 * 24 * time.Hour
+	// SyncTimeout is how long the sync of one RadixApplication can take. The sync is not cancelled on shutdown, so the
+	// manager's GracefulShutdownTimeout must be longer than this.
+	SyncTimeout = 30 * time.Second
 )
 
 // DexClientManager ensures that the OAuth2 client of an application exists in Dex
@@ -111,7 +114,14 @@ func NewRadixApplicationReconciler(
 // Reconcile ensures that RadixApplications with the EasyAuth annotation have the EasyAuth OAuth2 configuration on
 // the public components of all their RadixDeployments, an OAuth2 client in Dex with redirect URIs for all public
 // hosts, and that the client secret from Dex is synced to the OAuth2 proxy of each public component.
+//
+// The manager cancels ctx on shutdown, so the sync runs on a context that is not cancelled with it, and only bounded
+// by SyncTimeout. A started sync is completed before the manager releases the leader lease, so the Dex client and
+// the client secret in the OAuth2 proxy Secrets are never left half-synced by a shutdown.
 func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), SyncTimeout)
+	defer cancel()
+
 	logger := log.Ctx(ctx).With().Str("controller", "radixapplication").Str("radixApplication", req.String()).Logger()
 	ctx = logger.WithContext(ctx)
 
