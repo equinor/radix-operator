@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,7 +57,8 @@ func (t *handler) Sync(ctx context.Context, namespace, name string) error {
 		// processing.
 		if errors.IsNotFound(err) {
 			log.Ctx(ctx).Info().Msgf("RadixEnvironment %s in work queue no longer exists", name)
-			return nil
+			// PersistentVolumes are cluster scoped, and are not deleted with the environment namespace, which has the name of the RadixEnvironment
+			return volumemount.DeletePersistentVolumesForDeletedNamespace(ctx, t.kubeclient, name)
 		}
 
 		return err

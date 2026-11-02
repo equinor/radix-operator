@@ -103,6 +103,13 @@ rules:
   - watch
   - delete
 - apiGroups:
+  - apps
+  resources:
+  - replicasets # required for garbage collection of volumes
+  verbs:
+  - get
+  - list
+- apiGroups:
   - autoscaling
   resources:
   - horizontalpodautoscalers

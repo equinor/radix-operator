@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -22,116 +21,6 @@ const (
 	defaultBlockCachePrefetchOnOpen bool   = false
 	defaultBlockCacheParallelism    uint32 = 8
 )
-
-type persistentVolumeSpecBuilder interface {
-	BuildSpec(pvcName, pvcNamespace string) corev1.PersistentVolumeSpec
-}
-
-func newDeprecatedPersistentVolumeSpecBuilder(appName, envName string, deployComponent radixv1.RadixCommonDeployComponent, radixVolumeMount radixv1.RadixVolumeMount) *deprecatedPersistentVolumeSpecBuilder {
-	return &deprecatedPersistentVolumeSpecBuilder{
-		appName:          appName,
-		envName:          envName,
-		deployComponent:  deployComponent,
-		radixVolumeMount: radixVolumeMount,
-	}
-}
-
-type deprecatedPersistentVolumeSpecBuilder struct {
-	appName          string
-	envName          string
-	deployComponent  radixv1.RadixCommonDeployComponent
-	radixVolumeMount radixv1.RadixVolumeMount
-}
-
-func (b *deprecatedPersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace string) corev1.PersistentVolumeSpec {
-	spec := corev1.PersistentVolumeSpec{
-		StorageClassName:              "",
-		PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-		MountOptions:                  b.getMountOptions(),
-		Capacity:                      corev1.ResourceList{corev1.ResourceStorage: b.getResourceStorage()},
-		AccessModes:                   []corev1.PersistentVolumeAccessMode{b.getAccessMode()},
-		ClaimRef: &corev1.ObjectReference{
-			APIVersion: "v1",
-			Kind:       k8s.KindPersistentVolumeClaim,
-			Namespace:  pvcNamespace,
-			Name:       pvcName,
-		},
-		CSI: &corev1.CSIPersistentVolumeSource{
-			Driver:           provisionerBlobCsiAzure,
-			VolumeHandle:     b.getVolumeHandle(),
-			VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
-			NodeStageSecretRef: &corev1.SecretReference{
-				Name:      defaults.GetCsiAzureVolumeMountCredsSecretName(b.deployComponent.GetName(), b.radixVolumeMount.Name),
-				Namespace: pvcNamespace,
-			},
-		},
-	}
-
-	return spec
-}
-
-func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeHandle() string {
-	// Specify a value the driver can use to uniquely identify the share in the cluster.
-	// https://github.com/kubernetes-csi/csi-driver-smb/blob/master/docs/driver-parameters.md#pvpvc-usage
-	return fmt.Sprintf("radixvolumemount#%s#%s#%s#%s#%s", b.appName, b.envName, b.deployComponent.GetName(), b.radixVolumeMount.Name, uuid.New().String())
-}
-
-//nolint:staticcheck
-func (b *deprecatedPersistentVolumeSpecBuilder) getVolumeAttributes(secretNamespace string) map[string]string {
-	// Ref https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md#static-provisioningbring-your-own-storage-container
-	return map[string]string{
-		csiVolumeMountAttributeContainerName:   b.radixVolumeMount.Storage,
-		csiVolumeMountAttributeProtocol:        "fuse",
-		csiVolumeMountAttributeSecretNamespace: secretNamespace, // TODO: Do we need it? Works fine without
-	}
-}
-
-//nolint:staticcheck
-func (b *deprecatedPersistentVolumeSpecBuilder) getMountOptions() []string {
-	mountOptions := []string{
-		"--file-cache-timeout-in-seconds=120",
-		"--cancel-list-on-mount-seconds=0",
-		"--attr-cache-timeout=0",
-		"--allow-other",
-		"--attr-timeout=0",
-		"--entry-timeout=0",
-		"--negative-timeout=0",
-	}
-
-	if gid := b.radixVolumeMount.GID; len(gid) > 0 {
-		mountOptions = append(mountOptions, fmt.Sprintf("-o gid=%s", gid))
-	}
-	if uid := b.radixVolumeMount.UID; len(uid) > 0 {
-		mountOptions = append(mountOptions, fmt.Sprintf("-o uid=%s", uid))
-	}
-
-	if b.getAccessMode() == corev1.ReadOnlyMany {
-		mountOptions = append(mountOptions, "--read-only=true")
-	}
-
-	return mountOptions
-}
-
-//nolint:staticcheck
-func (b *deprecatedPersistentVolumeSpecBuilder) getResourceStorage() resource.Quantity {
-	qty := b.radixVolumeMount.RequestsStorage
-	if qty.IsZero() {
-		return defaultStorageCapacity
-	}
-	return qty
-}
-
-//nolint:staticcheck
-func (b *deprecatedPersistentVolumeSpecBuilder) getAccessMode() corev1.PersistentVolumeAccessMode {
-	switch strings.ToLower(b.radixVolumeMount.AccessMode) {
-	case strings.ToLower(string(corev1.ReadWriteOnce)):
-		return corev1.ReadWriteOnce
-	case strings.ToLower(string(corev1.ReadWriteMany)):
-		return corev1.ReadWriteMany
-	default:
-		return corev1.ReadOnlyMany
-	}
-}
 
 func newBlobfuse2PersistentVolumeBuilder(appName, envName string, deployComponent radixv1.RadixCommonDeployComponent, radixVolumeMount radixv1.RadixVolumeMount) *blobfuse2PersistentVolumeSpecBuilder {
 	return &blobfuse2PersistentVolumeSpecBuilder{
@@ -149,11 +38,13 @@ type blobfuse2PersistentVolumeSpecBuilder struct {
 	radixVolumeMount radixv1.RadixVolumeMount
 }
 
-func (b *blobfuse2PersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace string) corev1.PersistentVolumeSpec {
+// BuildSpec builds the PersistentVolumeSpec. volumeHandle must uniquely identify the volume in the cluster,
+// and is also used to derive the block cache path.
+func (b *blobfuse2PersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace, volumeHandle string) corev1.PersistentVolumeSpec {
 	spec := corev1.PersistentVolumeSpec{
 		StorageClassName:              "",
 		PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-		MountOptions:                  b.mountOptions(),
+		MountOptions:                  b.mountOptions(volumeHandle),
 		Capacity:                      corev1.ResourceList{corev1.ResourceStorage: b.getResourceStorage()},
 		AccessModes:                   []corev1.PersistentVolumeAccessMode{b.getAccessMode()},
 		ClaimRef: &corev1.ObjectReference{
@@ -164,7 +55,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace s
 		},
 		CSI: &corev1.CSIPersistentVolumeSource{
 			Driver:           provisionerBlobCsiAzure,
-			VolumeHandle:     b.getVolumeHandle(),
+			VolumeHandle:     volumeHandle,
 			VolumeAttributes: b.getVolumeAttributes(pvcNamespace),
 		},
 	}
@@ -196,10 +87,10 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) getResourceStorage() resource.Qua
 	return qty
 }
 
-func (b *blobfuse2PersistentVolumeSpecBuilder) getVolumeHandle() string {
-	// Specify a value the driver can use to uniquely identify the share in the cluster.
-	// https://github.com/kubernetes-csi/csi-driver-smb/blob/master/docs/driver-parameters.md#pvpvc-usage
-	return fmt.Sprintf("radixvolumemount#%s#%s#%s#%s#%s", b.appName, b.envName, b.deployComponent.GetName(), b.radixVolumeMount.Name, uuid.New().String())
+// buildVolumeHandle returns a value the driver can use to uniquely identify the share in the cluster.
+// https://github.com/kubernetes-csi/csi-driver-smb/blob/master/docs/driver-parameters.md#pvpvc-usage
+func buildVolumeHandle(appName, envName, componentName, volumeMountName, uniquePart string) string {
+	return fmt.Sprintf("radixvolumemount#%s#%s#%s#%s#%s", appName, envName, componentName, volumeMountName, uniquePart)
 }
 
 func (b *blobfuse2PersistentVolumeSpecBuilder) getVolumeAttributes(secretNamespace string) map[string]string {
@@ -226,7 +117,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) getVolumeAttributes(secretNamespa
 	return attributes
 }
 
-func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions() []string {
+func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions(volumeHandle string) []string {
 	// --disable-writeback-cache must be set to true, otherwise changes in source will not be propagated to mounts
 	// Documentation (https://github.com/Azure/azure-storage-fuse/blob/main/doc/blobfuse2_mount.md) doesn't explain much about this flag,
 	// but seems to cause sync issues (stale data) if omitted,
@@ -255,24 +146,24 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions() []string {
 	}
 
 	mountOptions = append(mountOptions, b.attributeCacheMountOptions()...)
-	mountOptions = append(mountOptions, b.cacheMountOptions()...)
+	mountOptions = append(mountOptions, b.cacheMountOptions(volumeHandle)...)
 	return mountOptions
 }
 
-func (b *blobfuse2PersistentVolumeSpecBuilder) cacheMountOptions() []string {
+func (b *blobfuse2PersistentVolumeSpecBuilder) cacheMountOptions(volumeHandle string) []string {
 	switch b.resolveCacheMode() {
 	case radixv1.BlobFuse2CacheModeBlock:
-		return b.blockCacheMountOptions()
+		return b.blockCacheMountOptions(volumeHandle)
 	case radixv1.BlobFuse2CacheModeFile:
 		return b.fileCacheMountOptions()
 	case radixv1.BlobFuse2CacheModeDirectIO:
 		return b.directIOMountOptions()
 	default:
-		return b.blockCacheMountOptions() // Fallback to block cache in case of unknown cache mode
+		return b.blockCacheMountOptions(volumeHandle) // Fallback to block cache in case of unknown cache mode
 	}
 }
 
-func (b *blobfuse2PersistentVolumeSpecBuilder) blockCacheMountOptions() []string {
+func (b *blobfuse2PersistentVolumeSpecBuilder) blockCacheMountOptions(volumeHandle string) []string {
 	opts := []string{
 		"--block-cache",
 	}
@@ -318,7 +209,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) blockCacheMountOptions() []string
 
 	if diskSize > 0 {
 		minDiskSize := (prefetchCount + 1) * blockSize // Disk dize must be set to fit at least the block we read + blocks read by prefetch
-		opts = append(opts, fmt.Sprintf("--block-cache-path=%s", fmt.Sprintf("/mnt/%s#blockcache", b.getVolumeHandle())))
+		opts = append(opts, fmt.Sprintf("%s=%s", blockCachePathMountOption, fmt.Sprintf("/mnt/%s#blockcache", volumeHandle)))
 		opts = append(opts, fmt.Sprintf("--block-cache-disk-size=%d", max(diskSize, minDiskSize)))
 		opts = append(opts, fmt.Sprintf("--block-cache-disk-timeout=%d", diskTimeout))
 	}

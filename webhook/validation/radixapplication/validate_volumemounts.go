@@ -17,127 +17,81 @@ var (
 
 func volumeMountValidator(ctx context.Context, app *radixv1.RadixApplication) ([]string, []error) {
 	var errs []error
-	var wrns []string
 
 	for _, component := range app.Spec.Components {
 		hasComponentIdentityAzureClientId := len(component.Identity.GetAzure().GetClientId()) > 0
-		wrn, err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId)
-		if err != nil {
+		if err := validateVolumeMounts(component.VolumeMounts, hasComponentIdentityAzureClientId); err != nil {
 			errs = append(errs, fmt.Errorf("failed volumeMount validation for component %s. %w", component.Name, err))
-		}
-		if wrn != "" {
-			wrns = append(wrns, fmt.Sprintf("component %s: %s", component.Name, wrn))
 		}
 		for _, envConfig := range component.EnvironmentConfig {
 			hasEnvIdentityAzureClientId := hasComponentIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
-			wrn, err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId)
-			if err != nil {
+			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, fmt.Errorf("failed volumeMount validation for component %s in environment %s. %w", component.Name, envConfig.Environment, err))
-			}
-			if wrn != "" {
-				wrns = append(wrns, fmt.Sprintf("component %s in env %s: %s", component.Name, envConfig.Environment, wrn))
 			}
 		}
 	}
 	for _, job := range app.Spec.Jobs {
 		hasJobIdentityAzureClientId := len(job.Identity.GetAzure().GetClientId()) > 0
-		wrn, err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId)
-		if err != nil {
+		if err := validateVolumeMounts(job.VolumeMounts, hasJobIdentityAzureClientId); err != nil {
 			errs = append(errs, fmt.Errorf("failed volumeMount validation for job %s. %w", job.Name, err))
-		}
-		if wrn != "" {
-			wrns = append(wrns, fmt.Sprintf("component %s: %s", job.Name, wrn))
 		}
 		for _, envConfig := range job.EnvironmentConfig {
 			hasEnvIdentityAzureClientId := hasJobIdentityAzureClientId || len(envConfig.GetIdentity().GetAzure().GetClientId()) > 0
-			wrn, err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId)
-			if err != nil {
+			if err := validateVolumeMounts(envConfig.VolumeMounts, hasEnvIdentityAzureClientId); err != nil {
 				errs = append(errs, fmt.Errorf("failed volumeMount validation for job %s in environment %s. %w", job.Name, envConfig.Environment, err))
-			}
-			if wrn != "" {
-				wrns = append(wrns, fmt.Sprintf("component %s in env %s: %s", job.Name, envConfig.Environment, wrn))
 			}
 		}
 	}
 
-	return wrns, errs
+	return nil, errs
 }
 
-func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAzureClientId bool) (string, error) {
+func validateVolumeMounts(volumeMounts []radixv1.RadixVolumeMount, hasIdentityAzureClientId bool) error {
 	if len(volumeMounts) == 0 {
-		return "", nil
+		return nil
 	}
 
 	for _, v := range volumeMounts {
 		if len(strings.TrimSpace(v.Name)) == 0 {
-			return "", ErrVolumeMountMissingName
+			return ErrVolumeMountMissingName
 		}
 
 		if len(strings.TrimSpace(v.Path)) == 0 {
-			return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountMissingPath)
+			return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountMissingPath)
 		}
 
 		if len(slice.FindAll(volumeMounts, func(rvm radixv1.RadixVolumeMount) bool { return rvm.Name == v.Name })) > 1 {
-			return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountDuplicateName)
+			return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountDuplicateName)
 		}
 
 		if len(slice.FindAll(volumeMounts, func(rvm radixv1.RadixVolumeMount) bool { return rvm.Path == v.Path })) > 1 {
-			return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountDuplicatePath)
+			return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountDuplicatePath)
 		}
 
 		volumeSourceCount := len(slice.FindAll(
-			[]bool{v.HasDeprecatedVolume(), v.HasBlobFuse2(), v.HasEmptyDir()},
+			[]bool{v.HasBlobFuse2(), v.HasEmptyDir()},
 			func(b bool) bool { return b }),
 		)
 		if volumeSourceCount > 1 {
-			return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountMultipleTypes)
+			return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountMultipleTypes)
 		}
 		if volumeSourceCount == 0 {
-			return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountMissingType)
+			return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, ErrVolumeMountMissingType)
 		}
 
 		switch {
-		case v.HasDeprecatedVolume():
-			wrn, err := validateVolumeMountDeprecatedSource(&v)
-			if wrn != "" {
-				wrn = fmt.Sprintf("volumeMount %s failed validation. %s", v.Name, wrn)
-			}
-			if err != nil {
-				err = fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
-			}
-			return wrn, err
-
 		case v.HasBlobFuse2():
 			if err := validateVolumeMountBlobFuse2(v.BlobFuse2, hasIdentityAzureClientId); err != nil {
-				return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
+				return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
 			}
 		case v.HasEmptyDir():
 			if err := validateVolumeMountEmptyDir(v.EmptyDir); err != nil {
-				return "", fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
+				return fmt.Errorf("volumeMount %s failed validation. %w", v.Name, err)
 			}
 		}
 	}
 
-	return "", nil
-}
-
-func validateVolumeMountDeprecatedSource(v *radixv1.RadixVolumeMount) (string, error) {
-	var warning string
-	//nolint:staticcheck
-	if v.Type != "" {
-		warning = WarnDeprecatedFieldVolumeMountTypeUsed
-
-	}
-
-	//nolint:staticcheck
-	if v.Type != radixv1.MountTypeBlobFuse2FuseCsiAzure {
-		return warning, fmt.Errorf("deprecated arguments failed validation. %w", ErrVolumeMountInvalidType)
-	}
-	//nolint:staticcheck
-	if v.Type == radixv1.MountTypeBlobFuse2FuseCsiAzure && len(v.Storage) == 0 {
-		return warning, fmt.Errorf("deprecated arguments failed validation. %w", ErrVolumeMountMissingStorage)
-	}
-	return warning, nil
+	return nil
 }
 
 func validateVolumeMountBlobFuse2(fuse2 *radixv1.RadixBlobFuse2VolumeMount, hasIdentityAzureClientId bool) error {

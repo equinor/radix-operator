@@ -54,6 +54,8 @@ config:
     alertControllerThreads: 21
     kubeClientRateLimitBurst: 500
     kubeClientRateLimitQPS: 500
+    # Short grace period to observe volume garbage collection
+    volumeGarbageCollectionGracePeriod: 5s
     
     jobSchedulerImage:
       tag: "{{IMAGE_TAG}}"
@@ -61,6 +63,8 @@ config:
     gateway:
       name: some-name
       namespace: some-namespace
+    certificateAutomation:
+      gatewayClusterIssuer: some-cluster-issuer
 
   # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
   runtime:
