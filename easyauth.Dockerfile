@@ -16,6 +16,7 @@ WORKDIR /src
 RUN go build -ldflags="-s -w" -o /build/easyauth ./easyauth
 
 # Final stage, ref https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md for distroless
+# Do not pin the distroless image to a specific digest since it would break multi-arch
 FROM gcr.io/distroless/static
 WORKDIR /app
 COPY --from=builder /build/easyauth .

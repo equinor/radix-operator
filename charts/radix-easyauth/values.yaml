@@ -34,8 +34,8 @@ config:
   # documentation for all settings. clientId, credentials and oidc.issuerUrl are set by EasyAuth and must not be set.
   oauth2:
     scope: openid profile email groups offline_access
-    setAuthorizationHeader: false
-    setXAuthRequestHeaders: false
+    setAuthorizationHeader: false # Should be false to avoid abuse of token
+    setXAuthRequestHeaders: false # Should be false to avoid abuse of token
     setUserHeaders: true
     sessionStoreType: systemManaged
   # Required. Must match config.common.clusterName, dnsZone and appAliasBaseURL of radix-operator in the same cluster,

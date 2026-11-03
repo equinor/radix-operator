@@ -440,6 +440,51 @@ Dex is configured with the `dex` section:
   wrong passwords, unknown users and cancelled approvals are rejected. Dex always shows the approval screen, since
   the OAuth2 proxy sends `approval_prompt=force`, which overrides `oauth2.skipApprovalScreen` in Dex.
 
+## TODO
+
+Open questions and planned improvements, to be resolved in later iterations.
+
+- **Controller**
+  - [ ] Check how many threads are used for reconciliation, and whether it can be optimized (must be only one thread per application, but many applciations can be handled in paralell)
+    ([`SetupWithManager`](internal/controller/radixapplication_controller.go#L433)).
+  - [ ] Only sync the OAuth2 config to active `RadixDeployments` instead of all of them, and test that promotion
+    still works ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L332)).
+  - [ ] Also sync orphaned `RadixDeployments`, by collecting the environment namespaces from Kubernetes in addition
+    to the environments in the `RadixApplication`
+    ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L332)).
+- **Dex client**
+  - [ ] Check Dex high availability ([dex.go](internal/dex/dex.go),
+    [dex_deployment.yaml](../charts/radix-easyauth/templates/dex_deployment.yaml)).
+  - [ ] Remove outdated redirect URIs ([`EnsureClient`](internal/dex/dex.go#L133)). Redirect URIs are only added
+    today. How should this work when a component is removed but the change isn't deployed to all environments yet,
+    for example when a component is deleted in dev but still exists in prod?
+  - [ ] Make [`createClient`](internal/dex/dex.go#L218) return the existing client when it already exists, to
+    simplify the create flow in [`getOrCreateClient`](internal/dex/dex.go#L189).
+  - [ ] Decide how to handle a Dex client without a secret
+    ([`getOrCreateClient`](internal/dex/dex.go#L200)). It currently returns an error. Could EasyAuth set a secret
+    instead, possibly with a warning? Does the error cause a reconcile that is retried forever and always fails?
+- **Cleanup loop**
+  - [ ] Copy the annotation to the `RadixDeployment` ([`Cleanup`](internal/cleanup/cleanup.go#L87)).
+    - Only remove a client if no active `RadixDeployment` still uses EasyAuth?
+    - Rotate the secret if the client is still in use? Not for orphaned clients.
+- **Validating webhook**
+  - [ ] Make sure the annotation value is correct even when `enforced` is `false`
+    ([`validate`](internal/validator/validator.go#L48)). Value validation can probably be removed when groups are
+    implemented.
+- **Access control**
+  - [ ] Manage OAuth2 groups, so access can be limited to members of specific groups instead of every user accepted
+    by the Dex connector. Allow the annotation value to be a comma separated list of allowed groups, for example
+    `radix.equinor.com/easyauth: "group-a,group-b"`. An empty value keeps today's behaviour, where every user gets
+    access.
+    - The [mutating webhook](internal/defaulter/defaulter.go#L41) sets the allowed groups on the OAuth2 config of
+      public components, and the [controller](internal/controller/radixapplication_controller.go#L332) syncs them
+      to `RadixDeployments`.
+    - radix-operator needs an allowed groups setting in `authentication.oauth2`, passed to the OAuth2 proxy as
+      `OAUTH2_PROXY_ALLOWED_GROUPS`
+      ([oauthproxyresourcemanager.go](../pkg/apis/deployment/oauthproxyresourcemanager.go)).
+    - Dex must include the groups in the ID token, which depends on the connector (`groups` scope).
+    - Validate the group list in the [validating webhook](internal/validator/validator.go#L48), see the TODO above.
+
 ## References
 
 - Example Dex config: https://github.com/dexidp/dex/blob/master/examples/config-dev.yaml
