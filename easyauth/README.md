@@ -82,10 +82,11 @@ each application it:
 
 1. **Reads the AppID** from the `RadixRegistration` with the same name, and builds the [client ID](#client-id).
 2. **Syncs the OAuth2 config to `RadixDeployments`.** Sets the OAuth2 configuration from the
-   [mutating webhook](#mutating-webhook) on the public components of every `RadixDeployment`, active and inactive,
-   in the environments of the application. This covers `RadixDeployments` created before the annotation was added,
-   and inactive `RadixDeployments` that may be promoted later. radix-operator redeploys active `RadixDeployments`
-   when they change. The patch uses optimistic locking. On a conflict, the `RadixDeployment` is read again and the
+   [mutating webhook](#mutating-webhook) on the public components of the active `RadixDeployment` in each
+   environment of the application. This covers `RadixDeployments` created before the annotation was added.
+   Inactive `RadixDeployments` are not changed. When one is promoted, the promote pipeline creates a new
+   `RadixDeployment` in the target environment, which gets the OAuth2 config when it becomes active, since the
+   controller watches activation. radix-operator redeploys active `RadixDeployments` when they change. The patch uses optimistic locking. On a conflict, the `RadixDeployment` is read again and the
    patch is retried with exponential backoff (up to 5 attempts, starting at 10ms and growing 5x).
    This runs before anything talks to Dex, since it only needs the client ID. A public component without the
    OAuth2 config is exposed without authentication, so protecting it must not wait for Dex. Until the client secret
@@ -439,19 +440,22 @@ Dex is configured with the `dex` section:
   verifies that the web component is reached. It also verifies that unauthenticated requests, forged session cookies,
   wrong passwords, unknown users and cancelled approvals are rejected. Dex always shows the approval screen, since
   the OAuth2 proxy sends `approval_prompt=force`, which overrides `oauth2.skipApprovalScreen` in Dex.
+  The promote test deploys twice without the annotation (`radixconfig-before-easyauth.yaml`), activates EasyAuth by
+  pointing the `RadixRegistration` to `radixconfig.yaml`, and promotes the old inactive `RadixDeployment`. It verifies
+  that the promoted `RadixDeployment` gets the EasyAuth OAuth2 config, and that the inactive one is not changed.
 
 ## TODO
 
 Open questions and planned improvements, to be resolved in later iterations.
 
 - **Controller**
-  - [ ] Check how many threads are used for reconciliation, and whether it can be optimized (must be only one thread per application, but many applciations can be handled in paralell)
-    ([`SetupWithManager`](internal/controller/radixapplication_controller.go#L433)).
-  - [ ] Only sync the OAuth2 config to active `RadixDeployments` instead of all of them, and test that promotion
+  - [x] Check how many threads are used for reconciliation, and whether it can be optimized (must be only one thread per application, but many applciations can be handled in paralell)
+  ([`SetupWithManager`](internal/controller/radixapplication_controller.go#L433)).
+  - [x] Only sync the OAuth2 config to active `RadixDeployments` instead of all of them, and test that promotion
     still works ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L332)).
   - [ ] Also sync orphaned `RadixDeployments`, by collecting the environment namespaces from Kubernetes in addition
     to the environments in the `RadixApplication`
-    ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L332)).
+    ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L337)).
 - **Dex client**
   - [ ] Check Dex high availability ([dex.go](internal/dex/dex.go),
     [dex_deployment.yaml](../charts/radix-easyauth/templates/dex_deployment.yaml)).

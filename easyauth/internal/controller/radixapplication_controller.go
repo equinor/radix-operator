@@ -331,9 +331,9 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 	return nil
 }
 
-// syncRadixDeployments sets the EasyAuth OAuth2 config on public components of all RadixDeployments in the
-// environments of the application. This covers RadixDeployments created before the annotation was added,
-// and keeps inactive RadixDeployments correct in case they are promoted later.
+// syncRadixDeployments sets the EasyAuth OAuth2 config on public components of the active RadixDeployments in the
+// environments of the application. This covers RadixDeployments created before the annotation was added.
+// Inactive RadixDeployments are skipped. A promoted RadixDeployment is synced when it becomes active.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
 	desired := defaulter.OAuth2Config(r.oauth2Template, clientID)
 
@@ -344,9 +344,13 @@ func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, r
 			errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
 			continue
 		}
-		for i := range rdList.Items {
-			if err := r.syncRadixDeployment(ctx, &rdList.Items[i], desired); err != nil {
-				errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", rdList.Items[i].Namespace, rdList.Items[i].Name, err))
+		for _, item := range rdList.Items {
+			if item.Status.Condition != radixv1.DeploymentActive {
+				continue
+			}
+
+			if err := r.syncRadixDeployment(ctx, &item, desired); err != nil {
+				errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", item.Namespace, item.Name, err))
 			}
 		}
 	}
@@ -438,7 +442,7 @@ func isOAuthProxySecret(obj client.Object) bool {
 func (r *RadixApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&radixv1.RadixApplication{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}). // Example option, adjust as needed
+		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}).
 		// The public hosts, and therefore the redirect URIs in Dex, come from the active RadixDeployment
 		Watches(&radixv1.RadixDeployment{},
 			handler.EnqueueRequestsFromMapFunc(mapToRadixApplication),

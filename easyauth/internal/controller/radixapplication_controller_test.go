@@ -58,7 +58,7 @@ func newDexSecret() string {
 	return dex.NewSecret(time.Now().Add(-24 * time.Hour))
 }
 
-var appRequest = ctrl.Request{NamespacedName: types.NamespacedName{Namespace: appNs, Name: appName}}
+var appRequest = ctrl.Request{Namespace: appNs, Name: appName}
 
 func newRA(annotated bool) *radixv1.RadixApplication {
 	ra := &radixv1.RadixApplication{
@@ -123,7 +123,7 @@ func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplic
 
 func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixApplicationReconciler {
 	return NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval)
+		annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 }
 
 func getSecret(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *corev1.Secret {
@@ -143,7 +143,7 @@ func getRD(t *testing.T, r *RadixApplicationReconciler, namespace, name string) 
 func TestReconcile_WithoutAnnotation_DoesNothing(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{"CookieSecret": []byte("cookie")})
-	rd := newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})
+	rd := activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
 	r := newReconciler(fakeDex, newRA(false), newRR(), webSecret, rd)
 
 	result, err := r.Reconcile(context.Background(), appRequest)
@@ -223,7 +223,7 @@ func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
 	template := defaulter.NewOAuth2Template(radixv1.OAuth2{ProxyPrefix: "auth/"}, issuerURL)
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval)
+		annotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
@@ -389,7 +389,7 @@ func TestReconcile_SyncsDexWhenRadixDeploymentPatchFails(t *testing.T) {
 	assert.Equal(t, []byte(dexClient.Secret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
 }
 
-func TestReconcile_SetsOAuth2ConfigOnAllRadixDeployments(t *testing.T) {
+func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 	expected := defaulter.OAuth2Config(oauth2Template, clientID)
 	wrongOAuth2 := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "other"}}
 	privateAuth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "private"}}
@@ -397,14 +397,14 @@ func TestReconcile_SetsOAuth2ConfigOnAllRadixDeployments(t *testing.T) {
 	r := newReconciler(dextest.NewFakeDex(),
 		newRA(true),
 		newRR(),
-		newRD(devNs, "dev-active",
+		activeRD(newRD(devNs, "dev-active",
 			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", Authentication: wrongOAuth2.DeepCopy()},
 			radixv1.RadixDeployComponent{Name: "legacy", Public: true}, //nolint:staticcheck
 			radixv1.RadixDeployComponent{Name: "api", Authentication: privateAuth.DeepCopy()},
-		),
+		)),
 		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
-		newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
-		newRD("my-app-other", "other", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
+		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+		activeRD(newRD("my-app-other", "other", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
@@ -414,13 +414,13 @@ func TestReconcile_SetsOAuth2ConfigOnAllRadixDeployments(t *testing.T) {
 	assert.Equal(t, expected, devActive.Spec.Components[0].Authentication.OAuth2)
 	assert.Equal(t, expected, devActive.Spec.Components[1].Authentication.OAuth2)
 	assert.Equal(t, privateAuth, devActive.Spec.Components[2].Authentication, "private components must not be changed")
-	assert.Equal(t, expected, getRD(t, r, devNs, "dev-inactive").Spec.Components[0].Authentication.OAuth2)
+	assert.Nil(t, getRD(t, r, devNs, "dev-inactive").Spec.Components[0].Authentication, "inactive RadixDeployments must not be changed")
 	assert.Equal(t, expected, getRD(t, r, prodNs, "prod-active").Spec.Components[0].Authentication.OAuth2)
 	assert.Nil(t, getRD(t, r, "my-app-other", "other").Spec.Components[0].Authentication, "RadixDeployments outside the app environments must not be changed")
 }
 
 func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
-	rd := newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})
+	rd := activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
 	conflicts := 2
 	patches := 0
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
@@ -446,7 +446,7 @@ func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
 }
 
 func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {
-	rd := newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})
+	rd := activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
 	patches := 0
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
 		WithObjects(newRA(true), newRR(), rd).
@@ -645,7 +645,7 @@ func TestReconcile_DoesNotRotateClientSecretBeforeInterval(t *testing.T) {
 }
 
 func TestNewRadixApplicationReconciler_Defaults(t *testing.T) {
-	r := NewRadixApplicationReconciler(nil, nil, annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0)
+	r := NewRadixApplicationReconciler(nil, nil, annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0, 1)
 	assert.Equal(t, DefaultResyncInterval, r.resyncInterval)
 	assert.Equal(t, DefaultSecretRotationInterval, r.secretRotationInterval)
 }

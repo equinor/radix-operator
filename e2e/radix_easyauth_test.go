@@ -163,6 +163,7 @@ func expectedEasyAuthOAuth2(appID v1.ULID) *v1.OAuth2 {
 		SetXAuthRequestHeaders: new(false),
 		SetUserHeaders:         new(true),
 		SessionStoreType:       v1.SessionStoreSystemManaged,
+		ProxyPrefix:            "/oauth2",
 		OIDC:                   &v1.OAuth2OIDC{IssuerURL: easyAuthOAuth2IssuerURL},
 	}
 }
@@ -364,6 +365,111 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 		logPodLogs(t, envNamespace, fmt.Sprintf("%s=%s", kube.RadixAuxiliaryComponentTypeLabel, v1.OAuthProxyAuxiliaryComponentType), "")
 		logPodLogs(t, easyAuthNamespace, "app.kubernetes.io/component=dex", "")
 	}
+}
+
+// TestRadixEasyAuthPromoteOldDeployment verifies that promoting an old RadixDeployment, created before EasyAuth was
+// activated, results in a RadixDeployment with the OAuth2 config set by radix-easyauth. The radix-easyauth controller
+// only syncs active RadixDeployments, so the old inactive RadixDeployment never gets the OAuth2 config.
+// EasyAuth is activated by pointing the RadixRegistration from radixconfig-before-easyauth.yaml to radixconfig.yaml
+// (testdata/gitserver/repos/equinor/easyauth-promote-test.git), which has the easyauth annotation.
+func TestRadixEasyAuthPromoteOldDeployment(t *testing.T) {
+	t.Parallel()
+	c := getClient(t)
+	const (
+		appName     = "easyauth-promote-test"
+		waitTimeout = 60 * time.Second
+	)
+
+	appNamespace := appName + "-app"
+	devNamespace := utils.GetEnvironmentNamespace(appName, "dev")
+	prodNamespace := utils.GetEnvironmentNamespace(appName, "prod")
+	createNamespaceForTest(t, c, appName)
+	rr := &v1.RadixRegistration{
+		Name: appName,
+		Spec: v1.RadixRegistrationSpec{
+			AppID:               v1.ULID{ULID: ulid.Make()},
+			CloneURL:            "git@github.com:equinor/" + appName + ".git",
+			AdGroups:            []string{"test-group"},
+			ConfigBranch:        "main",
+			ConfigurationItem:   "test-item",
+			RadixConfigFullName: "radixconfig-before-easyauth.yaml",
+		},
+	}
+	require.NoError(t, c.Create(t.Context(), rr))
+	appID := rr.Spec.AppID
+	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, waitTimeout),
+		"registration secret %s should be created in %s", defaults.GitPrivateKeySecretName, appNamespace)
+	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, waitTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
+
+	// Deploy twice before EasyAuth is activated, so the first RadixDeployment becomes inactive
+	oldRD := runEasyAuthTestJob(t, c, appName, "easyauth-promote-deploy-old", devNamespace,
+		v1.RadixJobSpec{PipeLineType: v1.Deploy, Deploy: v1.RadixDeploySpec{ToEnvironment: "dev"}})
+	newRD := runEasyAuthTestJob(t, c, appName, "easyauth-promote-deploy-new", devNamespace,
+		v1.RadixJobSpec{PipeLineType: v1.Deploy, Deploy: v1.RadixDeploySpec{ToEnvironment: "dev"}})
+	require.EventuallyWithT(t, func(collect *assert.CollectT) {
+		for _, rd := range []*v1.RadixDeployment{oldRD, newRD} {
+			assert.NoError(collect, c.Get(t.Context(), client.ObjectKeyFromObject(rd), rd))
+		}
+		assert.Equal(collect, v1.DeploymentInactive, oldRD.Status.Condition)
+		assert.Equal(collect, v1.DeploymentActive, newRD.Status.Condition)
+	}, waitTimeout, time.Second, "RadixDeployment %s should be replaced by %s", oldRD.Name, newRD.Name)
+	web := oldRD.GetComponentByName("web")
+	require.NotNil(t, web, "RadixDeployment %s should contain component web", oldRD.Name)
+	require.Nil(t, web.Authentication, "sanity check: RadixDeployment %s created before EasyAuth should not have authentication", oldRD.Name)
+
+	// Activate EasyAuth. The promote pipeline applies radixconfig.yaml with the easyauth annotation.
+	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(rr), rr))
+	original := rr.DeepCopy()
+	rr.Spec.RadixConfigFullName = "radixconfig.yaml"
+	require.NoError(t, c.Patch(t.Context(), rr, client.MergeFrom(original)))
+
+	promotedRD := runEasyAuthTestJob(t, c, appName, "easyauth-promote", prodNamespace,
+		v1.RadixJobSpec{PipeLineType: v1.Promote, Promote: v1.RadixPromoteSpec{
+			DeploymentName: oldRD.Name, FromEnvironment: "dev", ToEnvironment: "prod",
+		}})
+	assert.Equal(t, oldRD.Name, promotedRD.Annotations[kube.RadixDeploymentPromotedFromDeploymentAnnotation])
+
+	ra := &v1.RadixApplication{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: appNamespace, Name: appName}, ra))
+	require.Contains(t, ra.Annotations, easyAuthAnnotation, "the promote pipeline should apply radixconfig.yaml")
+
+	require.EventuallyWithT(t, func(collect *assert.CollectT) {
+		rd := &v1.RadixDeployment{}
+		if !assert.NoError(collect, c.Get(t.Context(), client.ObjectKeyFromObject(promotedRD), rd)) {
+			return
+		}
+		assert.Equal(collect, v1.DeploymentActive, rd.Status.Condition)
+		web := rd.GetComponentByName("web")
+		if assert.NotNil(collect, web) && assert.NotNil(collect, web.Authentication) {
+			assert.Equal(collect, expectedEasyAuthOAuth2(appID), web.Authentication.OAuth2)
+		}
+	}, waitTimeout, time.Second, "promoted RadixDeployment %s should be active with the radix-easyauth OAuth2 config", promotedRD.Name)
+
+	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(oldRD), oldRD))
+	assert.Nil(t, oldRD.GetComponentByName("web").Authentication, "inactive RadixDeployment %s should not be changed", oldRD.Name)
+}
+
+// runEasyAuthTestJob creates a RadixJob, waits for it to succeed, and returns the RadixDeployment it created in envNamespace
+func runEasyAuthTestJob(t *testing.T, c client.Client, appName, jobName, envNamespace string, spec v1.RadixJobSpec) *v1.RadixDeployment {
+	t.Helper()
+	const timeout = 5 * time.Minute
+	appNamespace := appName + "-app"
+	spec.AppName = appName
+	spec.TriggeredBy = "e2e"
+	rj := &v1.RadixJob{Name: jobName, Namespace: appNamespace, Spec: spec}
+	require.NoError(t, c.Create(t.Context(), rj), "should create job %s", rj.Name)
+	cond, err := waitForJobCondition(t.Context(), c, appNamespace, rj.Name, v1.RadixJobCondition.IsDone, timeout)
+	if err != nil || cond != v1.JobSucceeded {
+		logRadixJobDiagnostics(t, c, appNamespace, rj.Name)
+		logRadixOperatorLogs(t, c, appName)
+	}
+	require.NoError(t, err, "job %s should finish, last condition: %s", rj.Name, cond)
+	require.Equal(t, v1.JobSucceeded, cond, "job %s should succeed", rj.Name)
+
+	rds := &v1.RadixDeploymentList{}
+	require.NoError(t, c.List(t.Context(), rds, client.InNamespace(envNamespace), client.MatchingLabels{kube.RadixJobNameLabel: rj.Name}))
+	require.Len(t, rds.Items, 1, "job %s should create one RadixDeployment", rj.Name)
+	return &rds.Items[0]
 }
 
 // allowOAuth2ProxyEgressToDex allows the OAuth2 proxies in namespace to reach the Dex HTTP port. radix-operator only
