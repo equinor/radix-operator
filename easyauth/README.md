@@ -453,7 +453,7 @@ Open questions and planned improvements, to be resolved in later iterations.
   ([`SetupWithManager`](internal/controller/radixapplication_controller.go#L433)).
   - [x] Only sync the OAuth2 config to active `RadixDeployments` instead of all of them, and test that promotion
     still works ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L332)).
-  - [ ] Also sync orphaned `RadixDeployments`, by collecting the environment namespaces from Kubernetes in addition
+  - [x] Also sync orphaned `RadixDeployments`, by collecting the environment namespaces from Kubernetes in addition
     to the environments in the `RadixApplication`
     ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L337)).
 - **Dex client**

@@ -394,6 +394,10 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 	wrongOAuth2 := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "other"}}
 	privateAuth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "private"}}
 
+	otherAppRD := activeRD(newRD("other-app-dev", "other-app", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
+	otherAppRD.Labels[kube.RadixAppLabel] = "other-app"
+	otherAppRD.Spec.AppName = "other-app" //nolint:staticcheck
+
 	r := newReconciler(dextest.NewFakeDex(),
 		newRA(true),
 		newRR(),
@@ -404,7 +408,7 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 		)),
 		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
 		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
-		activeRD(newRD("my-app-other", "other", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+		otherAppRD,
 	)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
@@ -416,7 +420,32 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 	assert.Equal(t, privateAuth, devActive.Spec.Components[2].Authentication, "private components must not be changed")
 	assert.Nil(t, getRD(t, r, devNs, "dev-inactive").Spec.Components[0].Authentication, "inactive RadixDeployments must not be changed")
 	assert.Equal(t, expected, getRD(t, r, prodNs, "prod-active").Spec.Components[0].Authentication.OAuth2)
-	assert.Nil(t, getRD(t, r, "my-app-other", "other").Spec.Components[0].Authentication, "RadixDeployments outside the app environments must not be changed")
+	assert.Nil(t, getRD(t, r, "other-app-dev", "other-app").Spec.Components[0].Authentication, "RadixDeployments of other apps must not be changed")
+}
+
+func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeploymentsInOrphanedEnvironments(t *testing.T) {
+	// The orphaned environment is removed from the RadixApplication, but its namespace and active RadixDeployment
+	// still exist, so its OAuth2 proxy must keep using the EasyAuth config
+	const orphanedNs = "my-app-orphaned"
+	expected := defaulter.OAuth2Config(oauth2Template, clientID)
+
+	r := newReconciler(dextest.NewFakeDex(),
+		newRA(true),
+		newRR(),
+		activeRD(newRD(orphanedNs, "orphaned-active",
+			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "other"}}},
+			radixv1.RadixDeployComponent{Name: "api"},
+		)),
+		newRD(orphanedNs, "orphaned-inactive", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
+	)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	orphanedActive := getRD(t, r, orphanedNs, "orphaned-active")
+	assert.Equal(t, expected, orphanedActive.Spec.Components[0].Authentication.OAuth2, "active RadixDeployments in orphaned environments must be synced")
+	assert.Nil(t, orphanedActive.Spec.Components[1].Authentication, "private components must not be changed")
+	assert.Nil(t, getRD(t, r, orphanedNs, "orphaned-inactive").Spec.Components[0].Authentication, "inactive RadixDeployments must not be changed")
 }
 
 func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {

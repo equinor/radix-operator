@@ -337,23 +337,22 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
 	desired := defaulter.OAuth2Config(r.oauth2Template, clientID)
 
+	rdList := &radixv1.RadixDeploymentList{}
+	if err := r.List(ctx, rdList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
+		return fmt.Errorf("failed to list radix deployments for app %s: %w", ra.Name, err)
+	}
+
 	var errs []error
-	for _, env := range ra.Spec.Environments {
-		rdList := &radixv1.RadixDeploymentList{}
-		if err := r.List(ctx, rdList, client.InNamespace(utils.GetEnvironmentNamespace(ra.Name, env.Name))); err != nil {
-			errs = append(errs, fmt.Errorf("environment %s: %w", env.Name, err))
+	for _, item := range rdList.Items {
+		if item.Status.Condition != radixv1.DeploymentActive {
 			continue
 		}
-		for _, item := range rdList.Items {
-			if item.Status.Condition != radixv1.DeploymentActive {
-				continue
-			}
 
-			if err := r.syncRadixDeployment(ctx, &item, desired); err != nil {
-				errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", item.Namespace, item.Name, err))
-			}
+		if err := r.syncRadixDeployment(ctx, &item, desired); err != nil {
+			errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", item.Namespace, item.Name, err))
 		}
 	}
+
 	return errors.Join(errs...)
 }
 
