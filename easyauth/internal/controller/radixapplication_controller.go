@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -74,6 +75,8 @@ type RadixApplicationReconciler struct {
 	appAliasBaseURL string
 	// How often each RadixApplication is reconciled to correct drift
 	resyncInterval time.Duration
+	// MaxConcurrentReconciles is the maximum number of concurrent reconciles for this controller
+	MaxConcurrentReconciles int
 	// How old a client secret can be before it is rotated. Must be the same in all clusters sharing the Dex database.
 	secretRotationInterval time.Duration
 }
@@ -88,20 +91,22 @@ func NewRadixApplicationReconciler(
 	oauth2Template *radixv1.OAuth2,
 	clusterName, dnsZone, appAliasBaseURL string,
 	secretRotationInterval time.Duration,
+	maxConcurrentReconciles int,
 ) *RadixApplicationReconciler {
 	if secretRotationInterval <= 0 {
 		secretRotationInterval = DefaultSecretRotationInterval
 	}
 	return &RadixApplicationReconciler{
-		Client:                 c,
-		dexClients:             dexClients,
-		annotation:             annotation,
-		oauth2Template:         oauth2Template,
-		clusterName:            clusterName,
-		dnsZone:                dnsZone,
-		appAliasBaseURL:        appAliasBaseURL,
-		resyncInterval:         DefaultResyncInterval,
-		secretRotationInterval: secretRotationInterval,
+		Client:                  c,
+		dexClients:              dexClients,
+		annotation:              annotation,
+		oauth2Template:          oauth2Template,
+		clusterName:             clusterName,
+		dnsZone:                 dnsZone,
+		appAliasBaseURL:         appAliasBaseURL,
+		resyncInterval:          DefaultResyncInterval,
+		secretRotationInterval:  secretRotationInterval,
+		MaxConcurrentReconciles: maxConcurrentReconciles,
 	}
 }
 
@@ -433,6 +438,7 @@ func isOAuthProxySecret(obj client.Object) bool {
 func (r *RadixApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&radixv1.RadixApplication{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}). // Example option, adjust as needed
 		// The public hosts, and therefore the redirect URIs in Dex, come from the active RadixDeployment
 		Watches(&radixv1.RadixDeployment{},
 			handler.EnqueueRequestsFromMapFunc(mapToRadixApplication),

@@ -24,3 +24,4 @@ dex:
 cleanupEnabled: true
 cleanupInterval: 1h
 secretRotationInterval: 2160h
+maxConcurrentReconciles: 1

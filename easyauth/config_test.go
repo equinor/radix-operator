@@ -56,9 +56,10 @@ func TestParse_HappyPath(t *testing.T) {
 			GRPCAddress: "radix-easyauth-dex.radix-easyauth.svc:5557",
 			CertsDir:    "/run/dex-client-certs",
 		},
-		CleanupEnabled:         true,
-		CleanupInterval:        time.Hour,
-		SecretRotationInterval: 2160 * time.Hour,
+		CleanupEnabled:          true,
+		CleanupInterval:         time.Hour,
+		SecretRotationInterval:  2160 * time.Hour,
+		MaxConcurrentReconciles: 1,
 	}
 	assert.Equal(t, expected, cfg)
 }

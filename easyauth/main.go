@@ -133,7 +133,8 @@ func main() {
 		cfg.ClusterName,
 		cfg.DNSZone,
 		cfg.AppAliasBaseURL,
-		cfg.SecretRotationInterval)
+		cfg.SecretRotationInterval,
+		cfg.MaxConcurrentReconciles)
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to register controller with manager")
 	}
