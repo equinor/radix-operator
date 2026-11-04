@@ -15,7 +15,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/runtime"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -43,15 +42,8 @@ type buildKit struct {
 	rr   radixv1.RadixRegistration
 }
 
-func (c *buildKit) BuildJobs(componentImages []pipeline.BuildComponentImage, buildSecrets []string, gitCommitHash, gitTags string, useBuildCache, refreshBuildCache bool) []batchv1.Job {
-	var jobs []batchv1.Job
-
-	for _, componentImage := range componentImages {
-		job := c.buildJob(componentImage, useBuildCache, refreshBuildCache, gitCommitHash, gitTags, buildSecrets)
-		jobs = append(jobs, job)
-	}
-
-	return jobs
+func (c *buildKit) BuildJob(componentImage pipeline.BuildComponentImage, buildSecrets []string, gitCommitHash, gitTags string, useBuildCache, refreshBuildCache bool) batchv1.Job {
+	return c.buildJob(componentImage, useBuildCache, refreshBuildCache, gitCommitHash, gitTags, buildSecrets)
 }
 
 func (c *buildKit) buildJob(componentImage pipeline.BuildComponentImage, useBuildCache, refreshBuildCache bool, gitCommitHash, gitTags string, buildSecrets []string) batchv1.Job {
@@ -93,16 +85,12 @@ func (c *buildKitKubeJobProps) JobName() string {
 }
 
 func (c *buildKitKubeJobProps) JobLabels() map[string]string {
-	return labels.Merge(
-		getCommonJobLabels(c.pipelineArgs.AppName, c.pipelineArgs.JobName, c.pipelineArgs.ImageTag),
-		labels.ForEnvironmentName(c.componentImage.EnvName),
-		labels.ForComponentName(c.componentImage.ComponentName),
-	)
+	return getCommonJobLabels(c.pipelineArgs.AppName, c.pipelineArgs.JobName, c.componentImage.EnvName, c.componentImage.ComponentName)
 }
 
 func (c *buildKitKubeJobProps) JobAnnotations() map[string]string {
 	branch := c.pipelineArgs.Branch //nolint:staticcheck
-	return getCommonJobAnnotations(branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType, c.componentImage)
+	return getCommonJobAnnotations(branch, c.pipelineArgs.GitRef, c.pipelineArgs.GitRefType)
 }
 
 func (c *buildKitKubeJobProps) PodLabels() map[string]string {
@@ -111,7 +99,7 @@ func (c *buildKitKubeJobProps) PodLabels() map[string]string {
 
 func (c *buildKitKubeJobProps) PodAnnotations() map[string]string {
 	annotations := getCommonPodAnnotations()
-	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", c.componentImage.ContainerName)] = "unconfined"
+	annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", defaults.RadixPipelineJobBuildContainerName)] = "unconfined"
 	return annotations
 }
 
@@ -141,7 +129,7 @@ func (c *buildKitKubeJobProps) PodImagePullSecrets() []corev1.LocalObjectReferen
 }
 
 func (c *buildKitKubeJobProps) PodVolumes() []corev1.Volume {
-	volumes := getCommonPodVolumes([]pipeline.BuildComponentImage{c.componentImage})
+	volumes := getCommonPodVolumes()
 
 	volumes = append(volumes,
 		corev1.Volume{
@@ -201,7 +189,7 @@ func (c *buildKitKubeJobProps) PodInitContainers() []corev1.Container {
 
 func (c *buildKitKubeJobProps) PodContainers() []corev1.Container {
 	container := corev1.Container{
-		Name:            c.componentImage.ContainerName,
+		Name:            defaults.RadixPipelineJobBuildContainerName,
 		Image:           c.cfg.PipelineRunner.Builder.Image.String(),
 		ImagePullPolicy: corev1.PullAlways,
 		Args:            c.getPodContainerArgs(),
@@ -335,7 +323,7 @@ func (c *buildKitKubeJobProps) getPodContainerEnvVars() []corev1.EnvVar {
 }
 
 func (c *buildKitKubeJobProps) getPodContainerVolumeMounts() []corev1.VolumeMount {
-	volumeMounts := getCommonPodContainerVolumeMounts(c.componentImage, c.pipelineArgs.GitWorkspace)
+	volumeMounts := getCommonPodContainerVolumeMounts(c.pipelineArgs.GitWorkspace)
 
 	volumeMounts = append(volumeMounts,
 		corev1.VolumeMount{
