@@ -3129,6 +3129,11 @@ func (in *RadixJobStep) DeepCopyInto(out *RadixJobStep) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Environments != nil {
+		in, out := &in.Environments, &out.Environments
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

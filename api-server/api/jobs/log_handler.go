@@ -60,13 +60,13 @@ func (jh JobHandler) GetPipelineJobStepLogs(ctx context.Context, appName, jobNam
 		}
 		return nil, err
 	}
-	stepPodName := getPodNameForStep(job, stepName)
-	if len(stepPodName) == 0 {
+	stepPodName, stepContainerName := getPodAndContainerNameForStep(job, stepName)
+	if len(stepPodName) == 0 || len(stepContainerName) == 0 {
 		return nil, jobModels.PipelineStepNotFoundError(appName, jobName, stepName)
 	}
 
 	podHandler := pods.Init(jh.userAccount.Client)
-	logReader, err := podHandler.HandleGetAppPodLog(ctx, appName, stepPodName, stepName, sinceTime, logLines, follow)
+	logReader, err := podHandler.HandleGetAppPodLog(ctx, appName, stepPodName, stepContainerName, sinceTime, logLines, follow)
 	if err != nil {
 		log.Ctx(ctx).Warn().Msgf("Failed to get build logs. %v", err)
 		return nil, err
@@ -74,11 +74,18 @@ func (jh JobHandler) GetPipelineJobStepLogs(ctx context.Context, appName, jobNam
 	return logReader, nil
 }
 
-func getPodNameForStep(job *radixv1.RadixJob, stepName string) string {
+func getPodAndContainerNameForStep(job *radixv1.RadixJob, stepName string) (string, string) {
 	for _, jobStep := range job.Status.Steps {
 		if strings.EqualFold(jobStep.Name, stepName) {
-			return jobStep.PodName
+			podName := jobStep.PodName
+			containerName := jobStep.ContainerName
+
+			// TODO: Handle RadixJobs with deprecated build container names. Can be removed when there are no RadixJobs with steps missing container names.
+			if containerName == "" {
+				containerName = jobStep.Name
+			}
+			return podName, containerName
 		}
 	}
-	return ""
+	return "", ""
 }
