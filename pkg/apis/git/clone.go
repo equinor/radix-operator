@@ -112,7 +112,6 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 	container := corev1.Container{
 		Name: cloneContainerName,
 		Env: []corev1.EnvVar{
-			{Name: "HOME", Value: CloneRepoHomeVolumePath},
 			{Name: "RADIX_CLONE_REPO", Value: sshURL},
 			{Name: "RADIX_CLONE_BRANCH", Value: branch},
 			{Name: "RADIX_CLONE_DIR", Value: directory},
@@ -127,11 +126,6 @@ func CloneInitContainersWithContainerName(sshURL, branch, commitID, directory st
 				Name:      GitSSHKeyVolumeName,
 				MountPath: "/.ssh",
 				ReadOnly:  true,
-			},
-			{
-				Name:      CloneRepoHomeVolumeName,
-				MountPath: CloneRepoHomeVolumePath,
-				ReadOnly:  false,
 			},
 		},
 	}
@@ -150,9 +144,6 @@ func GetJobVolumes() []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: BuildContextVolumeName,
-		},
-		{
-			Name: CloneRepoHomeVolumeName,
 		},
 		{
 			Name: GitSSHKeyVolumeName,

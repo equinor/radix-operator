@@ -171,7 +171,6 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 				{Name: "radix-image-builder-home", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}},
 				{Name: "build-kit-run", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
 				{Name: "build-kit-root", EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(100, resource.Giga)}},
-				{Name: git.CloneRepoHomeVolumeName, EmptyDir: &corev1.EmptyDirVolumeSource{SizeLimit: resource.NewScaledQuantity(5, resource.Mega)}},
 			}
 			if len(cfg.Common.ExternalRegistryAuthSecret) > 0 {
 				expectedVolumes = append(expectedVolumes, corev1.Volume{
@@ -194,7 +193,6 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			assert.Equal(t, []string{"sh", "-c", expectedCommand}, cloneContainer.Command)
 			assert.Empty(t, cloneContainer.Args)
 			assert.ElementsMatch(t, []corev1.EnvVar{
-				{Name: "HOME", Value: git.CloneRepoHomeVolumePath},
 				{Name: "RADIX_CLONE_REPO", Value: cloneURL},
 				{Name: "RADIX_CLONE_BRANCH", Value: gitRefName},
 				{Name: "RADIX_CLONE_DIR", Value: gitWorkspace},
@@ -203,7 +201,6 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			expectedCloneVolumeMounts := []corev1.VolumeMount{
 				{Name: git.BuildContextVolumeName, MountPath: gitWorkspace},
 				{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
-				{Name: git.CloneRepoHomeVolumeName, MountPath: git.CloneRepoHomeVolumePath},
 			}
 			assert.ElementsMatch(t, expectedCloneVolumeMounts, cloneContainer.VolumeMounts)
 
