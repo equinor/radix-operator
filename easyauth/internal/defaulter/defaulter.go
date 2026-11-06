@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/equinor/radix-operator/easyauth/internal/dex"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -21,7 +21,7 @@ type RadixApplicationDefaulter struct {
 }
 
 // NewRadixApplicationDefaulter returns a defaulter for RadixApplications with annotation, that sets the OAuth2
-// configuration from oauth2Template (see NewOAuth2Template) on public components. reader reads the RadixRegistration
+// configuration from oauth2Template (see oauth.NewTemplate) on public components. reader reads the RadixRegistration
 // of the application, to get the AppID used in the client ID. It should read from the API server and not a cache,
 // since the RadixRegistration may have just been created.
 func NewRadixApplicationDefaulter(reader client.Reader, annotation string, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
@@ -41,7 +41,7 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 		return nil
 	}
 
-	clientID, err := dex.ClientIDForApp(ctx, d.reader, obj.Name)
+	clientID, err := oauth.ClientIDForApp(ctx, d.reader, obj.Name)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 		if component.Authentication == nil {
 			component.Authentication = &radixv1.Authentication{}
 		}
-		component.Authentication.OAuth2 = OAuth2Config(d.oauth2Template, clientID)
+		component.Authentication.OAuth2 = oauth.CloneWithClientID(d.oauth2Template, clientID)
 
 		// Environment specific OAuth2 config is merged on top of the component config, so it must be
 		// removed for the component config to take effect
@@ -67,35 +67,6 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 	}
 
 	return nil
-}
-
-// DefaultProxyPrefix is the OAuth2 proxy prefix set on public components when config.oauth2.proxyPrefix is empty.
-// The prefix is always set, instead of using the radix-operator default, since EasyAuth must know the callback path to
-// register the redirect URIs in Dex.
-const DefaultProxyPrefix = "/oauth2"
-
-// NewOAuth2Template returns the OAuth2 configuration for public components, without the client ID. It is a copy of
-// oauth2 from the EasyAuth config, with the credentials and OIDC issuer URL that EasyAuth requires, and
-// DefaultProxyPrefix if no proxy prefix is set.
-func NewOAuth2Template(oauth2 radixv1.OAuth2, issuerURL string) *radixv1.OAuth2 {
-	template := oauth2.DeepCopy()
-	template.ClientID = ""
-	template.Credentials = radixv1.Secret
-	if template.ProxyPrefix == "" {
-		template.ProxyPrefix = DefaultProxyPrefix
-	}
-	if template.OIDC == nil {
-		template.OIDC = &radixv1.OAuth2OIDC{}
-	}
-	template.OIDC.IssuerURL = issuerURL
-	return template
-}
-
-// OAuth2Config returns the EasyAuth OAuth2 configuration for public components of an application
-func OAuth2Config(template *radixv1.OAuth2, clientID string) *radixv1.OAuth2 {
-	oauth2 := template.DeepCopy()
-	oauth2.ClientID = clientID
-	return oauth2
 }
 
 // IsPublic mirrors how the operator determines if a component is exposed to the internet

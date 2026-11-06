@@ -21,40 +21,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
-
-// ClientIDPrefix identifies Dex clients owned by EasyAuth, since Dex clients have no labels or metadata
-const ClientIDPrefix = "easyauth."
 
 // recreateTimeout is how long rotateSecret waits to create the client again after deleting it
 const recreateTimeout = 10 * time.Second
-
-// ClientID returns the Dex client ID of an application, see easyauth/README.md
-func ClientID(appID string) string {
-	return ClientIDPrefix + appID
-}
-
-// ClientIDForApp returns the Dex client ID of an application, from the AppID of its RadixRegistration
-func ClientIDForApp(ctx context.Context, c client.Reader, appName string) (string, error) {
-	rr := &radixv1.RadixRegistration{}
-	if err := c.Get(ctx, client.ObjectKey{Name: appName}, rr); err != nil {
-		return "", fmt.Errorf("failed to get RadixRegistration %s: %w", appName, err)
-	}
-	if rr.Spec.AppID.IsZero() {
-		return "", fmt.Errorf("RadixRegistration %s has no appID", appName)
-	}
-	return ClientID(rr.Spec.AppID.String()), nil
-}
-
-// RedirectURI returns the OAuth2 proxy callback URL for a public host. The path is built from proxyPrefix the same way
-// as radix-operator builds OAUTH2_PROXY_REDIRECT_URL.
-func RedirectURI(host, proxyPrefix string) string {
-	return fmt.Sprintf("https://%s%s/callback", host, oauthutil.SanitizePathPrefix(proxyPrefix))
-}
 
 // NewClient returns a client for the Dex gRPC API at address, authenticated with the client certificate in certsDir.
 // certsDir must contain tls.crt, tls.key and ca.crt, as written by cert-manager. The client certificate is read on

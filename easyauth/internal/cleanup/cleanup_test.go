@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 )
@@ -72,14 +72,14 @@ func dexClient(id string) *api.Client {
 func TestCleanup_DeletesOrphanedEasyAuthClients(t *testing.T) {
 	inUse, notAnnotated, noRA, recreatedOld, recreatedNew := ulid.Make(), ulid.Make(), ulid.Make(), ulid.Make(), ulid.Make()
 	fakeDex := dextest.NewFakeDex(
-		dexClient(dex.ClientID(inUse.String())),
-		dexClient(dex.ClientID(notAnnotated.String())),
-		dexClient(dex.ClientID(noRA.String())),
+		dexClient(oauth.ClientID(inUse.String())),
+		dexClient(oauth.ClientID(notAnnotated.String())),
+		dexClient(oauth.ClientID(noRA.String())),
 		// Client of a deleted application whose name was reused by a new application
-		dexClient(dex.ClientID(recreatedOld.String())),
-		dexClient(dex.ClientID(recreatedNew.String())),
+		dexClient(oauth.ClientID(recreatedOld.String())),
+		dexClient(oauth.ClientID(recreatedNew.String())),
 		// Client of a deleted RadixRegistration
-		dexClient(dex.ClientID(ulid.Make().String())),
+		dexClient(oauth.ClientID(ulid.Make().String())),
 		// Not owned by EasyAuth
 		dexClient("radix-web-console"),
 	)
@@ -92,21 +92,21 @@ func TestCleanup_DeletesOrphanedEasyAuthClients(t *testing.T) {
 
 	require.NoError(t, c.Cleanup(context.Background()))
 
-	assert.NotNil(t, fakeDex.Client(dex.ClientID(inUse.String())))
-	assert.NotNil(t, fakeDex.Client(dex.ClientID(recreatedNew.String())))
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(inUse.String())))
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(recreatedNew.String())))
 	assert.NotNil(t, fakeDex.Client("radix-web-console"), "clients without the EasyAuth prefix must not be deleted")
-	assert.Nil(t, fakeDex.Client(dex.ClientID(notAnnotated.String())))
-	assert.Nil(t, fakeDex.Client(dex.ClientID(noRA.String())))
-	assert.Nil(t, fakeDex.Client(dex.ClientID(recreatedOld.String())))
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(notAnnotated.String())))
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(noRA.String())))
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(recreatedOld.String())))
 	assert.Equal(t, 4, fakeDex.Calls("DeleteClient"))
 }
 
 func TestCleanup_KeepsClientsUsedByActiveRadixDeployments(t *testing.T) {
 	activeAnnotated, inactiveAnnotated, activeNotAnnotated := ulid.Make(), ulid.Make(), ulid.Make()
 	fakeDex := dextest.NewFakeDex(
-		dexClient(dex.ClientID(activeAnnotated.String())),
-		dexClient(dex.ClientID(inactiveAnnotated.String())),
-		dexClient(dex.ClientID(activeNotAnnotated.String())),
+		dexClient(oauth.ClientID(activeAnnotated.String())),
+		dexClient(oauth.ClientID(inactiveAnnotated.String())),
+		dexClient(oauth.ClientID(activeNotAnnotated.String())),
 	)
 	// The RadixApplications don't have the annotation, for example after it was removed
 	c := newCleaner(fakeDex,
@@ -125,13 +125,13 @@ func TestCleanup_KeepsClientsUsedByActiveRadixDeployments(t *testing.T) {
 
 	require.NoError(t, c.Cleanup(context.Background()))
 
-	assert.NotNil(t, fakeDex.Client(dex.ClientID(activeAnnotated.String())), "an active RadixDeployment with the annotation must keep the client")
-	assert.Nil(t, fakeDex.Client(dex.ClientID(inactiveAnnotated.String())), "inactive RadixDeployments must not keep the client")
-	assert.Nil(t, fakeDex.Client(dex.ClientID(activeNotAnnotated.String())))
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(activeAnnotated.String())), "an active RadixDeployment with the annotation must keep the client")
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(inactiveAnnotated.String())), "inactive RadixDeployments must not keep the client")
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(activeNotAnnotated.String())))
 }
 
 func TestCleanup_DeletesNothingWhenDexFails(t *testing.T) {
-	fakeDex := dextest.NewFakeDex(dexClient(dex.ClientID(ulid.Make().String())))
+	fakeDex := dextest.NewFakeDex(dexClient(oauth.ClientID(ulid.Make().String())))
 	fakeDex.SetError(status.Error(codes.Unavailable, "connection refused"))
 	c := newCleaner(fakeDex)
 
@@ -140,7 +140,7 @@ func TestCleanup_DeletesNothingWhenDexFails(t *testing.T) {
 }
 
 func TestCleanup_DeletesNothingWhenKubernetesFails(t *testing.T) {
-	fakeDex := dextest.NewFakeDex(dexClient(dex.ClientID(ulid.Make().String())))
+	fakeDex := dextest.NewFakeDex(dexClient(oauth.ClientID(ulid.Make().String())))
 	c := newCleaner(fakeDex)
 	// The scheme doesn't know the Radix types, so listing RadixApplications fails
 	c.reader = fake.NewClientBuilder().Build()
@@ -150,7 +150,7 @@ func TestCleanup_DeletesNothingWhenKubernetesFails(t *testing.T) {
 }
 
 func TestStart_RunsCleanupUntilCancelled(t *testing.T) {
-	orphan := dex.ClientID(ulid.Make().String())
+	orphan := oauth.ClientID(ulid.Make().String())
 	fakeDex := dextest.NewFakeDex(dexClient(orphan))
 	c := newCleaner(fakeDex)
 

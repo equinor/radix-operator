@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 )
@@ -30,7 +31,7 @@ var oauth2 = radixv1.OAuth2{
 
 func newDefaulter(objs ...client.Object) *RadixApplicationDefaulter {
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
-	return NewRadixApplicationDefaulter(c, annotation, NewOAuth2Template(oauth2, issuerURL))
+	return NewRadixApplicationDefaulter(c, annotation, oauth.NewTemplate(oauth2, issuerURL))
 }
 
 func newRR(appName, id string) *radixv1.RadixRegistration {
@@ -50,48 +51,9 @@ func expectedOAuth2() *radixv1.OAuth2 {
 		SetXAuthRequestHeaders: new(false),
 		SetUserHeaders:         new(true),
 		SessionStoreType:       radixv1.SessionStoreSystemManaged,
-		ProxyPrefix:            DefaultProxyPrefix,
+		ProxyPrefix:            oauth.DefaultProxyPrefix,
 		OIDC:                   &radixv1.OAuth2OIDC{IssuerURL: issuerURL},
 	}
-}
-
-func TestNewOAuth2Template(t *testing.T) {
-	t.Run("sets credentials and issuer", func(t *testing.T) {
-		template := NewOAuth2Template(oauth2, issuerURL)
-		expected := expectedOAuth2()
-		expected.ClientID = ""
-		assert.Equal(t, expected, template)
-	})
-
-	t.Run("keeps other OIDC settings and does not modify the input", func(t *testing.T) {
-		in := radixv1.OAuth2{
-			ClientID:    "ignored",
-			Credentials: radixv1.AzureWorkloadIdentity,
-			OIDC:        &radixv1.OAuth2OIDC{IssuerURL: "https://other.example.com", SkipDiscovery: new(true)},
-		}
-		template := NewOAuth2Template(in, issuerURL)
-
-		assert.Empty(t, template.ClientID)
-		assert.Equal(t, radixv1.Secret, template.Credentials)
-		assert.Equal(t, &radixv1.OAuth2OIDC{IssuerURL: issuerURL, SkipDiscovery: new(true)}, template.OIDC)
-		assert.Equal(t, "https://other.example.com", in.OIDC.IssuerURL)
-	})
-
-	t.Run("keeps a configured proxy prefix", func(t *testing.T) {
-		template := NewOAuth2Template(radixv1.OAuth2{ProxyPrefix: "/auth"}, issuerURL)
-		assert.Equal(t, "/auth", template.ProxyPrefix)
-	})
-}
-
-func TestOAuth2Config_ReturnsCopy(t *testing.T) {
-	template := NewOAuth2Template(oauth2, issuerURL)
-	config := OAuth2Config(template, "easyauth."+appID)
-	config.OIDC.IssuerURL = "changed"
-	*config.SetUserHeaders = false
-
-	assert.Empty(t, template.ClientID)
-	assert.Equal(t, issuerURL, template.OIDC.IssuerURL)
-	assert.True(t, *template.SetUserHeaders)
 }
 
 func TestDefault_OverridesOAuth2OnPublicComponents(t *testing.T) {

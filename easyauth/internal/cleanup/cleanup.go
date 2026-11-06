@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/equinor/radix-operator/easyauth/internal/dex"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -93,7 +93,7 @@ func (c *DexClientCleaner) Cleanup(ctx context.Context) error {
 	var errs []error
 	for _, dexClient := range resp.GetClients() {
 		id := dexClient.GetId()
-		if !strings.HasPrefix(id, dex.ClientIDPrefix) || inUse[id] {
+		if !strings.HasPrefix(id, oauth.ClientIDPrefix) || inUse[id] {
 			continue
 		}
 		if _, err := c.dex.DeleteClient(ctx, &api.DeleteClientReq{Id: id}); err != nil {
@@ -130,7 +130,7 @@ func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool,
 	inUse := map[string]bool{}
 	markInUse := func(appName string) {
 		if appID, ok := appIDs[appName]; ok && !appID.IsZero() {
-			inUse[dex.ClientID(appID.String())] = true
+			inUse[oauth.ClientID(appID.String())] = true
 		}
 	}
 	for _, ra := range raList.Items {

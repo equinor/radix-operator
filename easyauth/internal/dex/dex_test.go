@@ -19,18 +19,14 @@ import (
 	"time"
 
 	api "github.com/dexidp/dex/api/v2"
-	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/scheme"
 )
 
 const (
@@ -49,17 +45,6 @@ func desiredClient(name string, redirectURIs ...string) Client {
 
 func ensure(dexClient api.DexClient, name string, redirectURIs ...string) (string, time.Time, error) {
 	return NewClientManager(dexClient).EnsureClient(context.Background(), desiredClient(name, redirectURIs...), rotationInterval)
-}
-
-func TestRedirectURI(t *testing.T) {
-	for prefix, expected := range map[string]string{
-		"/oauth2":   "https://a.example.com/oauth2/callback",
-		"oauth2":    "https://a.example.com/oauth2/callback",
-		"/auth/":    "https://a.example.com/auth/callback",
-		"/a/../b c": "https://a.example.com/b%20c/callback",
-	} {
-		assert.Equal(t, expected, RedirectURI("a.example.com", prefix), prefix)
-	}
 }
 
 func TestIsNotFound(t *testing.T) {
@@ -287,24 +272,6 @@ func TestNewSecret_IsUnique(t *testing.T) {
 	now := time.Now()
 	assert.NotEqual(t, NewSecret(now), NewSecret(now))
 	assert.GreaterOrEqual(t, len(NewSecret(now)), 50)
-}
-
-func TestClientIDForApp(t *testing.T) {
-	id := ulid.Make()
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(
-		&radixv1.RadixRegistration{Name: "with-id", Spec: radixv1.RadixRegistrationSpec{AppID: radixv1.ULID{ULID: id}}},
-		&radixv1.RadixRegistration{Name: "without-id"},
-	).Build()
-
-	got, err := ClientIDForApp(context.Background(), c, "with-id")
-	require.NoError(t, err)
-	assert.Equal(t, "easyauth."+id.String(), got)
-
-	_, err = ClientIDForApp(context.Background(), c, "without-id")
-	assert.Error(t, err)
-
-	_, err = ClientIDForApp(context.Background(), c, "missing")
-	assert.Error(t, err)
 }
 
 // versionServer is a Dex gRPC server that only implements GetVersion

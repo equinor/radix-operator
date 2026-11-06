@@ -65,6 +65,10 @@ authentication:
       issuerUrl: <config.issuerUrl>
 ```
 
+The configuration is built in [`internal/oauth`](internal/oauth/oauth.go), which is shared with the controller:
+`oauth.NewTemplate` builds the configuration without the client ID once at startup, and `oauth.Config` adds the
+client ID of an application.
+
 The webhook only rewrites the `RadixApplication`, it has no side effects (`sideEffects: None`). Everything that
 talks to Dex or creates secrets belongs in the controller.
 
@@ -234,6 +238,9 @@ The AppID is used instead of the application name because:
 - **It is immutable** (enforced by the CRD) and unique across `RadixRegistrations` (enforced by radix-webhook), so
   a client ID never changes or collides during the lifetime of an application.
 
+The client ID is built by `oauth.ClientIDForApp` in [`internal/oauth`](internal/oauth/oauth.go), which is used by
+both the mutating webhook and the controller, so they always agree on the client ID.
+
 The AppID is a ULID and doesn't tell a human which application a client belongs to, so the controller sets the
 Dex client `name` to the application name. Dex shows the name on its approval screen, and it makes clients easy
 to identify when debugging.
@@ -282,8 +289,8 @@ For each `RadixApplication` with the annotation, the controller:
 2. Builds the desired client: the [client ID](#client-id), the application name as `name`, and a redirect URI
    `https://<host><proxyPrefix>/callback` for every public host of the active `RadixDeployment` in each environment
    of the application. `<proxyPrefix>` is the sanitized `proxyPrefix` of the EasyAuth OAuth2 config, `/oauth2` by
-   default, built the same way as radix-operator builds the OAuth2 proxy redirect URL. The hosts are built the same
-   way as radix-operator builds the hosts of its HTTPRoutes, from
+   default, built the same way as radix-operator builds the OAuth2 proxy redirect URL (`oauth.RedirectURI`). The
+   hosts are built the same way as radix-operator builds the hosts of its HTTPRoutes, from
    `config.clusterName`, `config.dnsZone` and `config.appAliasBaseURL`: the cluster, active cluster, app alias and
    external DNS hosts of each public component, and the `dnsAlias` entries of the `RadixApplication` for the
    component and environment. Since the hosts don't depend on the HTTPRoutes, redirect URIs are in Dex before the

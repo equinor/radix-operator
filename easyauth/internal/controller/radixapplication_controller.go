@@ -24,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
 	"github.com/equinor/radix-operator/easyauth/internal/dex"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixdeployment "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/dnsalias"
@@ -67,7 +67,7 @@ type RadixApplicationReconciler struct {
 	dexClients DexClientManager
 	// Annotation that enables EasyAuth on a RadixApplication
 	annotation string
-	// OAuth2 configuration of public components, without the client ID (see defaulter.NewOAuth2Template)
+	// OAuth2 configuration of public components, without the client ID (see oauth.NewTemplate)
 	oauth2Template *radixv1.OAuth2
 	// Cluster name, DNS zone and app alias base URL of radix-operator, used to build the public hostnames of components
 	clusterName     string
@@ -135,7 +135,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	clientID, err := dex.ClientIDForApp(ctx, r.Client, ra.Name)
+	clientID, err := oauth.ClientIDForApp(ctx, r.Client, ra.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -224,7 +224,7 @@ func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, 
 				}
 			}
 			for _, host := range hosts {
-				uris = append(uris, dex.RedirectURI(host, r.oauth2Template.ProxyPrefix))
+				uris = append(uris, oauth.RedirectURI(host, r.oauth2Template.ProxyPrefix))
 			}
 		}
 	}
@@ -319,7 +319,7 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // environments of the application. This covers RadixDeployments created before the annotation was added.
 // Inactive RadixDeployments are skipped. A promoted RadixDeployment is synced when it becomes active.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
-	desired := defaulter.OAuth2Config(r.oauth2Template, clientID)
+	desired := oauth.CloneWithClientID(r.oauth2Template, clientID)
 
 	rdList := &radixv1.RadixDeploymentList{}
 	if err := r.List(ctx, rdList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {

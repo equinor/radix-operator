@@ -26,9 +26,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
 	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
@@ -50,7 +50,7 @@ const (
 	appAliasBaseURL = "app.example.com"
 )
 
-var oauth2Template = defaulter.NewOAuth2Template(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true)}, issuerURL)
+var oauth2Template = oauth.NewTemplate(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true)}, issuerURL)
 
 const rotationInterval = 90 * 24 * time.Hour
 
@@ -232,7 +232,7 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 
 func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
-	template := defaulter.NewOAuth2Template(radixv1.OAuth2{ProxyPrefix: "auth/"}, issuerURL)
+	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/"}, issuerURL)
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
 		annotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
@@ -341,7 +341,7 @@ func TestReconcile_CompletesSyncWhenCancelled(t *testing.T) {
 
 	assert.NotNil(t, fakeDex.Client(clientID))
 	assert.Equal(t, []byte(dexSecret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
-	assert.Equal(t, defaulter.OAuth2Config(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+	assert.Equal(t, oauth.CloneWithClientID(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
 }
 
 func TestReconcile_DexUnavailable(t *testing.T) {
@@ -355,7 +355,7 @@ func TestReconcile_DexUnavailable(t *testing.T) {
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.Error(t, err)
 	assert.NotContains(t, getSecret(t, r, devNs, webSecret.Name).Data, ClientSecretKey)
-	assert.Equal(t, defaulter.OAuth2Config(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
+	assert.Equal(t, oauth.CloneWithClientID(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
 		"RadixDeployments must be protected even when Dex is unavailable")
 }
 
@@ -402,7 +402,7 @@ func TestReconcile_SyncsDexWhenRadixDeploymentPatchFails(t *testing.T) {
 }
 
 func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
-	expected := defaulter.OAuth2Config(oauth2Template, clientID)
+	expected := oauth.CloneWithClientID(oauth2Template, clientID)
 	wrongOAuth2 := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "other"}}
 	privateAuth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "private"}}
 
@@ -439,7 +439,7 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeploymentsInOrphanedEnvironment
 	// The orphaned environment is removed from the RadixApplication, but its namespace and active RadixDeployment
 	// still exist, so its OAuth2 proxy must keep using the EasyAuth config
 	const orphanedNs = "my-app-orphaned"
-	expected := defaulter.OAuth2Config(oauth2Template, clientID)
+	expected := oauth.CloneWithClientID(oauth2Template, clientID)
 
 	r := newReconciler(dextest.NewFakeDex(),
 		newRA(true),
@@ -483,7 +483,7 @@ func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, conflicts+1, patches)
-	assert.Equal(t, defaulter.OAuth2Config(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+	assert.Equal(t, oauth.CloneWithClientID(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
 }
 
 func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {

@@ -30,6 +30,7 @@ import (
 	"github.com/equinor/radix-operator/easyauth/internal/controller"
 	"github.com/equinor/radix-operator/easyauth/internal/defaulter"
 	"github.com/equinor/radix-operator/easyauth/internal/dex"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	"github.com/equinor/radix-operator/easyauth/internal/validator"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -115,7 +116,7 @@ func main() {
 	}
 	defer func() { _ = dexConn.Close() }()
 
-	oauth2Template := defaulter.NewOAuth2Template(cfg.OAuth2, cfg.IssuerURL)
+	oauth2Template := oauth.NewTemplate(cfg.OAuth2, cfg.IssuerURL)
 	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, oauth2Template).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create mutating webhook")
 	}
