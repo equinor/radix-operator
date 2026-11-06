@@ -36,21 +36,24 @@ import (
 )
 
 const (
-	annotation = "radix.equinor.com/easyauth"
-	issuerURL  = "https://easyauth.example.com"
-	appName    = "my-app"
-	appNs      = "my-app-app"
-	devNs      = "my-app-dev"
-	prodNs     = "my-app-prod"
-	appID      = "01JABCDEFGHJKMNPQRSTVWXYZ0"
-	clientID   = "easyauth." + appID
+	annotation   = "easyauth.radix.equinor.com"
+	defaultGroup = "default-group"
+	issuerURL    = "https://easyauth.example.com"
+	appName      = "my-app"
+	appNs        = "my-app-app"
+	devNs        = "my-app-dev"
+	prodNs       = "my-app-prod"
+	appID        = "01JABCDEFGHJKMNPQRSTVWXYZ0"
+	clientID     = "easyauth." + appID
 
 	clusterName     = "cluster"
 	dnsZone         = "example.com"
 	appAliasBaseURL = "app.example.com"
 )
 
-var oauth2Template = oauth.NewTemplate(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true)}, issuerURL)
+const allowedIdentitiesAnnotation = "easyauth.radix.equinor.com/allowed-identities"
+
+var oauth2Template = oauth.NewTemplate(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true), AllowedIdentities: []string{defaultGroup}}, issuerURL)
 
 const rotationInterval = 90 * 24 * time.Hour
 
@@ -127,7 +130,7 @@ func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplic
 
 func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixApplicationReconciler {
 	return NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
+		annotation, allowedIdentitiesAnnotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 }
 
 func getSecret(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *corev1.Secret {
@@ -232,10 +235,10 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 
 func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
-	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/"}, issuerURL)
+	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/", AllowedIdentities: []string{defaultGroup}}, issuerURL)
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
+		annotation, allowedIdentitiesAnnotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
@@ -341,7 +344,7 @@ func TestReconcile_CompletesSyncWhenCancelled(t *testing.T) {
 
 	assert.NotNil(t, fakeDex.Client(clientID))
 	assert.Equal(t, []byte(dexSecret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
-	assert.Equal(t, oauth.CloneWithClientID(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+	assert.Equal(t, oauth.ForApp(oauth2Template, clientID, nil), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
 }
 
 func TestReconcile_DexUnavailable(t *testing.T) {
@@ -355,7 +358,7 @@ func TestReconcile_DexUnavailable(t *testing.T) {
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.Error(t, err)
 	assert.NotContains(t, getSecret(t, r, devNs, webSecret.Name).Data, ClientSecretKey)
-	assert.Equal(t, oauth.CloneWithClientID(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
+	assert.Equal(t, oauth.ForApp(oauth2Template, clientID, nil), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2,
 		"RadixDeployments must be protected even when Dex is unavailable")
 }
 
@@ -402,7 +405,7 @@ func TestReconcile_SyncsDexWhenRadixDeploymentPatchFails(t *testing.T) {
 }
 
 func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
-	expected := oauth.CloneWithClientID(oauth2Template, clientID)
+	expected := oauth.ForApp(oauth2Template, clientID, nil)
 	wrongOAuth2 := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "other"}}
 	privateAuth := &radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "private"}}
 
@@ -439,7 +442,7 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeploymentsInOrphanedEnvironment
 	// The orphaned environment is removed from the RadixApplication, but its namespace and active RadixDeployment
 	// still exist, so its OAuth2 proxy must keep using the EasyAuth config
 	const orphanedNs = "my-app-orphaned"
-	expected := oauth.CloneWithClientID(oauth2Template, clientID)
+	expected := oauth.ForApp(oauth2Template, clientID, nil)
 
 	r := newReconciler(dextest.NewFakeDex(),
 		newRA(true),
@@ -483,7 +486,7 @@ func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, conflicts+1, patches)
-	assert.Equal(t, oauth.CloneWithClientID(oauth2Template, clientID), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+	assert.Equal(t, oauth.ForApp(oauth2Template, clientID, nil), getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
 }
 
 func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {
@@ -686,7 +689,7 @@ func TestReconcile_DoesNotRotateClientSecretBeforeInterval(t *testing.T) {
 }
 
 func TestNewRadixApplicationReconciler_Defaults(t *testing.T) {
-	r := NewRadixApplicationReconciler(nil, nil, annotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0, 1)
+	r := NewRadixApplicationReconciler(nil, nil, annotation, allowedIdentitiesAnnotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0, 1)
 	assert.Equal(t, DefaultResyncInterval, r.resyncInterval)
 	assert.Equal(t, DefaultSecretRotationInterval, r.secretRotationInterval)
 }
@@ -710,4 +713,37 @@ func TestMapToRadixApplication(t *testing.T) {
 	assert.Equal(t, []ctrl.Request{appRequest}, requests)
 
 	assert.Empty(t, mapToRadixApplication(context.Background(), &corev1.Secret{Name: "unlabeled", Namespace: devNs}))
+}
+
+func TestReconcile_AllowedIdentitiesAnnotationOverridesDefaultGroups(t *testing.T) {
+	ra := newRA(true)
+	ra.Annotations[allowedIdentitiesAnnotation] = "group-a,group-b"
+	r := newReconciler(dextest.NewFakeDex(), ra, newRR(),
+		activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+	)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"group-a", "group-b"}, getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2.AllowedIdentities)
+}
+
+func TestReconcile_WithoutAllowedGroupsKeepsRadixDeploymentsAndSyncsDex(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	existing := oauth.ForApp(oauth2Template, clientID, []string{"old-group"})
+	webSecret := oauthProxySecret(devNs, "web", nil)
+	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webSecret,
+		activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{
+			Name: "web", PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: existing},
+		})),
+	).Build()
+	noDefaults := oauth2Template.DeepCopy()
+	noDefaults.AllowedIdentities = nil
+	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
+		annotation, allowedIdentitiesAnnotation, noDefaults, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.ErrorContains(t, err, allowedIdentitiesAnnotation)
+	assert.Equal(t, existing, getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
+	assert.NotNil(t, fakeDex.Client(clientID), "the Dex client must still be synced")
+	assert.NotEmpty(t, getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
 }

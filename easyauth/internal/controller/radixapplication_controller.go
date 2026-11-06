@@ -67,6 +67,8 @@ type RadixApplicationReconciler struct {
 	dexClients DexClientManager
 	// Annotation that enables EasyAuth on a RadixApplication
 	annotation string
+	// Annotation with the groups allowed to access the public components of an application
+	allowedIdentitiesAnnotation string
 	// OAuth2 configuration of public components, without the client ID (see oauth.NewTemplate)
 	oauth2Template *radixv1.OAuth2
 	// Cluster name, DNS zone and app alias base URL of radix-operator, used to build the public hostnames of components
@@ -88,6 +90,7 @@ func NewRadixApplicationReconciler(
 	c client.Client,
 	dexClients DexClientManager,
 	annotation string,
+	allowedIdentitiesAnnotation string,
 	oauth2Template *radixv1.OAuth2,
 	clusterName, dnsZone, appAliasBaseURL string,
 	secretRotationInterval time.Duration,
@@ -97,16 +100,17 @@ func NewRadixApplicationReconciler(
 		secretRotationInterval = DefaultSecretRotationInterval
 	}
 	return &RadixApplicationReconciler{
-		Client:                  c,
-		dexClients:              dexClients,
-		annotation:              annotation,
-		oauth2Template:          oauth2Template,
-		clusterName:             clusterName,
-		dnsZone:                 dnsZone,
-		appAliasBaseURL:         appAliasBaseURL,
-		resyncInterval:          DefaultResyncInterval,
-		secretRotationInterval:  secretRotationInterval,
-		MaxConcurrentReconciles: maxConcurrentReconciles,
+		Client:                      c,
+		dexClients:                  dexClients,
+		annotation:                  annotation,
+		allowedIdentitiesAnnotation: allowedIdentitiesAnnotation,
+		oauth2Template:              oauth2Template,
+		clusterName:                 clusterName,
+		dnsZone:                     dnsZone,
+		appAliasBaseURL:             appAliasBaseURL,
+		resyncInterval:              DefaultResyncInterval,
+		secretRotationInterval:      secretRotationInterval,
+		MaxConcurrentReconciles:     maxConcurrentReconciles,
 	}
 }
 
@@ -318,8 +322,13 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // syncRadixDeployments sets the EasyAuth OAuth2 config on public components of the active RadixDeployments in the
 // environments of the application. This covers RadixDeployments created before the annotation was added.
 // Inactive RadixDeployments are skipped. A promoted RadixDeployment is synced when it becomes active.
+// RadixDeployments are not changed when the RadixApplication has no allowed groups, for example when the default
+// allowed identities are removed from the EasyAuth config.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
-	desired := oauth.CloneWithClientID(r.oauth2Template, clientID)
+	desired := oauth.ForApp(r.oauth2Template, clientID, oauth.SplitIdentities(ra.GetAnnotations()[r.allowedIdentitiesAnnotation]))
+	if len(desired.AllowedIdentities) == 0 {
+		return fmt.Errorf("annotation %q must be set, since no default allowed identities are configured", r.allowedIdentitiesAnnotation)
+	}
 
 	rdList := &radixv1.RadixDeploymentList{}
 	if err := r.List(ctx, rdList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {

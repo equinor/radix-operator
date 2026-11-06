@@ -117,7 +117,7 @@ func main() {
 	defer func() { _ = dexConn.Close() }()
 
 	oauth2Template := oauth.NewTemplate(cfg.OAuth2, cfg.IssuerURL)
-	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, oauth2Template).SetupWithManager(mgr); err != nil {
+	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, cfg.AllowedIdentitiesAnnotation, oauth2Template).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create mutating webhook")
 	}
 
@@ -125,7 +125,7 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to create RadixDeployment mutating webhook")
 	}
 
-	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.Enforced).SetupWithManager(mgr); err != nil {
+	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.AllowedIdentitiesAnnotation, cfg.OAuth2.AllowedIdentities, cfg.Enforced).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create validating webhook")
 	}
 
@@ -134,6 +134,7 @@ func main() {
 		mgr.GetClient(),
 		dexClients,
 		cfg.Annotation,
+		cfg.AllowedIdentitiesAnnotation,
 		oauth2Template,
 		cfg.ClusterName,
 		cfg.DNSZone,

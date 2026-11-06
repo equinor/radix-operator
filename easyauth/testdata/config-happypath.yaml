@@ -1,7 +1,11 @@
 enforced: true
-annotation: radix.equinor.com/easyauth
+annotation: easyauth.radix.equinor.com
+allowedIdentitiesAnnotation: easyauth.radix.equinor.com/allowed-identities
 issuerUrl: https://simpleauth.dev.radix.equinor.com
 oauth2:
+  allowedIdentities:
+    - group-a
+    - group-b
   scope: openid profile email groups offline_access
   setAuthorizationHeader: false
   setXAuthRequestHeaders: false

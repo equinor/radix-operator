@@ -134,6 +134,14 @@ spec:
                             Configuration for OAuth2 authentication.
                             More info: https://www.radix.equinor.com/radix-config#oauth2
                           properties:
+                            allowedIdentities:
+                              description: |-
+                                AllowedIdentities restricts access to users that are members of at least one of the groups.
+                                The groups are read from the groups claim of the ID token. All authenticated users get access when empty.
+                                Group names must not contain commas.
+                              items:
+                                type: string
+                              type: array
                             clientId:
                               description: Client ID of the application.
                               type: string
@@ -323,6 +331,14 @@ spec:
                                   Configuration for OAuth2 authentication.
                                   More info: https://www.radix.equinor.com/radix-config#oauth2
                                 properties:
+                                  allowedIdentities:
+                                    description: |-
+                                      AllowedIdentities restricts access to users that are members of at least one of the groups.
+                                      The groups are read from the groups claim of the ID token. All authenticated users get access when empty.
+                                      Group names must not contain commas.
+                                    items:
+                                      type: string
+                                    type: array
                                   clientId:
                                     description: Client ID of the application.
                                     type: string

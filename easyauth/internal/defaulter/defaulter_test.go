@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	annotation = "radix.equinor.com/easyauth"
-	issuerURL  = "https://simpleauth.example.com"
-	appID      = "01JABCDEFGHJKMNPQRSTVWXYZ0"
+	annotation                  = "easyauth.radix.equinor.com"
+	allowedIdentitiesAnnotation = "easyauth.radix.equinor.com/allowed-identities"
+	defaultGroup                = "default-group"
+	issuerURL                   = "https://simpleauth.example.com"
+	appID                       = "01JABCDEFGHJKMNPQRSTVWXYZ0"
 )
 
 var oauth2 = radixv1.OAuth2{
@@ -30,8 +32,14 @@ var oauth2 = radixv1.OAuth2{
 }
 
 func newDefaulter(objs ...client.Object) *RadixApplicationDefaulter {
+	return newDefaulterWithDefaultGroups([]string{defaultGroup}, objs...)
+}
+
+func newDefaulterWithDefaultGroups(defaultGroups []string, objs ...client.Object) *RadixApplicationDefaulter {
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
-	return NewRadixApplicationDefaulter(c, annotation, oauth.NewTemplate(oauth2, issuerURL))
+	config := oauth2
+	config.AllowedIdentities = defaultGroups
+	return NewRadixApplicationDefaulter(c, annotation, allowedIdentitiesAnnotation, oauth.NewTemplate(config, issuerURL))
 }
 
 func newRR(appName, id string) *radixv1.RadixRegistration {
@@ -42,8 +50,12 @@ func newRR(appName, id string) *radixv1.RadixRegistration {
 	return rr
 }
 
-func expectedOAuth2() *radixv1.OAuth2 {
+func expectedOAuth2(allowedIdentities ...string) *radixv1.OAuth2 {
+	if len(allowedIdentities) == 0 {
+		allowedIdentities = []string{defaultGroup}
+	}
 	return &radixv1.OAuth2{
+		AllowedIdentities:      allowedIdentities,
 		ClientID:               "easyauth." + appID,
 		Credentials:            radixv1.Secret,
 		Scope:                  "openid profile email groups offline_access",
@@ -95,6 +107,25 @@ func TestDefault_OverridesOAuth2OnPublicComponents(t *testing.T) {
 	assert.Nil(t, envConfigs[1].Authentication)
 
 	assert.Nil(t, findComponent(t, ra, "private").Authentication, "private components should not be changed")
+}
+
+func TestDefault_AllowedIdentitiesAnnotationOverridesDefaultGroups(t *testing.T) {
+	ra := &radixv1.RadixApplication{
+		Name:        "my-app",
+		Annotations: map[string]string{annotation: "", allowedIdentitiesAnnotation: "group-a,group-b"},
+		Spec: radixv1.RadixApplicationSpec{
+			Components: []radixv1.RadixComponent{{Name: "web", PublicPort: "http"}},
+		},
+	}
+
+	for name, defaultGroups := range map[string][]string{"with default groups": {defaultGroup}, "without default groups": nil} {
+		t.Run(name, func(t *testing.T) {
+			ra := ra.DeepCopy()
+			d := newDefaulterWithDefaultGroups(defaultGroups, newRR("my-app", appID))
+			require.NoError(t, d.Default(context.Background(), ra))
+			assert.Equal(t, expectedOAuth2("group-a", "group-b"), findComponent(t, ra, "web").Authentication.OAuth2)
+		})
+	}
 }
 
 func TestDefault_WithoutAnnotationDoesNothing(t *testing.T) {

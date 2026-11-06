@@ -4,7 +4,7 @@ kind: RadixApplication
 metadata:
   name: easyauth-promote-test
   annotations:
-    radix.equinor.com/easyauth: ""
+    easyauth.radix.equinor.com: ""
 spec:
   environments:
     - name: dev

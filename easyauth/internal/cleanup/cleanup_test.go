@@ -20,7 +20,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 )
 
-const annotation = "radix.equinor.com/easyauth"
+const annotation = "easyauth.radix.equinor.com"
 
 type app struct {
 	name      string

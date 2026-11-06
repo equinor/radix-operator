@@ -1723,6 +1723,12 @@ type OAuth2 struct {
 	// +optional
 	// example: GET=^/healthz$
 	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`
+
+	// AllowedIdentities restricts access to users that are members of at least one of the groups.
+	// The groups are read from the groups claim of the ID token. All authenticated users get access when empty.
+	// Group names must not contain commas.
+	// +optional
+	AllowedIdentities []string `json:"allowedIdentities,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.

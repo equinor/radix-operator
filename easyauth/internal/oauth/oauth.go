@@ -4,6 +4,8 @@ package oauth
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -59,10 +61,22 @@ func NewTemplate(oauth2 radixv1.OAuth2, issuerURL string) *radixv1.OAuth2 {
 	return template
 }
 
-// CloneWithClientID returns the EasyAuth OAuth2 configuration for public components of an application, from template (see
-// NewTemplate) and the client ID of the application
-func CloneWithClientID(template *radixv1.OAuth2, clientID string) *radixv1.OAuth2 {
+// ForApp returns the EasyAuth OAuth2 configuration for public components of an application, from template (see
+// NewTemplate) and the client ID of the application. allowedIdentities replaces the default groups in template when
+// it is not empty.
+func ForApp(template *radixv1.OAuth2, clientID string, allowedIdentities []string) *radixv1.OAuth2 {
 	oauth2 := template.DeepCopy()
 	oauth2.ClientID = clientID
+	if len(allowedIdentities) > 0 {
+		oauth2.AllowedIdentities = slices.Clone(allowedIdentities)
+	}
 	return oauth2
+}
+
+// SplitIdentities returns the identities in a comma separated list, or nil when value is empty
+func SplitIdentities(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }

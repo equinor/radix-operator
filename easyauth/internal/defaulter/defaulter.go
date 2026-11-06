@@ -15,17 +15,20 @@ const Path = "/radix/v1/radixapplication/mutate"
 
 // RadixApplicationDefaulter mutates RadixApplications that have the configured annotation
 type RadixApplicationDefaulter struct {
-	reader         client.Reader
-	annotation     string
-	oauth2Template *radixv1.OAuth2
+	reader                      client.Reader
+	annotation                  string
+	allowedIdentitiesAnnotation string
+	oauth2Template              *radixv1.OAuth2
 }
 
 // NewRadixApplicationDefaulter returns a defaulter for RadixApplications with annotation, that sets the OAuth2
 // configuration from oauth2Template (see oauth.NewTemplate) on public components. reader reads the RadixRegistration
 // of the application, to get the AppID used in the client ID. It should read from the API server and not a cache,
-// since the RadixRegistration may have just been created.
-func NewRadixApplicationDefaulter(reader client.Reader, annotation string, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
-	return &RadixApplicationDefaulter{reader: reader, annotation: annotation, oauth2Template: oauth2Template}
+// since the RadixRegistration may have just been created. The OAuth2 configuration only allows the groups from
+// allowedIdentitiesAnnotation, or oauth2Template.AllowedIdentities by default. The validating webhook rejects
+// RadixApplications without allowed groups.
+func NewRadixApplicationDefaulter(reader client.Reader, annotation, allowedIdentitiesAnnotation string, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
+	return &RadixApplicationDefaulter{reader: reader, annotation: annotation, allowedIdentitiesAnnotation: allowedIdentitiesAnnotation, oauth2Template: oauth2Template}
 }
 
 // SetupWithManager registers the mutating webhook with the Manager
@@ -55,7 +58,7 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 		if component.Authentication == nil {
 			component.Authentication = &radixv1.Authentication{}
 		}
-		component.Authentication.OAuth2 = oauth.CloneWithClientID(d.oauth2Template, clientID)
+		component.Authentication.OAuth2 = oauth.ForApp(d.oauth2Template, clientID, oauth.SplitIdentities(obj.GetAnnotations()[d.allowedIdentitiesAnnotation]))
 
 		// Environment specific OAuth2 config is merged on top of the component config, so it must be
 		// removed for the component config to take effect

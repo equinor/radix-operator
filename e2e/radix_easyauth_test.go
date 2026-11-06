@@ -32,12 +32,20 @@ import (
 )
 
 const (
-	easyAuthAnnotation = "radix.equinor.com/easyauth"
+	// Must match config.annotation and config.allowedIdentitiesAnnotation in charts/radix-easyauth/values.yaml
+	easyAuthAnnotation                  = "easyauth.radix.equinor.com"
+	easyAuthAllowedIdentitiesAnnotation = "easyauth.radix.equinor.com/allowed-identities"
+	// Must match config.oauth2.allowedIdentities in testdata/radix-easyauth-values.yaml
+	easyAuthDefaultGroup = "e2e-default-group"
+	// Must match the allowed identities annotation in testdata/gitserver/repos/equinor/easyauth-test.git
+	easyAuthTestAppGroup = "e2e-group"
 	// Must match config.issuerUrl in testdata/radix-easyauth-values.yaml
 	easyAuthOAuth2IssuerURL = "http://radix-easyauth-dex.radix-easyauth.svc:5556"
 	// Must match the static user in dex.config in testdata/radix-easyauth-values.yaml
 	easyAuthTestUser     = "e2e-user@example.com"
 	easyAuthTestPassword = "e2e-password"
+	// A static user that is not in easyAuthTestAppGroup
+	easyAuthOtherTestUser = "e2e-other-user@example.com"
 	// Must match the annotations in easyauth/internal/controller
 	easyAuthRestartPendingAnnotation = "easyauth.radix.equinor.com/restart-pending"
 	easyAuthRestartedAtAnnotation    = "easyauth.radix.equinor.com/restartedAt"
@@ -62,6 +70,32 @@ func TestRadixEasyAuthMutatingWebhook(t *testing.T) {
 
 		// Create updates ra with the object persisted by the API server, after mutation
 		assertEasyAuthOAuth2(t, ra, appID)
+	})
+
+	t.Run("sets allowed groups from the allowed identities annotation", func(t *testing.T) {
+		t.Parallel()
+		appName := "test-easyauth-groups"
+		appID := createEasyAuthTestApp(t, c, appName)
+
+		ra := newEasyAuthTestRA(appName, map[string]string{easyAuthAnnotation: "", easyAuthAllowedIdentitiesAnnotation: "group-a, group-b"})
+		require.NoError(t, c.Create(t.Context(), ra))
+		t.Cleanup(func() { _ = c.Delete(context.Background(), ra) })
+
+		assertEasyAuthOAuth2(t, ra, appID, "group-a", "group-b")
+	})
+
+	t.Run("rejects RadixApplication with invalid easyauth annotations", func(t *testing.T) {
+		t.Parallel()
+		appName := "test-easyauth-invalid"
+		createEasyAuthTestApp(t, c, appName)
+
+		for _, annotations := range []map[string]string{
+			{easyAuthAnnotation: "group-a"},
+			{easyAuthAnnotation: "", easyAuthAllowedIdentitiesAnnotation: "group-a,,group-b"},
+		} {
+			ra := newEasyAuthTestRA(appName, annotations)
+			assert.Error(t, c.Create(t.Context(), ra), "annotations %v should be rejected", annotations)
+		}
 	})
 
 	t.Run("overrides user changes to OAuth2 config on update", func(t *testing.T) {
@@ -150,9 +184,9 @@ func newEasyAuthTestRA(appName string, annotations map[string]string) *v1.RadixA
 
 // assertEasyAuthOAuth2 asserts that the public component "web" only has the easyauth OAuth2 config,
 // and that the private component "api" is unchanged
-func assertEasyAuthOAuth2(t *testing.T, ra *v1.RadixApplication, appID v1.ULID) {
+func assertEasyAuthOAuth2(t *testing.T, ra *v1.RadixApplication, appID v1.ULID, allowedIdentities ...string) {
 	t.Helper()
-	expected := expectedEasyAuthOAuth2(appID)
+	expected := expectedEasyAuthOAuth2(appID, allowedIdentities...)
 	web, api := ra.Spec.Components[0], ra.Spec.Components[1]
 	require.NotNil(t, web.Authentication)
 	assert.Equal(t, expected, web.Authentication.OAuth2)
@@ -163,9 +197,14 @@ func assertEasyAuthOAuth2(t *testing.T, ra *v1.RadixApplication, appID v1.ULID) 
 	assert.Nil(t, api.Authentication, "private components should not be changed")
 }
 
-// expectedEasyAuthOAuth2 returns the OAuth2 config radix-easyauth sets on public components
-func expectedEasyAuthOAuth2(appID v1.ULID) *v1.OAuth2 {
+// expectedEasyAuthOAuth2 returns the OAuth2 config radix-easyauth sets on public components. allowedIdentities defaults
+// to easyAuthDefaultGroup.
+func expectedEasyAuthOAuth2(appID v1.ULID, allowedIdentities ...string) *v1.OAuth2 {
+	if len(allowedIdentities) == 0 {
+		allowedIdentities = []string{easyAuthDefaultGroup}
+	}
 	return &v1.OAuth2{
+		AllowedIdentities:      allowedIdentities,
 		ClientID:               "easyauth." + appID.String(),
 		Credentials:            v1.Secret,
 		Scope:                  "openid profile email groups offline_access",
@@ -234,7 +273,7 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 
 		ra := &v1.RadixApplication{}
 		require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: appNamespace, Name: appName}, ra))
-		assertEasyAuthOAuth2(t, ra, appID)
+		assertEasyAuthOAuth2(t, ra, appID, easyAuthTestAppGroup)
 
 		rds := &v1.RadixDeploymentList{}
 		require.NoError(t, c.List(t.Context(), rds,
@@ -246,7 +285,7 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 		web := rd.GetComponentByName("web")
 		require.NotNil(t, web, "RadixDeployment %s should contain component web", rd.Name)
 		require.NotNil(t, web.Authentication, "RadixDeployment %s component web should have authentication", rd.Name)
-		assert.Equal(t, expectedEasyAuthOAuth2(appID), web.Authentication.OAuth2, "RadixDeployment %s component web should have the radix-easyauth OAuth2 config", rd.Name)
+		assert.Equal(t, expectedEasyAuthOAuth2(appID, easyAuthTestAppGroup), web.Authentication.OAuth2, "RadixDeployment %s component web should have the radix-easyauth OAuth2 config", rd.Name)
 
 		api := rd.GetComponentByName("api")
 		require.NotNil(t, api, "RadixDeployment %s should contain component api", rd.Name)
@@ -314,6 +353,20 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 		resp, body = browser.get(t, withoutRedirects(client), browser.webURL)
 		require.Equal(t, http.StatusOK, resp.StatusCode, "authenticated request should reach the web component, body: %s", body)
 		assert.Contains(t, body, easyAuthWebContent)
+	})
+
+	t.Run("static user outside the allowed groups is rejected by the OAuth2 proxy", func(t *testing.T) {
+		client := browser.newClient(t)
+		loginURL := browser.openLoginForm(t, client)
+
+		resp, body := browser.submitLogin(t, client, loginURL, easyAuthOtherTestUser, easyAuthTestPassword)
+		resp, body = browser.submitApproval(t, client, resp, body, "approve")
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode, "body: %s", body)
+		assert.NotContains(t, body, easyAuthWebContent)
+
+		resp, body = browser.get(t, withoutRedirects(client), browser.webURL)
+		browser.assertRedirectedToDex(t, resp)
+		assert.NotContains(t, body, easyAuthWebContent)
 	})
 
 	t.Run("unauthenticated request is redirected to Dex", func(t *testing.T) {

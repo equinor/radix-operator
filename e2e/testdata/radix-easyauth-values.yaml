@@ -12,6 +12,10 @@ config:
   clusterName: weekly-e2e
   dnsZone: radix.example.com
   appAliasBaseURL: app.example.com
+  oauth2:
+    # Must match easyAuthDefaultGroup in radix_easyauth_test.go
+    allowedIdentities:
+      - e2e-default-group
 
 # Dex uses the throwaway Postgres from testdata/dex-postgres.yaml
 dex:
@@ -33,13 +37,22 @@ dex:
         password: $DEX_POSTGRES_PASSWORD
         ssl:
           mode: disable
-    # Static user for the login test in radix_easyauth_test.go. The hash is the bcrypt hash of easyAuthTestPassword.
+    # Static users for the login test in radix_easyauth_test.go. The hash is the bcrypt hash of easyAuthTestPassword.
+    # e2e-user is in the group allowed by the easyauth-test app, e2e-other-user is not.
     enablePasswordDB: true
     staticPasswords:
       - email: e2e-user@example.com
         hash: "$2a$10$Iq9ba6PxTcQcyDx8B18.LO80G/svq.NaAGYesqjYRsrw3nMY/phQy"
         username: e2e-user
         userID: faef31b9-22e5-41f0-9833-9f56397c1415
+        groups:
+          - e2e-group
+      - email: e2e-other-user@example.com
+        hash: "$2a$10$Iq9ba6PxTcQcyDx8B18.LO80G/svq.NaAGYesqjYRsrw3nMY/phQy"
+        username: e2e-other-user
+        userID: 3b1c6f0e-8d0a-4f3e-9c55-2f7d1a6b9e42
+        groups:
+          - e2e-default-group
   httpRoute:
     # There is no gateway controller in the kind cluster, so the HTTPRoute is created but never accepted
     parentRefs:
