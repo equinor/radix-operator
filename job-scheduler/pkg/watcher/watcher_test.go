@@ -15,7 +15,35 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
+
+func TestWatcherStop(t *testing.T) {
+	w := &watcher{stop: make(chan struct{})}
+	ctx := wait.ContextForChannel(w.stop)
+	stopped := make(chan struct{})
+	go func() {
+		w.Stop()
+		w.Stop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("Stop must not block, even when called repeatedly")
+	}
+
+	for range 2 {
+		select {
+		case _, open := <-ctx.Done():
+			assert.False(t, open, "Stop must close the channel, not send a value")
+		default:
+			t.Fatal("all receivers must observe cancellation")
+		}
+	}
+	assert.ErrorIs(t, ctx.Err(), context.Canceled)
+}
 
 func Test_RadixBatchWatcher(t *testing.T) {
 	activeTime := metav1.NewTime(time.Date(2020, 10, 30, 1, 1, 1, 1, &time.Location{}))

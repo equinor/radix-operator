@@ -323,6 +323,7 @@ func (c *environmentController) CreateEnvironment(accounts accounts.Accounts, w 
 	// swagger:operation POST /applications/{appName}/environments/{envName} environment createEnvironment
 	// ---
 	// summary: Creates application environment
+	// description: Requires application administrator access.
 	// parameters:
 	// - name: appName
 	//   in: path
@@ -349,11 +350,12 @@ func (c *environmentController) CreateEnvironment(accounts accounts.Accounts, w 
 	//     description: "Environment created ok"
 	//   "401":
 	//     description: "Unauthorized"
+	//   "403":
+	//     description: "Application administrator access required"
 
 	appName := mux.Vars(r)["appName"]
 	envName := mux.Vars(r)["envName"]
 
-	// Need in cluster client in order to delete namespace using sufficient privileges
 	environmentHandler := c.environmentHandlerFactory(accounts)
 	_, err := environmentHandler.CreateEnvironment(r.Context(), appName, envName)
 
@@ -421,6 +423,7 @@ func (c *environmentController) DeleteEnvironment(accounts accounts.Accounts, w 
 	// swagger:operation DELETE /applications/{appName}/environments/{envName} environment deleteEnvironment
 	// ---
 	// summary: Deletes application environment
+	// description: Requires application administrator access. Only orphaned environments can be deleted.
 	// parameters:
 	// - name: appName
 	//   in: path
@@ -447,6 +450,8 @@ func (c *environmentController) DeleteEnvironment(accounts accounts.Accounts, w 
 	//     description: "Environment deleted ok"
 	//   "401":
 	//     description: "Unauthorized"
+	//   "403":
+	//     description: "Application administrator access required"
 	//   "404":
 	//     description: "Not found"
 
