@@ -137,7 +137,7 @@ func TestEnsureClient_DoesNotUpdateUnchangedClient(t *testing.T) {
 
 func TestEnsureClient_RotatesDueSecret(t *testing.T) {
 	tests := map[string]func() string{
-		"older than the rotation interval": func() string { return secretCreatedAgo(rotationInterval) },
+		"older than the rotation interval": func() string { return secretCreatedAgo(rotationInterval + time.Second) },
 		"without creation time":            func() string { return "secret-from-an-older-version" },
 	}
 	for name, newOldSecret := range tests {
@@ -182,13 +182,12 @@ func TestEnsureClient_DoesNotRotateSecretBeforeInterval(t *testing.T) {
 	})
 }
 
-// createdConcurrently returns not found on the first GetClient, as if another cluster created the client right after
-type createdConcurrently struct {
+type createAlreadyExists struct {
 	*dextest.FakeDex
 	gets int
 }
 
-func (c *createdConcurrently) GetClient(ctx context.Context, in *api.GetClientReq, opts ...grpc.CallOption) (*api.GetClientResp, error) {
+func (c *createAlreadyExists) GetClient(ctx context.Context, in *api.GetClientReq, opts ...grpc.CallOption) (*api.GetClientResp, error) {
 	c.gets++
 	if c.gets == 1 {
 		return nil, status.Error(codes.Unknown, "not found")
@@ -196,13 +195,13 @@ func (c *createdConcurrently) GetClient(ctx context.Context, in *api.GetClientRe
 	return c.FakeDex.GetClient(ctx, in, opts...)
 }
 
-func TestEnsureClient_UsesClientCreatedConcurrently(t *testing.T) {
+func TestEnsureClient_ReturnsErrorWhenCreateFindsExistingClient(t *testing.T) {
 	existingSecret := secretCreatedAgo(24 * time.Hour)
-	fakeDex := &createdConcurrently{FakeDex: dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: existingSecret})}
+	fakeDex := &createAlreadyExists{FakeDex: dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: existingSecret})}
 
-	secret, _, err := ensure(fakeDex, "my-app")
-	require.NoError(t, err)
-	assert.Equal(t, existingSecret, secret)
+	_, _, err := ensure(fakeDex, "my-app")
+	require.ErrorContains(t, err, "already exists")
+	assert.Equal(t, existingSecret, fakeDex.Client(clientID).Secret)
 }
 
 func TestEnsureClient_ReturnsDexErrors(t *testing.T) {
@@ -214,38 +213,27 @@ func TestEnsureClient_ReturnsDexErrors(t *testing.T) {
 	assert.Zero(t, fakeDex.Calls("CreateClient"), "must not create a client when Dex returns other errors than not found")
 }
 
-func TestEnsureClient_FailsOnClientWithoutSecret(t *testing.T) {
-	fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Public: true})
+func TestEnsureClient_RecreatesClientWithoutSecret(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		fakeDex := dextest.NewFakeDex(&api.Client{
+			Id:           clientID,
+			Name:         "my-app",
+			Public:       true,
+			RedirectUris: []string{"https://old.example.com/oauth2/callback"},
+		})
 
-	_, _, err := ensure(fakeDex, "my-app")
-	assert.Error(t, err)
-}
+		secret, rotateAt, err := ensure(fakeDex, "my-app", "https://new.example.com/oauth2/callback")
+		require.NoError(t, err)
+		assert.NotEmpty(t, secret)
+		assert.WithinDuration(t, time.Now().Add(rotationInterval), rotateAt, 0)
 
-// rotatedConcurrently creates a new client right after it is deleted, as if another cluster rotated it at the same time
-type rotatedConcurrently struct {
-	*dextest.FakeDex
-	otherSecret string
-}
-
-func (c *rotatedConcurrently) DeleteClient(ctx context.Context, in *api.DeleteClientReq, opts ...grpc.CallOption) (*api.DeleteClientResp, error) {
-	resp, err := c.FakeDex.DeleteClient(ctx, in, opts...)
-	if err != nil {
-		return nil, err
-	}
-	_, err = c.FakeDex.CreateClient(ctx, &api.CreateClientReq{Client: &api.Client{Id: in.Id, Name: "my-app", Secret: c.otherSecret}})
-	return resp, err
-}
-
-func TestEnsureClient_UsesSecretRotatedConcurrently(t *testing.T) {
-	otherSecret := secretCreatedAgo(0)
-	fakeDex := &rotatedConcurrently{
-		FakeDex:     dextest.NewFakeDex(&api.Client{Id: clientID, Name: "my-app", Secret: secretCreatedAgo(rotationInterval)}),
-		otherSecret: otherSecret,
-	}
-
-	secret, _, err := ensure(fakeDex, "my-app")
-	require.NoError(t, err)
-	assert.Equal(t, otherSecret, secret)
+		recreated := fakeDex.Client(clientID)
+		require.NotNil(t, recreated)
+		assert.Equal(t, secret, recreated.Secret)
+		assert.Equal(t, []string{"https://new.example.com/oauth2/callback"}, recreated.RedirectUris)
+		assert.Equal(t, 1, fakeDex.Calls("DeleteClient"))
+		assert.Equal(t, 1, fakeDex.Calls("CreateClient"))
+	})
 }
 
 // cancelledAfterDelete cancels the context right after the client is deleted, as if the controller was shut down in

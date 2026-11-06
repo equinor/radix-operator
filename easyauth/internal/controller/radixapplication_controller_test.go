@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -100,8 +101,11 @@ func newRD(namespace, name string, components ...radixv1.RadixDeployComponent) *
 	return &radixv1.RadixDeployment{
 		Name:      name,
 		Namespace: namespace,
-		Labels:    map[string]string{kube.RadixAppLabel: appName},
-		Spec:      radixv1.RadixDeploymentSpec{AppName: appName, Components: components}, //nolint:staticcheck
+		Labels: map[string]string{
+			kube.RadixAppLabel: appName,
+			kube.RadixEnvLabel: strings.TrimPrefix(namespace, appName+"-"),
+		},
+		Spec: radixv1.RadixDeploymentSpec{AppName: appName, Components: components}, //nolint:staticcheck
 	}
 }
 
@@ -178,22 +182,20 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 		{Alias: "my-alias", Environment: "prod", Component: "web"},
 		// Private component
 		{Alias: "private-alias", Environment: "prod", Component: "api"},
-		// Alias from the latest RadixApplication, before its environment is deployed
+		// Alias for an orphaned environment, removed from the RadixApplication
 		{Alias: "other-alias", Environment: "other", Component: "web"},
 	}
-	ra.Spec.DNSAppAlias = radixv1.AppAlias{Environment: "prod", Component: "web"}
-	ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{{Alias: "latest.example.com", Environment: "prod", Component: "web"}}
 	fakeDex := dextest.NewFakeDex()
 	r := newReconciler(fakeDex,
 		ra,
 		newRR(),
 		activeRD(newRD(devNs, "dev-active",
-			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", ExternalDNS: []radixv1.RadixDeployExternalDNS{{FQDN: "my-app.equinor.com"}}},
+			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", ExternalDNS: []radixv1.RadixDeployExternalDNS{{FQDN: "latest.example.com"}, {FQDN: "my-app.equinor.com"}}},
 			radixv1.RadixDeployComponent{Name: "api"},
 		)),
 		// Inactive RadixDeployments are ignored
 		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "old", PublicPort: "http"}),
-		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", DNSAppAlias: true})),
 		// An orphaned environment still has an active RadixDeployment
 		activeRD(newRD("my-app-other", "other", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
 	)
@@ -207,7 +209,7 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 	assert.Equal(t, appName, dexClient.Name)
 	assert.NotEmpty(t, dexClient.Secret)
 	assert.Equal(t, []string{
-		// External DNS from the latest RadixApplication
+		// External DNS from the active RadixDeployment
 		"https://latest.example.com/oauth2/callback",
 		// DNS alias
 		"https://my-alias.example.com/oauth2/callback",
@@ -265,7 +267,7 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 		newRR(),
 		activeRD(newRD(devNs, "dev-active",
 			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"},
-			radixv1.RadixDeployComponent{Name: "legacy", Public: true}, //nolint:staticcheck
+			radixv1.RadixDeployComponent{Name: "legacy", PublicPort: "http"},
 			radixv1.RadixDeployComponent{Name: "api"},
 			radixv1.RadixDeployComponent{Name: "removed", PublicPort: "http"},
 			radixv1.RadixDeployComponent{Name: "private", PublicPort: "http"},
@@ -413,7 +415,7 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 		newRR(),
 		activeRD(newRD(devNs, "dev-active",
 			radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", Authentication: wrongOAuth2.DeepCopy()},
-			radixv1.RadixDeployComponent{Name: "legacy", Public: true}, //nolint:staticcheck
+			radixv1.RadixDeployComponent{Name: "legacy", PublicPort: "http"},
 			radixv1.RadixDeployComponent{Name: "api", Authentication: privateAuth.DeepCopy()},
 		)),
 		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
@@ -637,7 +639,7 @@ func TestReconcile_ClearsPendingRestartWithoutOAuthProxyDeployment(t *testing.T)
 
 func TestReconcile_RotatesExpiredClientSecret(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		expired := dex.NewSecret(time.Now().Add(-rotationInterval))
+		expired := dex.NewSecret(time.Now().Add(-rotationInterval - time.Second))
 		fakeDex := dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: expired})
 		webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte(expired)})
 		r := newReconciler(fakeDex, newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web"))

@@ -462,11 +462,10 @@ Open questions and planned improvements, to be resolved in later iterations.
     [dex_deployment.yaml](../charts/radix-easyauth/templates/dex_deployment.yaml)).
   - [x] Remove outdated redirect URIs ([`EnsureClient`](internal/dex/dex.go#L133)). Redirect URIs come from all active
     RadixDeployments, including orphaned environments, and aliases from the latest `RadixApplication`.
-  - [ ] Make [`createClient`](internal/dex/dex.go#L218) return the existing client when it already exists, to
+  - [x] Make [`createClient`](internal/dex/dex.go#L218) return the existing client when it already exists, to
     simplify the create flow in [`getOrCreateClient`](internal/dex/dex.go#L189).
-  - [ ] Decide how to handle a Dex client without a secret
-    ([`getOrCreateClient`](internal/dex/dex.go#L200)). It currently returns an error. Could EasyAuth set a secret
-    instead, possibly with a warning? Does the error cause a reconcile that is retried forever and always fails?
+  - [x] Recreate a Dex client that has no secret using the desired name and redirect URIs
+    ([`EnsureClient`](internal/dex/dex.go#L133)).
 - **Cleanup loop**
   - [ ] Copy the annotation to the `RadixDeployment` ([`Cleanup`](internal/cleanup/cleanup.go#L87)).
     - Only remove a client if no active `RadixDeployment` still uses EasyAuth?

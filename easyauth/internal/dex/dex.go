@@ -129,7 +129,7 @@ func (m *ClientManager) EnsureClient(ctx context.Context, desired Client, secret
 		return "", time.Time{}, err
 	}
 
-	if !time.Now().Before(rotationTime(existing.GetSecret(), secretRotationInterval)) {
+	if time.Now().After(rotationTime(existing.GetSecret(), secretRotationInterval)) {
 		secret, err := m.rotateSecret(ctx, desired)
 		if err != nil {
 			return "", time.Time{}, err
@@ -164,40 +164,24 @@ func (m *ClientManager) rotateSecret(ctx context.Context, desired Client) (strin
 	if err != nil {
 		return "", err
 	}
-	if created == nil {
-		// Rotated concurrently by another cluster
-		existing, err := m.getClient(ctx, desired.ID)
-		if err != nil {
-			return "", err
-		}
-		return existing.GetSecret(), nil
-	}
 	log.Ctx(ctx).Info().Str("clientId", desired.ID).Msg("Rotated Dex client secret")
 	return created.GetSecret(), nil
 }
 
-// getOrCreateClient returns the client, and creates it if it doesn't exist
+// getOrCreateClient returns the client, creating it if it doesn't exist
 func (m *ClientManager) getOrCreateClient(ctx context.Context, desired Client) (*api.Client, error) {
 	existing, err := m.getClient(ctx, desired.ID)
-	if IsNotFound(err) {
-		created, err := createClient(ctx, m.dex, desired.ID, desired.Name, desired.RedirectURIs)
+	if err != nil {
+		if !IsNotFound(err) {
+			return nil, err
+		}
+
+		existing, err = createClient(ctx, m.dex, desired.ID, desired.Name, desired.RedirectURIs)
 		if err != nil {
 			return nil, err
 		}
-		if created != nil {
-			return created, nil
-		}
-		// Created concurrently, for example by another cluster
-		existing, err = m.getClient(ctx, desired.ID)
-		if err != nil {
-			return nil, err
-		}
-	} else if err != nil {
-		return nil, err
 	}
-	if existing.GetSecret() == "" {
-		return nil, fmt.Errorf("dex client %s has no secret", desired.ID)
-	}
+
 	return existing, nil
 }
 
@@ -209,10 +193,12 @@ func (m *ClientManager) getClient(ctx context.Context, id string) (*api.Client, 
 		}
 		return nil, fmt.Errorf("failed to get Dex client %s: %w", id, err)
 	}
+	if resp == nil || resp.GetClient() == nil {
+		return nil, fmt.Errorf("dex returned no client for %s", id)
+	}
 	return resp.GetClient(), nil
 }
 
-// createClient returns nil if the client already exists
 func createClient(ctx context.Context, dex api.DexClient, id, name string, redirectURIs []string) (*api.Client, error) {
 	resp, err := dex.CreateClient(ctx, &api.CreateClientReq{Client: &api.Client{
 		Id:           id,
@@ -224,9 +210,16 @@ func createClient(ctx context.Context, dex api.DexClient, id, name string, redir
 		return nil, fmt.Errorf("failed to create Dex client %s: %w", id, err)
 	}
 	if resp.GetAlreadyExists() {
-		return nil, nil
+		return nil, fmt.Errorf("failed to create Dex client %s: already exists", id)
 	}
-	return resp.GetClient(), nil
+	if resp == nil || resp.GetClient() == nil {
+		return nil, fmt.Errorf("dex returned no client after creating %s", id)
+	}
+	created := resp.GetClient()
+	if created.GetSecret() == "" {
+		return nil, fmt.Errorf("dex client %s has no secret after creation", id)
+	}
+	return created, nil
 }
 
 // NewSecret returns a secret that starts with a ULID with createdAt as the creation time, since Dex clients have no metadata
