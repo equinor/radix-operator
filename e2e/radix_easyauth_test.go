@@ -77,7 +77,7 @@ func TestRadixEasyAuthMutatingWebhook(t *testing.T) {
 		appName := "test-easyauth-groups"
 		appID := createEasyAuthTestApp(t, c, appName)
 
-		ra := newEasyAuthTestRA(appName, map[string]string{easyAuthAnnotation: "", easyAuthAllowedIdentitiesAnnotation: "group-a, group-b"})
+		ra := newEasyAuthTestRA(appName, map[string]string{easyAuthAnnotation: "", easyAuthAllowedIdentitiesAnnotation: "group-a,group-b"})
 		require.NoError(t, c.Create(t.Context(), ra))
 		t.Cleanup(func() { _ = c.Delete(context.Background(), ra) })
 
@@ -92,6 +92,7 @@ func TestRadixEasyAuthMutatingWebhook(t *testing.T) {
 		for _, annotations := range []map[string]string{
 			{easyAuthAnnotation: "group-a"},
 			{easyAuthAnnotation: "", easyAuthAllowedIdentitiesAnnotation: "group-a,,group-b"},
+			{easyAuthAnnotation: "", easyAuthAllowedIdentitiesAnnotation: "group-a, group-b"},
 		} {
 			ra := newEasyAuthTestRA(appName, annotations)
 			assert.Error(t, c.Create(t.Context(), ra), "annotations %v should be rejected", annotations)
