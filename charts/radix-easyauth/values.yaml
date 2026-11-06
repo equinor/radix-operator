@@ -67,9 +67,6 @@ config:
 webhook:
   failurePolicy: Fail
   timeoutSeconds: 10
-  # Namespaces where RadixApplications are not mutated or validated
-  excludedNamespaces:
-    - kube-system
 
 certificate:
   # Duration and renewal window for the webhook serving certificate

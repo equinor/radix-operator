@@ -120,6 +120,10 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to create mutating webhook")
 	}
 
+	if err := defaulter.NewRadixDeploymentDefaulter(mgr.GetAPIReader(), cfg.Annotation).SetupWithManager(mgr); err != nil {
+		logger.Fatal().Err(err).Msg("unable to create RadixDeployment mutating webhook")
+	}
+
 	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.Enforced).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create validating webhook")
 	}

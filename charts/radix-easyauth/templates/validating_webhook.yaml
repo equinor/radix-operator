@@ -33,13 +33,4 @@ webhooks:
     scope: Namespaced
   sideEffects: None
   timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: NotIn
-      values:
-      - {{ .Release.Namespace }}
-      {{- range .Values.webhook.excludedNamespaces }}
-      - {{ . }}
-      {{- end }}
 {{- end }}

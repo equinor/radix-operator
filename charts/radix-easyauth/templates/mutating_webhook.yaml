@@ -33,12 +33,27 @@ webhooks:
     scope: Namespaced
   sideEffects: None
   timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: NotIn
-      values:
-      - {{ .Release.Namespace }}
-      {{- range .Values.webhook.excludedNamespaces }}
-      - {{ . }}
-      {{- end }}
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "radix-easyauth.serviceName" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /radix/v1/radixdeployment/mutate
+      port: 443
+  failurePolicy: {{ .Values.webhook.failurePolicy }}
+  matchPolicy: Equivalent
+  name: radixdeployment.mutate.easyauth.radix.equinor.com
+  reinvocationPolicy: IfNeeded
+  rules:
+  - apiGroups:
+    - radix.equinor.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    resources:
+    - radixdeployments
+    scope: Namespaced
+  sideEffects: None
+  timeoutSeconds: {{ .Values.webhook.timeoutSeconds }}

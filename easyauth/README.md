@@ -21,6 +21,7 @@ It consists of:
 | Part               | Status      | Responsibility                                                                                   |
 | ------------------ | ----------- | ------------------------------------------------------------------------------------------------ |
 | Mutating webhook   | Implemented | Overrides the OAuth2 configuration of public components                                          |
+| RD mutating webhook | Implemented | Copies the annotation from the `RadixApplication` to new `RadixDeployments`                     |
 | Validating webhook | Implemented | Optionally rejects `RadixApplications` without the annotation                                    |
 | Dex                | Implemented | OIDC provider that users log in to, installed by the chart. Required                             |
 | Controller         | Implemented | Keeps an OAuth2 client in Dex, the client secret and `RadixDeployments` in sync with each app    |
@@ -28,7 +29,8 @@ It consists of:
 
 The webhooks and the controller run in the same process and Deployment, so they always share configuration and
 version. The webhooks are served by every replica, while the controller only runs on the leader. Since the webhooks
-use `failurePolicy: Fail`, an unavailable EasyAuth blocks all creates and updates of `RadixApplications`. The chart
+use `failurePolicy: Fail`, an unavailable EasyAuth blocks all creates and updates of `RadixApplications`, and all
+creates of `RadixDeployments`. The chart
 therefore defaults to 2 replicas, spread across nodes with a preferred pod anti-affinity (unless `affinity` is set),
 and a PodDisruptionBudget with `minAvailable: 1` when `replicaCount` is greater than 1. The chart fails to render
 if `config.enableLeaderElection` is `false` and `replicaCount` is greater than 1.
@@ -69,6 +71,20 @@ talks to Dex or creates secrets belongs in the controller.
 The client ID is described in [Client ID](#client-id). The webhook reads the `RadixRegistration` of the
 application from the API server, not a cache, since it may have just been created. The request is rejected if the
 `RadixRegistration` doesn't exist or has no AppID.
+
+## RadixDeployment mutating webhook
+
+Runs on create of `RadixDeployments` ([`RadixDeploymentDefaulter`](internal/defaulter/radixdeployment.go)). It reads
+the `RadixApplication` of the app (`spec.appname`) from the API server, not a cache, since
+the pipeline may have just applied it, and:
+
+- Sets the annotation on the `RadixDeployment`, with the same value, if the `RadixApplication` has it.
+- Removes the annotation from the `RadixDeployment` if the `RadixApplication` doesn't have it, or doesn't exist.
+  This also removes an annotation copied from another `RadixDeployment`, for example when promoting.
+
+Updates are not changed, so the annotation tells whether EasyAuth was enabled when the `RadixDeployment` was
+created. This is meant to let the [cleanup loop](#cleanup-loop) keep a Dex client while an active
+`RadixDeployment` still uses EasyAuth.
 
 ## Validating webhook
 
@@ -467,7 +483,8 @@ Open questions and planned improvements, to be resolved in later iterations.
   - [x] Recreate a Dex client that has no secret using the desired name and redirect URIs
     ([`EnsureClient`](internal/dex/dex.go#L133)).
 - **Cleanup loop**
-  - [ ] Copy the annotation to the `RadixDeployment` ([`Cleanup`](internal/cleanup/cleanup.go#L87)).
+  - [x] Copy the annotation to the `RadixDeployment`, see
+    [RadixDeployment mutating webhook](#radixdeployment-mutating-webhook).
     - Only remove a client if no active `RadixDeployment` still uses EasyAuth?
     - Rotate the secret if the client is still in use? Not for orphaned clients.
 - **Validating webhook**
