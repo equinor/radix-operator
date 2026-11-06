@@ -277,8 +277,9 @@ For each `RadixApplication` with the annotation, the controller:
      another cluster, it is read again with `GetClient`. Dex returns a missing client as gRPC `Unknown` with the
      message `not found`, which is handled the same as `NotFound`.
    - Found: calls `UpdateClient` if redirect URIs are missing or the name differs, and keeps the existing secret.
-     Existing redirect URIs are kept, see [Multiple clusters](#multiple-clusters). If the secret is due for
-     rotation, the client is rotated instead, see [Secret rotation](#secret-rotation).
+    Redirect URIs are replaced with hosts from every active RadixDeployment, including orphaned environments, plus
+    aliases from the latest RadixApplication. If the secret is due for rotation, the client is rotated instead, see
+    [Secret rotation](#secret-rotation).
    - Other errors: nothing is created, and the reconcile is retried.
 4. Writes the client secret from Dex to the OAuth2 client secret of each public component of the active
    `RadixDeployment`, so the OAuth2 proxy can authenticate against Dex.
@@ -300,7 +301,7 @@ The rotation interval is owned by the controller, and passed to `EnsureClient` o
   cluster sharing the Dex database can tell when a secret must be rotated, without any state in Kubernetes. A secret
   without a creation time, for example from an older version, is rotated on the next reconcile.
 - **Rotation:** `UpdateClient` can't change the secret, so the client is deleted and created again with the same ID
-  and name, a new secret, and all existing redirect URIs, including the ones from other clusters. If creating fails,
+  and name, a new secret, and the desired redirect URIs. If creating fails,
   the next reconcile creates the client, and other clusters add their redirect URIs again.
 - **Distribution:** the new secret is written to the OAuth2 proxy Secrets, and the OAuth2 proxies are
   [restarted](#controller), like any other changed client secret.
@@ -457,11 +458,10 @@ Open questions and planned improvements, to be resolved in later iterations.
     to the environments in the `RadixApplication`
     ([`syncRadixDeployments`](internal/controller/radixapplication_controller.go#L337)).
 - **Dex client**
-  - [ ] Check Dex high availability ([dex.go](internal/dex/dex.go),
+  - [x] Check Dex high availability ([dex.go](internal/dex/dex.go),
     [dex_deployment.yaml](../charts/radix-easyauth/templates/dex_deployment.yaml)).
-  - [ ] Remove outdated redirect URIs ([`EnsureClient`](internal/dex/dex.go#L133)). Redirect URIs are only added
-    today. How should this work when a component is removed but the change isn't deployed to all environments yet,
-    for example when a component is deleted in dev but still exists in prod?
+  - [x] Remove outdated redirect URIs ([`EnsureClient`](internal/dex/dex.go#L133)). Redirect URIs come from all active
+    RadixDeployments, including orphaned environments, and aliases from the latest `RadixApplication`.
   - [ ] Make [`createClient`](internal/dex/dex.go#L218) return the existing client when it already exists, to
     simplify the create flow in [`getOrCreateClient`](internal/dex/dex.go#L189).
   - [ ] Decide how to handle a Dex client without a secret

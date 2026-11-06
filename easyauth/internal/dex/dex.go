@@ -121,8 +121,7 @@ func NewClientManager(dex api.DexClient) *ClientManager {
 }
 
 // EnsureClient creates the client if it doesn't exist, and returns the client secret stored in Dex and when it must be
-// rotated. An existing client keeps its secret and redirect URIs. Missing redirect URIs are added and the name is
-// updated, since other clusters sharing the Dex database may use other redirect URIs for the same client.
+// rotated. An existing client keeps its secret, while its name and redirect URIs are updated to match desired.
 // A secret older than secretRotationInterval, or without a creation time, is rotated.
 func (m *ClientManager) EnsureClient(ctx context.Context, desired Client, secretRotationInterval time.Duration) (secret string, rotateAt time.Time, err error) {
 	existing, err := m.getOrCreateClient(ctx, desired)
@@ -130,17 +129,16 @@ func (m *ClientManager) EnsureClient(ctx context.Context, desired Client, secret
 		return "", time.Time{}, err
 	}
 
-	merged := mergeRedirectURIs(existing.GetRedirectUris(), desired.RedirectURIs)
 	if !time.Now().Before(rotationTime(existing.GetSecret(), secretRotationInterval)) {
-		secret, err := m.rotateSecret(ctx, Client{ID: desired.ID, Name: desired.Name, RedirectURIs: merged})
+		secret, err := m.rotateSecret(ctx, desired)
 		if err != nil {
 			return "", time.Time{}, err
 		}
 		return secret, rotationTime(secret, secretRotationInterval), nil
 	}
 
-	if existing.GetName() != desired.Name || len(merged) != len(existing.GetRedirectUris()) {
-		updated, err := m.dex.UpdateClient(ctx, &api.UpdateClientReq{Id: desired.ID, Name: desired.Name, RedirectUris: merged})
+	if existing.GetName() != desired.Name || !slices.Equal(desired.RedirectURIs, existing.GetRedirectUris()) {
+		updated, err := m.dex.UpdateClient(ctx, &api.UpdateClientReq{Id: desired.ID, Name: desired.Name, RedirectUris: desired.RedirectURIs})
 		if err != nil {
 			return "", time.Time{}, fmt.Errorf("failed to update Dex client %s: %w", desired.ID, err)
 		}
@@ -155,7 +153,7 @@ func (m *ClientManager) EnsureClient(ctx context.Context, desired Client, secret
 // rotateSecret replaces the secret of the client. Dex can't change the secret of an existing client, so the client is
 // deleted and created again with the same ID, name and redirect URIs. Once deleted, the client is created on a context
 // that is not cancelled with ctx, so a cancellation never leaves the client deleted. If creating still fails, the next
-// EnsureClient creates the client again, and other clusters add their redirect URIs again.
+// EnsureClient creates the client again from the current desired state.
 func (m *ClientManager) rotateSecret(ctx context.Context, desired Client) (string, error) {
 	if _, err := m.dex.DeleteClient(ctx, &api.DeleteClientReq{Id: desired.ID}); err != nil {
 		return "", fmt.Errorf("failed to delete Dex client %s for secret rotation: %w", desired.ID, err)
@@ -257,15 +255,4 @@ func rotationTime(secret string, secretRotationInterval time.Duration) time.Time
 		return time.Time{}
 	}
 	return createdAt.Add(secretRotationInterval)
-}
-
-// mergeRedirectURIs returns existing with the missing desired redirect URIs appended
-func mergeRedirectURIs(existing, desired []string) []string {
-	merged := slices.Clone(existing)
-	for _, uri := range desired {
-		if !slices.Contains(merged, uri) {
-			merged = append(merged, uri)
-		}
-	}
-	return merged
 }

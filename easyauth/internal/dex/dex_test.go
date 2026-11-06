@@ -90,7 +90,7 @@ func TestEnsureClient_CreatesMissingClient(t *testing.T) {
 	})
 }
 
-func TestEnsureClient_KeepsSecretAndMergesRedirectURIs(t *testing.T) {
+func TestEnsureClient_KeepsSecretAndReplacesRedirectURIs(t *testing.T) {
 	existingSecret := secretCreatedAgo(24 * time.Hour)
 	fakeDex := dextest.NewFakeDex(&api.Client{
 		Id:           clientID,
@@ -110,10 +110,9 @@ func TestEnsureClient_KeepsSecretAndMergesRedirectURIs(t *testing.T) {
 	assert.Equal(t, existingSecret, updated.Secret)
 	assert.Equal(t, "my-app", updated.Name)
 	assert.Equal(t, []string{
-		"https://other-cluster.example.com/oauth2/callback",
 		"https://a.example.com/oauth2/callback",
 		"https://b.example.com/oauth2/callback",
-	}, updated.RedirectUris, "existing redirect URIs must be kept")
+	}, updated.RedirectUris, "redirect URIs absent from desired state must be removed")
 }
 
 func TestEnsureClient_DoesNotUpdateUnchangedClient(t *testing.T) {
@@ -125,7 +124,10 @@ func TestEnsureClient_DoesNotUpdateUnchangedClient(t *testing.T) {
 		RedirectUris: []string{"https://a.example.com/oauth2/callback", "https://b.example.com/oauth2/callback"},
 	})
 
-	secret, _, err := ensure(fakeDex, "my-app", "https://b.example.com/oauth2/callback")
+	secret, _, err := ensure(fakeDex, "my-app",
+		"https://a.example.com/oauth2/callback",
+		"https://b.example.com/oauth2/callback",
+	)
 	require.NoError(t, err)
 
 	assert.Equal(t, existingSecret, secret)
@@ -158,9 +160,8 @@ func TestEnsureClient_RotatesDueSecret(t *testing.T) {
 				assert.Equal(t, secret, rotated.Secret)
 				assert.Equal(t, "my-app", rotated.Name)
 				assert.Equal(t, []string{
-					"https://other-cluster.example.com/oauth2/callback",
 					"https://a.example.com/oauth2/callback",
-				}, rotated.RedirectUris, "redirect URIs of other clusters must be kept")
+				}, rotated.RedirectUris, "rotated client must use desired redirect URIs")
 				assert.Equal(t, 1, fakeDex.Calls("DeleteClient"))
 			})
 		})

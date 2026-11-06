@@ -173,13 +173,16 @@ func TestReconcile_FailsWithoutAppID(t *testing.T) {
 
 func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 	ra := newRA(true)
+	ra.Spec.Environments = append(ra.Spec.Environments, radixv1.Environment{Name: "other"})
 	ra.Spec.DNSAlias = []radixv1.DNSAlias{
 		{Alias: "my-alias", Environment: "prod", Component: "web"},
 		// Private component
 		{Alias: "private-alias", Environment: "prod", Component: "api"},
-		// No active RadixDeployment in the environment
+		// Alias from the latest RadixApplication, before its environment is deployed
 		{Alias: "other-alias", Environment: "other", Component: "web"},
 	}
+	ra.Spec.DNSAppAlias = radixv1.AppAlias{Environment: "prod", Component: "web"}
+	ra.Spec.DNSExternalAlias = []radixv1.ExternalAlias{{Alias: "latest.example.com", Environment: "prod", Component: "web"}}
 	fakeDex := dextest.NewFakeDex()
 	r := newReconciler(fakeDex,
 		ra,
@@ -190,8 +193,8 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 		)),
 		// Inactive RadixDeployments are ignored
 		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "old", PublicPort: "http"}),
-		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http", DNSAppAlias: true})),
-		// Not an environment of the application
+		activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+		// An orphaned environment still has an active RadixDeployment
 		activeRD(newRD("my-app-other", "other", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
 	)
 
@@ -204,15 +207,22 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 	assert.Equal(t, appName, dexClient.Name)
 	assert.NotEmpty(t, dexClient.Secret)
 	assert.Equal(t, []string{
+		// External DNS from the latest RadixApplication
+		"https://latest.example.com/oauth2/callback",
 		// DNS alias
 		"https://my-alias.example.com/oauth2/callback",
 		// App alias
 		"https://my-app.app.example.com/oauth2/callback",
 		// External DNS
 		"https://my-app.equinor.com/oauth2/callback",
+		// DNS alias from an environment without an active RadixDeployment
+		"https://other-alias.example.com/oauth2/callback",
 		// Cluster and active cluster hosts
 		"https://web-my-app-dev.cluster.example.com/oauth2/callback",
 		"https://web-my-app-dev.example.com/oauth2/callback",
+		// Orphaned environment
+		"https://web-my-app-other.cluster.example.com/oauth2/callback",
+		"https://web-my-app-other.example.com/oauth2/callback",
 		"https://web-my-app-prod.cluster.example.com/oauth2/callback",
 		"https://web-my-app-prod.example.com/oauth2/callback",
 	}, dexClient.RedirectUris)
@@ -273,7 +283,7 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 		// Public in the RadixApplication, but not in the active RadixDeployment
 		oauthProxySecret(prodNs, "legacy", nil),
 		oauthProxySecret(devNs, "api", map[string][]byte{"CookieSecret": []byte("cookie")}),
-		// Not an environment of the application
+		// Orphaned environment
 		oauthProxySecret("my-app-other", "web", nil),
 	)
 
@@ -291,7 +301,7 @@ func TestReconcile_SyncsDexSecretToPublicComponents(t *testing.T) {
 	assert.NotContains(t, getSecret(t, r, devNs, oauthProxySecret(devNs, "old", nil).Name).Data, ClientSecretKey, "components of inactive RadixDeployments must not get the client secret")
 	assert.NotContains(t, getSecret(t, r, prodNs, oauthProxySecret(prodNs, "legacy", nil).Name).Data, ClientSecretKey, "components not in the active RadixDeployment must not get the client secret")
 	assert.NotContains(t, getSecret(t, r, devNs, oauthProxySecret(devNs, "api", nil).Name).Data, ClientSecretKey, "private components must not get the client secret")
-	assert.NotContains(t, getSecret(t, r, "my-app-other", oauthProxySecret("my-app-other", "web", nil).Name).Data, ClientSecretKey)
+	assert.Equal(t, value, getSecret(t, r, "my-app-other", oauthProxySecret("my-app-other", "web", nil).Name).Data[ClientSecretKey], "active orphaned deployments must receive the client secret")
 	assert.Equal(t, dexSecret, fakeDex.Client(clientID).Secret, "the secret in Dex must not change")
 }
 

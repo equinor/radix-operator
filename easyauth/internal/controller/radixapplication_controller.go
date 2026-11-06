@@ -190,35 +190,40 @@ type environmentDeployment struct {
 	rd  *radixv1.RadixDeployment
 }
 
-// activeRadixDeployments returns the active RadixDeployment of each environment of the application that has one
+// activeRadixDeployments returns the active RadixDeployments of the application, including orphaned environments
 func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) ([]environmentDeployment, error) {
+	rdList := &radixv1.RadixDeploymentList{}
+	if err := r.List(ctx, rdList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
+		return nil, err
+	}
 	var deployments []environmentDeployment
-	for _, env := range ra.Spec.Environments {
-		rd, err := r.activeRadixDeployment(ctx, utils.GetEnvironmentNamespace(ra.Name, env.Name))
-		if err != nil {
-			return nil, fmt.Errorf("environment %s: %w", env.Name, err)
+	for i := range rdList.Items {
+		rd := &rdList.Items[i]
+		if !rd.IsActive() {
+			continue
 		}
-		if rd != nil {
-			deployments = append(deployments, environmentDeployment{env: env.Name, rd: rd})
+
+		env, ok := rd.Labels[kube.RadixEnvLabel]
+		if !ok || env == "" {
+			return nil, fmt.Errorf("RadixDeployment %s/%s is missing environment label for app %s", rd.Namespace, rd.Name, ra.Name)
 		}
+
+		deployments = append(deployments, environmentDeployment{env: env, rd: rd})
 	}
 	return deployments, nil
 }
 
-// redirectURIs returns the OAuth2 callback URL for every public host of the active RadixDeployment in each environment
-// of the application. The hosts are the same as radix-operator creates HTTPRoutes for: the cluster, active cluster,
-// app alias and external DNS hosts of each public component, and the DNS aliases of the component in the environment.
-// The callback path is built from the proxy prefix of the EasyAuth OAuth2 config, which is set on every public component.
+// redirectURIs returns callback URLs for public hosts in active RadixDeployments and aliases from the latest
+// RadixApplication. The callback path is built from the proxy prefix of the EasyAuth OAuth2 config.
 func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, deployments []environmentDeployment) []string {
 	var uris []string
 	for _, d := range deployments {
-		for i := range d.rd.Spec.Components {
-			component := &d.rd.Spec.Components[i]
-			if !isPublicDeployComponent(component) {
+		for _, component := range d.rd.Spec.Components {
+			if !component.IsPublic() {
 				continue
 			}
 			var hosts []string
-			hosts = append(hosts, radixdeployment.GetComponentFQDNs(component, *d.rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
+			hosts = append(hosts, radixdeployment.GetComponentFQDNs(&component, *d.rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
 			for _, alias := range ra.Spec.DNSAlias {
 				if alias.Environment == d.env && alias.Component == component.Name {
 					hosts = append(hosts, dnsalias.GetHostName(alias.Alias, r.dnsZone))
@@ -233,20 +238,6 @@ func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, 
 	return slices.Compact(uris)
 }
 
-// activeRadixDeployment returns the active RadixDeployment in namespace, or nil if there is none
-func (r *RadixApplicationReconciler) activeRadixDeployment(ctx context.Context, namespace string) (*radixv1.RadixDeployment, error) {
-	rdList := &radixv1.RadixDeploymentList{}
-	if err := r.List(ctx, rdList, client.InNamespace(namespace)); err != nil {
-		return nil, err
-	}
-	for i := range rdList.Items {
-		if rdList.Items[i].IsActive() {
-			return &rdList.Items[i], nil
-		}
-	}
-	return nil, nil
-}
-
 // syncComponentSecrets writes the client secret to the OAuth2 proxy Secret of each public component of the active
 // RadixDeployment in each environment. These are the components that run an OAuth2 proxy with the EasyAuth config,
 // which may differ from the latest RadixApplication until it is deployed.
@@ -254,9 +245,8 @@ func (r *RadixApplicationReconciler) activeRadixDeployment(ctx context.Context, 
 func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, deployments []environmentDeployment, clientSecret []byte) error {
 	var errs []error
 	for _, d := range deployments {
-		for i := range d.rd.Spec.Components {
-			component := &d.rd.Spec.Components[i]
-			if !isPublicDeployComponent(component) {
+		for _, component := range d.rd.Spec.Components {
+			if !component.IsPublic() {
 				continue
 			}
 			if err := r.syncComponentSecret(ctx, d.rd.Namespace, component.Name, clientSecret); err != nil {
@@ -374,9 +364,8 @@ func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd
 func (r *RadixApplicationReconciler) patchRadixDeployment(ctx context.Context, rd *radixv1.RadixDeployment, desired *radixv1.OAuth2) error {
 	original := rd.DeepCopy()
 	changed := false
-	for i := range rd.Spec.Components {
-		component := &rd.Spec.Components[i]
-		if !isPublicDeployComponent(component) {
+	for _, component := range rd.Spec.Components {
+		if !component.IsPublic() {
 			continue
 		}
 		if component.Authentication != nil && equality.Semantic.DeepEqual(component.Authentication.OAuth2, desired) {
@@ -406,12 +395,6 @@ func (r *RadixApplicationReconciler) patchRadixDeployment(ctx context.Context, r
 func (r *RadixApplicationReconciler) requeueAfter(rotateAt time.Time) time.Duration {
 	untilRotation := max(time.Until(rotateAt), 0) + rand.N(time.Minute)
 	return min(r.resyncInterval, untilRotation)
-}
-
-// isPublicDeployComponent mirrors how the operator determines if a deployed component is exposed to the internet
-func isPublicDeployComponent(component *radixv1.RadixDeployComponent) bool {
-	//nolint:staticcheck
-	return component.PublicPort != "" || component.Public
 }
 
 // mapToRadixApplication maps objects with the radix-app label to the RadixApplication of the app
