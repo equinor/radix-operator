@@ -1,0 +1,113 @@
+metadata:
+  annotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    container.apparmor.security.beta.kubernetes.io/build: unconfined
+spec:
+  securityContext:
+    fsGroup: 1000
+    runAsNonRoot: false
+    seccompProfile:
+      type: RuntimeDefault
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  containers:
+  - name: build
+    image: ghcr.io/equinor/radix/buildkit-builder:latest
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: "2"
+        memory: 10G
+      requests:
+        cpu: 800m
+        memory: 1G
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        add:
+        - SETUID
+        - SETGID
+        - SETFCAP
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: false
+      seccompProfile:
+        localhostProfile: allow-buildah.json
+        type: Localhost
+    volumeMounts:
+    - name: build-home
+      mountPath: /home/build
+    - name: build-tmp
+      mountPath: /tmp
+    - name: build-var
+      mountPath: /var
+    - name: build-run
+      mountPath: /run
+    - name: build-root
+      mountPath: /root
+  initContainers:
+  - name: clone
+    image: docker.io/alpine/git:latest
+    imagePullPolicy: Always
+    command:
+    - sh
+    - -c
+    - |
+      umask 002 && \
+      git config --global --add safe.directory "$RADIX_CLONE_DIR" && \
+      git clone -b "$RADIX_CLONE_BRANCH" --verbose --progress --filter=blob:none -- "$RADIX_CLONE_REPO" "$RADIX_CLONE_DIR" && \
+      (cd "$RADIX_CLONE_DIR" && git submodule update --init --recursive || echo "Warning: Unable to clone submodules, proceeding without them") && \
+      cd "$RADIX_CLONE_DIR" && echo "Checking out commit $RADIX_CLONE_COMMIT" && \
+      git merge-base --is-ancestor "$RADIX_CLONE_COMMIT" HEAD && \
+      git checkout -q "$RADIX_CLONE_COMMIT" && \
+      cd - && \
+      cd "$RADIX_CLONE_DIR" && \
+      if [ -n "$(git lfs ls-files 2>/dev/null)" ]; then \
+        git lfs install && \
+        echo ''Pulling large files...'' && \
+        git lfs pull && \
+        echo ''Done''; \
+      fi && \
+      cd - && \
+      chmod -R g+r "$RADIX_CLONE_DIR/.git"
+    resources:
+      limits:
+        cpu: "1"
+        memory: 2G
+      requests:
+        cpu: 100m
+        memory: 250M
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      privileged: false
+      readOnlyRootFilesystem: true
+      runAsGroup: 1000
+      runAsNonRoot: true
+      runAsUser: 65534
+      seccompProfile:
+        type: RuntimeDefault
+    env:
+    - name: HOME
+      value: /home/clone
+    volumeMounts:
+    - name: clone-home
+      mountPath: /home/clone
+  volumes:
+  - name: clone-home
+    emptyDir: {}
+  - name: build-home
+    emptyDir: {}
+  - name: build-tmp
+    emptyDir: {}
+  - name: build-var
+    emptyDir: {}
+  - name: build-run
+    emptyDir:
+      sizeLimit: 100G
+  - name: build-root
+    emptyDir:
+      sizeLimit: 100G
+  
