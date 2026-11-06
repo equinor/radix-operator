@@ -27,12 +27,31 @@ type app struct {
 	appID     ulid.ULID
 	annotated bool
 	noRA      bool
+	rds       []rd
+}
+
+type rd struct {
+	name      string
+	condition radixv1.RadixDeployCondition
+	annotated bool
 }
 
 func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
 	var objs []client.Object
 	for _, a := range apps {
 		objs = append(objs, &radixv1.RadixRegistration{Name: a.name, Spec: radixv1.RadixRegistrationSpec{AppID: radixv1.ULID{ULID: a.appID}}})
+		for _, d := range a.rds {
+			rd := &radixv1.RadixDeployment{
+				Name:      d.name,
+				Namespace: a.name + "-dev",
+				Spec:      radixv1.RadixDeploymentSpec{AppName: a.name},
+				Status:    radixv1.RadixDeployStatus{Condition: d.condition},
+			}
+			if d.annotated {
+				rd.Annotations = map[string]string{annotation: ""}
+			}
+			objs = append(objs, rd)
+		}
 		if a.noRA {
 			continue
 		}
@@ -80,6 +99,35 @@ func TestCleanup_DeletesOrphanedEasyAuthClients(t *testing.T) {
 	assert.Nil(t, fakeDex.Client(dex.ClientID(noRA.String())))
 	assert.Nil(t, fakeDex.Client(dex.ClientID(recreatedOld.String())))
 	assert.Equal(t, 4, fakeDex.Calls("DeleteClient"))
+}
+
+func TestCleanup_KeepsClientsUsedByActiveRadixDeployments(t *testing.T) {
+	activeAnnotated, inactiveAnnotated, activeNotAnnotated := ulid.Make(), ulid.Make(), ulid.Make()
+	fakeDex := dextest.NewFakeDex(
+		dexClient(dex.ClientID(activeAnnotated.String())),
+		dexClient(dex.ClientID(inactiveAnnotated.String())),
+		dexClient(dex.ClientID(activeNotAnnotated.String())),
+	)
+	// The RadixApplications don't have the annotation, for example after it was removed
+	c := newCleaner(fakeDex,
+		app{name: "active-annotated", appID: activeAnnotated, rds: []rd{
+			{name: "old", condition: radixv1.DeploymentInactive},
+			{name: "current", condition: radixv1.DeploymentActive, annotated: true},
+		}},
+		app{name: "inactive-annotated", appID: inactiveAnnotated, rds: []rd{
+			{name: "old", condition: radixv1.DeploymentInactive, annotated: true},
+			{name: "current", condition: radixv1.DeploymentActive},
+		}},
+		app{name: "active-not-annotated", appID: activeNotAnnotated, rds: []rd{
+			{name: "current", condition: radixv1.DeploymentActive},
+		}},
+	)
+
+	require.NoError(t, c.Cleanup(context.Background()))
+
+	assert.NotNil(t, fakeDex.Client(dex.ClientID(activeAnnotated.String())), "an active RadixDeployment with the annotation must keep the client")
+	assert.Nil(t, fakeDex.Client(dex.ClientID(inactiveAnnotated.String())), "inactive RadixDeployments must not keep the client")
+	assert.Nil(t, fakeDex.Client(dex.ClientID(activeNotAnnotated.String())))
 }
 
 func TestCleanup_DeletesNothingWhenDexFails(t *testing.T) {

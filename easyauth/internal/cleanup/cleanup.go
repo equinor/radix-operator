@@ -19,7 +19,7 @@ import (
 )
 
 // DexClientCleaner periodically deletes Dex clients with the EasyAuth prefix that don't belong to a
-// RadixApplication with the annotation. See "Cleanup loop" in easyauth/README.md.
+// RadixApplication or an active RadixDeployment with the annotation. See "Cleanup loop" in easyauth/README.md.
 type DexClientCleaner struct {
 	reader client.Reader
 	// Waits for the cache used by reader to sync before the first run. Set by SetupWithManager.
@@ -30,8 +30,8 @@ type DexClientCleaner struct {
 }
 
 // NewDexClientCleaner returns a cleaner that deletes Dex clients every interval, unless they belong to a
-// RadixApplication with annotation. reader reads RadixApplications and RadixRegistrations, normally from the
-// manager cache.
+// RadixApplication or an active RadixDeployment with annotation. reader reads RadixApplications, RadixDeployments
+// and RadixRegistrations, normally from the manager cache.
 func NewDexClientCleaner(reader client.Reader, dex api.DexClient, annotation string, interval time.Duration) *DexClientCleaner {
 	return &DexClientCleaner{
 		reader:           reader,
@@ -74,11 +74,12 @@ func (c *DexClientCleaner) NeedLeaderElection() bool {
 	return true
 }
 
-// Cleanup deletes Dex clients with the EasyAuth prefix that don't belong to a RadixApplication with the annotation.
+// Cleanup deletes Dex clients with the EasyAuth prefix that don't belong to a RadixApplication or an active
+// RadixDeployment with the annotation.
 // Nothing is deleted if Dex or the Kubernetes API returns an error.
 func (c *DexClientCleaner) Cleanup(ctx context.Context) error {
-	// Clients must be listed before RadixApplications. A client is only created after its RadixApplication exists,
-	// so a client created after this point is never deleted by mistake.
+	// Clients must be listed before RadixApplications and RadixDeployments. A client is only created after its
+	// RadixApplication exists, so a client created after this point is never deleted by mistake.
 	resp, err := c.dex.ListClients(ctx, &api.ListClientReq{})
 	if err != nil {
 		return fmt.Errorf("failed to list Dex clients: %w", err)
@@ -104,11 +105,17 @@ func (c *DexClientCleaner) Cleanup(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// clientIDsInUse returns the client IDs of all RadixApplications with the annotation
+// clientIDsInUse returns the client IDs of all applications that have a RadixApplication with the annotation, or an
+// active RadixDeployment with the annotation. An active RadixDeployment created while EasyAuth was enabled still runs
+// OAuth2 proxies with the client, until it is replaced by a RadixDeployment without the annotation.
 func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool, error) {
 	raList := &radixv1.RadixApplicationList{}
 	if err := c.reader.List(ctx, raList); err != nil {
 		return nil, fmt.Errorf("failed to list RadixApplications: %w", err)
+	}
+	rdList := &radixv1.RadixDeploymentList{}
+	if err := c.reader.List(ctx, rdList); err != nil {
+		return nil, fmt.Errorf("failed to list RadixDeployments: %w", err)
 	}
 	rrList := &radixv1.RadixRegistrationList{}
 	if err := c.reader.List(ctx, rrList); err != nil {
@@ -121,12 +128,19 @@ func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool,
 	}
 
 	inUse := map[string]bool{}
-	for _, ra := range raList.Items {
-		if _, ok := ra.Annotations[c.annotation]; !ok {
-			continue
-		}
-		if appID, ok := appIDs[ra.Name]; ok && !appID.IsZero() {
+	markInUse := func(appName string) {
+		if appID, ok := appIDs[appName]; ok && !appID.IsZero() {
 			inUse[dex.ClientID(appID.String())] = true
+		}
+	}
+	for _, ra := range raList.Items {
+		if _, ok := ra.Annotations[c.annotation]; ok {
+			markInUse(ra.Name)
+		}
+	}
+	for _, rd := range rdList.Items {
+		if _, ok := rd.Annotations[c.annotation]; ok && rd.Status.Condition == radixv1.DeploymentActive {
+			markInUse(rd.Spec.AppName) //nolint:staticcheck
 		}
 	}
 	return inUse, nil

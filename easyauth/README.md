@@ -83,8 +83,8 @@ the pipeline may have just applied it, and:
   This also removes an annotation copied from another `RadixDeployment`, for example when promoting.
 
 Updates are not changed, so the annotation tells whether EasyAuth was enabled when the `RadixDeployment` was
-created. This is meant to let the [cleanup loop](#cleanup-loop) keep a Dex client while an active
-`RadixDeployment` still uses EasyAuth.
+created. The [cleanup loop](#cleanup-loop) uses it to keep a Dex client while an active `RadixDeployment` still
+uses EasyAuth.
 
 ## Validating webhook
 
@@ -336,17 +336,24 @@ The rotation interval is owned by the controller, and passed to `EnsureClient` o
 The controller does not use a finalizer. A periodic loop instead deletes clients that are no longer needed:
 
 1. Calls `ListClients`, and keeps the clients with the `easyauth.` prefix.
-2. Builds the set of AppIDs for `RadixApplications` that have the annotation, from the informer cache. The AppID is
-   read from the `RadixRegistration` with the same name.
+2. Builds the set of AppIDs that are in use, from the informer cache: applications with a `RadixApplication` that
+   has the annotation, or an active `RadixDeployment` that has the annotation (set by the
+   [RadixDeployment mutating webhook](#radixdeployment-mutating-webhook)). The AppID is read from the
+   `RadixRegistration` with the same name as the `RadixApplication`, or the `spec.appname` of the `RadixDeployment`.
 3. Deletes every client whose AppID is not in the set.
 
 The loop runs right after the cache has synced, and then every `config.cleanupInterval`.
 
 This covers a deleted `RadixApplication` or `RadixRegistration`, a removed annotation, and an application that
-was deleted and recreated with the same name.
+was deleted and recreated with the same name. When the annotation is removed from a `RadixApplication`, the client
+is kept until no active `RadixDeployment` with the annotation is left, so OAuth2 proxies that still use it keep
+working until a `RadixDeployment` without EasyAuth has been deployed to every environment. Inactive
+`RadixDeployments` don't keep the client. If one is promoted, the new `RadixDeployment` gets the annotation from the
+`RadixApplication`, not from the promoted one.
 
-- **Ordering:** clients are listed before `RadixApplications` are read. A client is only created after its
-  `RadixApplication` is in the cache, so a client created during the loop is never deleted by mistake.
+- **Ordering:** clients are listed before `RadixApplications` and `RadixDeployments` are read. A client is only
+  created after its `RadixApplication` is in the cache, so a client created during the loop is never deleted by
+  mistake.
 - **Failure handling:** the loop aborts without deleting anything if Dex or the cache returns an error, or if the
   cache has not synced. This prevents mass deletion when the controller's view of the cluster is incomplete.
 - **Leader election:** the loop only runs on the leader.
@@ -485,8 +492,9 @@ Open questions and planned improvements, to be resolved in later iterations.
 - **Cleanup loop**
   - [x] Copy the annotation to the `RadixDeployment`, see
     [RadixDeployment mutating webhook](#radixdeployment-mutating-webhook).
-    - Only remove a client if no active `RadixDeployment` still uses EasyAuth?
-    - Rotate the secret if the client is still in use? Not for orphaned clients.
+  - [x] Only remove a client if no active `RadixDeployment` still uses EasyAuth
+    ([`clientIDsInUse`](internal/cleanup/cleanup.go#L111)).
+  - [-] Rotate the secret if the client is still in use? Not for orphaned clients.
 - **Validating webhook**
   - [x] Make sure the annotation value is correct even when `enforced` is `false`
     ([`validate`](internal/validator/validator.go#L48)). Value validation can probably be removed when groups are
