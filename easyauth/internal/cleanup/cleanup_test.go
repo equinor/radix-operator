@@ -44,7 +44,7 @@ func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
 			rd := &radixv1.RadixDeployment{
 				Name:      d.name,
 				Namespace: a.name + "-dev",
-				Spec:      radixv1.RadixDeploymentSpec{AppName: a.name},
+				Spec:      radixv1.RadixDeploymentSpec{AppName: a.name}, //nolint:staticcheck
 				Status:    radixv1.RadixDeployStatus{Condition: d.condition},
 			}
 			if d.annotated {

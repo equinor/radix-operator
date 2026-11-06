@@ -26,6 +26,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
@@ -72,16 +73,25 @@ func TestRadixEasyAuthMutatingWebhook(t *testing.T) {
 		require.NoError(t, c.Create(t.Context(), ra))
 		t.Cleanup(func() { _ = c.Delete(context.Background(), ra) })
 
-		web := &ra.Spec.Components[0]
-		web.Authentication.OAuth2.ClientID = "user-changed"
-		web.Authentication.OAuth2.SkipAuthRoutes = []string{"^/healthz$"}
-		web.Authentication.OAuth2.OIDC.IssuerURL = "https://login.example.com"
-		web.EnvironmentConfig[0].Authentication = &v1.Authentication{
-			OAuth2: &v1.OAuth2{ClientID: "env-changed"},
-		}
-		require.NoError(t, c.Update(t.Context(), ra))
+		key := client.ObjectKeyFromObject(ra)
+		require.NoError(t, retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			latest := &v1.RadixApplication{}
+			if err := testManager.GetAPIReader().Get(t.Context(), key, latest); err != nil {
+				return err
+			}
+			web := &latest.Spec.Components[0]
+			web.Authentication.OAuth2.ClientID = "user-changed"
+			web.Authentication.OAuth2.SkipAuthRoutes = []string{"^/healthz$"}
+			web.Authentication.OAuth2.OIDC.IssuerURL = "https://login.example.com"
+			web.EnvironmentConfig[0].Authentication = &v1.Authentication{
+				OAuth2: &v1.OAuth2{ClientID: "env-changed"},
+			}
+			return c.Update(t.Context(), latest)
+		}))
 
-		assertEasyAuthOAuth2(t, ra, appID)
+		persisted := &v1.RadixApplication{}
+		require.NoError(t, testManager.GetAPIReader().Get(t.Context(), key, persisted))
+		assertEasyAuthOAuth2(t, persisted, appID)
 	})
 
 	t.Run("does not change OAuth2 config when RadixApplication lacks easyauth annotation", func(t *testing.T) {
@@ -185,7 +195,7 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 
 	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
 	rr := &v1.RadixRegistration{}
-	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Name: appName}, rr))
+	require.NoError(t, testManager.GetAPIReader().Get(t.Context(), client.ObjectKey{Name: appName}, rr))
 	appID := rr.Spec.AppID
 	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, waitTimeout),
 		"registration secret %s should be created in %s", defaults.GitPrivateKeySecretName, appNamespace)

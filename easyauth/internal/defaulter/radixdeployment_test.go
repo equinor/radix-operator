@@ -85,7 +85,7 @@ func TestRadixDeploymentDefault_OnCreate(t *testing.T) {
 
 func TestRadixDeploymentDefault_FailsWithoutAppName(t *testing.T) {
 	rd := newRD("my-app", nil)
-	rd.Spec.AppName = ""
+	rd.Spec.AppName = "" //nolint:staticcheck
 
 	d := newRDDefaulter()
 	assert.Error(t, d.Default(requestContext(admissionv1.Create), rd))
