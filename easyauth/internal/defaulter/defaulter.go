@@ -13,8 +13,6 @@ import (
 
 const Path = "/radix/v1/radixapplication/mutate"
 
-// +kubebuilder:webhook:name=radixapplication.mutate.easyauth.radix.equinor.com,path=/radix/v1/radixapplication/mutate,mutating=true,failurePolicy=fail,matchPolicy=Equivalent,reinvocationPolicy=IfNeeded,sideEffects=None,servicePort=443,groups=radix.equinor.com,resources=radixapplications,verbs=create;update,versions=v1,admissionReviewVersions={v1}
-
 // RadixApplicationDefaulter mutates RadixApplications that have the configured annotation
 type RadixApplicationDefaulter struct {
 	reader         client.Reader

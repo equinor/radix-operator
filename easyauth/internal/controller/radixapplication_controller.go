@@ -110,12 +110,6 @@ func NewRadixApplicationReconciler(
 	}
 }
 
-// +kubebuilder:rbac:groups=radix.equinor.com,resources=radixapplications,verbs=get;list;watch
-// +kubebuilder:rbac:groups=radix.equinor.com,resources=radixregistrations,verbs=get;list;watch
-// +kubebuilder:rbac:groups=radix.equinor.com,resources=radixdeployments,verbs=get;list;watch;patch
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;patch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
-
 // Reconcile ensures that RadixApplications with the EasyAuth annotation have the EasyAuth OAuth2 configuration on
 // the public components of all their RadixDeployments, an OAuth2 client in Dex with redirect URIs for all public
 // hosts, and that the client secret from Dex is synced to the OAuth2 proxy of each public component.

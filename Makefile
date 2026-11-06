@@ -193,12 +193,6 @@ easyauth-webhook: temp-resources
 .PHONY: temp-resources
 temp-resources: bootstrap
 	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
-	controller-gen +webhook paths=./webhook/validation/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
-	controller-gen +webhook paths=./easyauth/internal/defaulter/ output:stdout > $(CRD_TEMP_DIR)easyauth-mutating-webhook.yaml
-	controller-gen +webhook paths=./easyauth/internal/validator/ output:stdout > $(CRD_TEMP_DIR)easyauth-validating-webhook.yaml
-	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
-	./hack/helmify-easyauth-mutating-webhook.sh $(CRD_TEMP_DIR)easyauth-mutating-webhook.yaml
-	./hack/helmify-easyauth-validating-webhook.sh $(CRD_TEMP_DIR)easyauth-validating-webhook.yaml
 
 .PHONY: delete-temp-resources
 delete-temp-resources:
