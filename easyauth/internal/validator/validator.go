@@ -44,16 +44,14 @@ func (v *RadixApplicationValidator) ValidateDelete(_ context.Context, _ *radixv1
 }
 
 func (v *RadixApplicationValidator) validate(obj *radixv1.RadixApplication) error {
-	if !v.enforced {
-		return nil
+	value, ok := obj.GetAnnotations()[v.annotation]
+
+	if ok && value != "" {
+		return fmt.Errorf("RadixApplication %s annotation %q must be empty", obj.Name, v.annotation)
 	}
 
-	value, ok := obj.GetAnnotations()[v.annotation]
-	if !ok {
+	if v.enforced && !ok {
 		return fmt.Errorf("RadixApplication %s must have the annotation %q", obj.Name, v.annotation)
-	}
-	if value != "" {
-		return fmt.Errorf("RadixApplication %s annotation %q must be empty", obj.Name, v.annotation)
 	}
 
 	return nil

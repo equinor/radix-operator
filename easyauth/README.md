@@ -471,7 +471,7 @@ Open questions and planned improvements, to be resolved in later iterations.
     - Only remove a client if no active `RadixDeployment` still uses EasyAuth?
     - Rotate the secret if the client is still in use? Not for orphaned clients.
 - **Validating webhook**
-  - [ ] Make sure the annotation value is correct even when `enforced` is `false`
+  - [x] Make sure the annotation value is correct even when `enforced` is `false`
     ([`validate`](internal/validator/validator.go#L48)). Value validation can probably be removed when groups are
     implemented.
 - **Access control**
