@@ -481,6 +481,53 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_Oauth_DeploymentReplicas(
 	}
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_PassUserHeaders() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+
+	tests := map[string]struct {
+		setXAuthRequestHeaders *bool
+		setUserHeaders         *bool
+		expected               string
+		expectedPassAccessTok  string
+	}{
+		"not set":                           {expected: "", expectedPassAccessTok: ""},
+		"only setXAuthRequestHeaders=true":  {setXAuthRequestHeaders: new(true), expected: "true", expectedPassAccessTok: "true"},
+		"only setXAuthRequestHeaders=false": {setXAuthRequestHeaders: new(false), expected: "false", expectedPassAccessTok: "false"},
+		"only setUserHeaders=true":          {setUserHeaders: new(true), expected: "true", expectedPassAccessTok: ""},
+		"setUserHeaders=true overrides":     {setXAuthRequestHeaders: new(false), setUserHeaders: new(true), expected: "true", expectedPassAccessTok: "false"},
+		"setUserHeaders=false overrides":    {setXAuthRequestHeaders: new(true), setUserHeaders: new(false), expected: "false", expectedPassAccessTok: "true"},
+	}
+
+	for name, test := range tests {
+		s.Run(name, func() {
+			rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+			rd := utils.NewDeploymentBuilder().
+				WithAppName(appName).
+				WithEnvironment(envName).
+				WithComponent(utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithPublicPort("http").
+					WithPorts([]radixv1.ComponentPort{{Name: "http", Port: 80}}).
+					WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{
+						ClientID:               "client",
+						SetXAuthRequestHeaders: test.setXAuthRequestHeaders,
+						SetUserHeaders:         test.setUserHeaders,
+					}})).
+				BuildRD()
+
+			sut := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, s.cfg)
+			s.Require().NoError(sut.Sync(context.Background()))
+
+			deploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
+			s.Require().Len(deploys.Items, 1)
+			env := deploys.Items[0].Spec.Template.Spec.Containers[0].Env
+			s.Equal(test.expected, s.getEnvVarValueByName("OAUTH2_PROXY_PASS_USER_HEADERS", env))
+			s.Equal(test.expectedPassAccessTok, s.getEnvVarValueByName("OAUTH2_PROXY_PASS_ACCESS_TOKEN", env))
+		})
+	}
+}
+
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
@@ -511,7 +558,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 			SkipDiscovery:           new(true),
 			InsecureSkipVerifyNonce: new(false),
 		},
-		SkipAuthRoutes: []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"},
+		SkipAuthRoutes:    []string{"POST=^/api/public-entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"},
+		AllowedIdentities: []string{"group-a", "group-b"},
 	}
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
@@ -561,7 +609,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Require().Len(defaultContainer.Ports, 1)
 	s.Equal(defaults.OAuthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
 
-	s.Len(defaultContainer.Env, 34)
+	s.Len(defaultContainer.Env, 36)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_HTTPONLY", defaultContainer.Env))
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SECURE", defaultContainer.Env))
@@ -572,6 +620,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Equal(fmt.Sprintf("http://:%v", defaults.OAuthProxyPortNumber), s.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
 	s.Equal("0s", s.getEnvVarValueByName("OAUTH2_PROXY_UPSTREAM_TIMEOUT", defaultContainer.Env))
 	s.Equal(fmt.Sprintf("%s/callback", oauthutil.SanitizePathPrefix(returnOAuth.ProxyPrefix)), s.getEnvVarValueByName("OAUTH2_PROXY_REDIRECT_URL", defaultContainer.Env))
+	s.Equal("auto", s.getEnvVarValueByName("OAUTH2_PROXY_APPROVAL_PROMPT", defaultContainer.Env))
 	s.Equal(fmt.Sprintf("%s://%s:%v", "http", componentName, 80), s.getEnvVarValueByName("OAUTH2_PROXY_UPSTREAMS", defaultContainer.Env))
 	s.Equal(returnOAuth.ClientID, s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", defaultContainer.Env))
 	s.Equal(returnOAuth.Scope, s.getEnvVarValueByName("OAUTH2_PROXY_SCOPE", defaultContainer.Env))
@@ -593,6 +642,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", defaultContainer.Env))
 	s.Equal(returnOAuth.RedisStore.ConnectionURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDIS_CONNECTION_URL", defaultContainer.Env))
 	s.Equal("POST=^/api/public-entity/?$,GET=^/skip/auth/routes/get,!=^/api", s.getEnvVarValueByName(oauth2ProxySkipAuthRoutesEnvironmentVariable, defaultContainer.Env))
+	s.Equal("group-a,group-b", s.getEnvVarValueByName(oauth2ProxyAllowedGroupsEnvironmentVariable, defaultContainer.Env))
 	secretName := utils.GetAuxiliaryComponentSecretName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, Name: secretName}}, s.getEnvVarValueFromByName(oauth2ProxyCookieSecretEnvironmentVariable, defaultContainer.Env))
 	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, Name: secretName}}, s.getEnvVarValueFromByName(oauth2ProxyClientSecretEnvironmentVariable, defaultContainer.Env))
@@ -603,7 +653,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 32, "Unexpected amount of env-vars")
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 34, "Unexpected amount of env-vars")
 	s.False(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
 	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_CONNECTION_URL", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_CONNECTION_URL should not be present when SessionStoreType is cookie")
 
@@ -612,7 +662,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxy_DeploymentCrea
 	s.Require().NoError(sut.Sync(context.Background()))
 
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
-	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 34, "Unexpected amount of env-vars")
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 36, "Unexpected amount of env-vars")
 	s.True(s.getEnvVarExist(oauth2ProxyRedisPasswordEnvironmentVariable, actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env), "Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie")
 	redisConnectUrlEnvVar, redisConnectUrlExists := slice.FindFirst(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, func(ev corev1.EnvVar) bool {
 		return ev.Name == "OAUTH2_PROXY_REDIS_CONNECTION_URL"

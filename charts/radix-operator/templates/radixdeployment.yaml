@@ -90,6 +90,14 @@ spec:
                             Configuration for OAuth2 authentication.
                             More info: https://www.radix.equinor.com/radix-config#oauth2
                           properties:
+                            allowedIdentities:
+                              description: |-
+                                AllowedIdentities restricts access to users that are members of at least one of the groups.
+                                The groups are read from the groups claim of the ID token. All authenticated users get access when empty.
+                                Group names must not contain commas.
+                              items:
+                                type: string
+                              type: array
                             clientId:
                               description: Client ID of the application.
                               type: string
@@ -197,6 +205,12 @@ spec:
                             setAuthorizationHeader:
                               description: Defines if the IDToken received by the
                                 OAuth Proxy should be added to the Authorization header.
+                              type: boolean
+                            setUserHeaders:
+                              description: |-
+                                Defines if user information (X-Forwarded-User, X-Forwarded-Email, X-Forwarded-Groups and X-Forwarded-Preferred-Username)
+                                should be passed to the upstream in request headers.
+                                Overrides the user headers setting derived from SetXAuthRequestHeaders when set.
                               type: boolean
                             setXAuthRequestHeaders:
                               description: |-

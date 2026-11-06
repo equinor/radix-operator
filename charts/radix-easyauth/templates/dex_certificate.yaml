@@ -1,0 +1,57 @@
+# Dex gRPC API serving certificate. Its ca.crt is also used by Dex to verify client certificates.
+{{- $svc := include "radix-easyauth.dex.fullname" . }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "radix-easyauth.dex.grpcServerCertificateName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "radix-easyauth.dex.grpcServerCertificateSecretName" . }}
+  duration: {{ .Values.dex.certificate.duration }}
+  renewBefore: {{ .Values.dex.certificate.renewBefore }}
+  dnsNames:
+    - {{ $svc }}
+    - {{ $svc }}.{{ .Release.Namespace }}
+    - {{ $svc }}.{{ .Release.Namespace }}.svc
+    - {{ $svc }}.{{ .Release.Namespace }}.svc.cluster.local
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: {{ include "radix-easyauth.webhookIssuerName" . }}
+    kind: Issuer
+    group: cert-manager.io
+---
+# Client certificate used by EasyAuth to authenticate against the Dex gRPC API.
+# Dex only accepts client certificates with the client auth usage, so other certificates from the same CA are rejected.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "radix-easyauth.dex.grpcClientCertificateName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "radix-easyauth.dex.grpcClientCertificateSecretName" . }}
+  duration: {{ .Values.dex.certificate.duration }}
+  renewBefore: {{ .Values.dex.certificate.renewBefore }}
+  commonName: {{ include "radix-easyauth.fullname" . }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - client auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: {{ include "radix-easyauth.webhookIssuerName" . }}
+    kind: Issuer
+    group: cert-manager.io

@@ -16,11 +16,6 @@ const RadixBatchValidatorWebhookPath = "/radix/v1/radixbatch/validation"
 const RadixDeploymentValidatorWebhookPath = "/radix/v1/radixdeployment/validation"
 const HttpRouteValidatorWebhookPath = "/gateway/v1/httproute/validation"
 
-//+kubebuilder:webhook:name=radixregistration.validate.radix.equinor.com,path=/radix/v1/radixregistration/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixregistrations,verbs=create;update,versions=v1,admissionReviewVersions={v1}
-//+kubebuilder:webhook:name=radixapplication.validate.radix.equinor.com,path=/radix/v1/radixapplication/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixapplications,verbs=create;update,versions=v1,admissionReviewVersions={v1}
-//+kubebuilder:webhook:name=radixbatch.validate.radix.equinor.com,path=/radix/v1/radixbatch/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=radix.equinor.com,resources=radixbatches,verbs=create;update,versions=v1,admissionReviewVersions={v1}
-//+kubebuilder:webhook:name=httproute.validate.gateway.networking.k8s.io,path=/gateway/v1/httproute/validation,mutating=false,failurePolicy=fail,sideEffects=None,groups=gateway.networking.k8s.io,resources=httproutes,verbs=create;update,versions=v1,admissionReviewVersions={v1}
-
 func SetupWebhook(mgr manager.Manager, cfg config.Config) {
 	rrValidator := radixregistration.CreateOnlineValidator(mgr.GetClient(), cfg)
 	genericvalidator.

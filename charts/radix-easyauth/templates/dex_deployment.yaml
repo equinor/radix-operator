@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.dex.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "radix-easyauth.dex.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/dex_config.yaml") . | sha256sum }}
+        {{- with .Values.dex.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "radix-easyauth.dex.selectorLabels" . | nindent 8 }}
+        {{- with .Values.dex.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "radix-easyauth.dex.fullname" . }}
+      # Kubernetes storage uses the service account token to read and write its custom resources
+      automountServiceAccountToken: {{ eq (include "radix-easyauth.dex.kubernetesStorage" .) "true" }}
+      {{- with .Values.dex.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dex.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dex.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dex.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      volumes:
+        - name: config
+          secret:
+            secretName: {{ include "radix-easyauth.dex.fullname" . }}-config
+        - name: grpc-tls
+          secret:
+            # Populated by cert-manager
+            secretName: {{ include "radix-easyauth.dex.grpcServerCertificateSecretName" . }}
+      containers:
+        - name: dex
+          image: {{ .Values.dex.image.repository }}:{{ .Values.dex.image.tag }}
+          imagePullPolicy: {{ .Values.dex.image.pullPolicy | default "IfNotPresent" }}
+          # Bypass the image entrypoint, which renders the config with gomplate into /tmp and requires a writable
+          # filesystem. Dex expands $VAR references in the config itself.
+          command:
+            - /usr/local/bin/dex
+            - serve
+            - /etc/dex/config/config.yaml
+          {{- with .Values.dex.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 5556
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ include "radix-easyauth.dex.grpcPort" . }}
+              protocol: TCP
+            - name: telemetry
+              containerPort: 5558
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: telemetry
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: telemetry
+          {{- with .Values.dex.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.dex.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/dex/config
+              readOnly: true
+            - name: grpc-tls
+              mountPath: /etc/dex/grpc
+              readOnly: true

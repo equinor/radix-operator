@@ -611,6 +611,11 @@ func (in *OAuth2) DeepCopyInto(out *OAuth2) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.SetUserHeaders != nil {
+		in, out := &in.SetUserHeaders, &out.SetUserHeaders
+		*out = new(bool)
+		**out = **in
+	}
 	if in.OIDC != nil {
 		in, out := &in.OIDC, &out.OIDC
 		*out = new(OAuth2OIDC)
@@ -633,6 +638,11 @@ func (in *OAuth2) DeepCopyInto(out *OAuth2) {
 	}
 	if in.SkipAuthRoutes != nil {
 		in, out := &in.SkipAuthRoutes, &out.SkipAuthRoutes
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.AllowedIdentities != nil {
+		in, out := &in.AllowedIdentities, &out.AllowedIdentities
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

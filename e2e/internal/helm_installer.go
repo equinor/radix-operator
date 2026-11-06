@@ -9,9 +9,9 @@ import (
 	"runtime"
 )
 
-// InstallRadixOperator installs or upgrades the radix-operator Helm chart so it runs
-// with the expected image tags and configuration, whether or not it is already installed.
-func InstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath, valuesFile, imageTag string, helmValues map[string]string) error {
+// InstallHelmChart installs or upgrades a Helm chart so it runs with the expected image tags
+// and configuration, whether or not it is already installed.
+func InstallHelmChart(ctx context.Context, KubeConfigPath, namespace, releaseName, chartPath, valuesFile, imageTag string, helmValues map[string]string) error {
 	renderedValuesFile, err := renderValuesFile(valuesFile, imageTag)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func renderValuesFile(valuesFile, imageTag string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to read helm values file %s: %w", valuesFile, err)
 	}
-	f, err := os.CreateTemp("", "radix-operator-values-*.yaml")
+	f, err := os.CreateTemp("", "helm-values-*.yaml")
 	if err != nil {
 		return "", err
 	}
@@ -67,10 +67,10 @@ func renderValuesFile(valuesFile, imageTag string) (string, error) {
 	return f.Name(), nil
 }
 
-// UninstallRadixOperator uninstalls the radix-operator Helm release if it is installed. This is
-// used to stop the running operator before the Radix CRDs are removed, so the operator does not
-// fail when its CRDs disappear. It is a no-op if the release is not installed.
-func UninstallRadixOperator(ctx context.Context, KubeConfigPath, namespace, releaseName string) error {
+// UninstallHelmRelease uninstalls a Helm release if it is installed. This is used to stop running
+// Radix components before the Radix CRDs are removed, so they do not fail when their CRDs
+// disappear. It is a no-op if the release is not installed.
+func UninstallHelmRelease(ctx context.Context, KubeConfigPath, namespace, releaseName string) error {
 	env := append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", KubeConfigPath))
 
 	// Check whether the release is installed; if not, there is nothing to uninstall
