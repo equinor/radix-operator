@@ -21,13 +21,3 @@ spec:
       name: telemetry
   selector:
     {{- include "radix-easyauth.dex.selectorLabels" . | nindent 4 }}
----
-# The token is only mounted in the Dex pods with Kubernetes storage, see dex_rbac.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ include "radix-easyauth.dex.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
-automountServiceAccountToken: false

@@ -20,12 +20,13 @@ metadata:
 Only members of the allowed groups get access to the public components. The groups are a comma separated list in
 the `easyauth.radix.equinor.com/allowed-identities` annotation, for example `"group-a,group-b"`. Empty
 groups (`"group-a,,group-b"`) and spaces around groups (`"group-a, group-b"`) are rejected. When the annotation is missing or empty,
-[`config.oauth2.allowedIdentities`](#configuration) is used. When that is also empty, the `RadixApplication` is
+[`config.oauth2.allowedGroups`](#configuration) is used. When the defaults are also empty, the `RadixApplication` is
 rejected, so every application must choose its groups.
 
-The groups are set as `allowedIdentities` on the OAuth2 configuration of each public component, which radix-operator
-passes to the OAuth2 proxy as `OAUTH2_PROXY_ALLOWED_GROUPS`. The OAuth2 proxy reads the groups from the `groups`
-claim of the ID token, so the Dex connector must include the groups (the `groups` scope is requested by default).
+The groups are set as `allowedGroups` on the OAuth2 configuration of each public component, which radix-operator
+passes to the OAuth2 proxy as `OAUTH2_PROXY_ALLOWED_GROUPS`. By default, oauth2-proxy reads groups from the `groups`
+claim of the ID token; `config.oauth2.groupClaim` selects a different claim. The Dex connector must include that claim
+(the `groups` scope is requested by default).
 Users that log in but are not in any of the groups get `403 Forbidden` from the OAuth2 proxy.
 
 The annotation only accepts groups. Selecting users may be added later, and will not be combinable with groups.
@@ -35,14 +36,14 @@ The `ghcr.io/equinor/radix/easyauth` image and the `oci://ghcr.io/equinor/radix/
 built in pull requests, and published with the same version as radix-operator on each release.
 It consists of:
 
-| Part               | Status      | Responsibility                                                                                   |
-| ------------------ | ----------- | ------------------------------------------------------------------------------------------------ |
-| Mutating webhook   | Implemented | Overrides the OAuth2 configuration of public components                                          |
-| RD mutating webhook | Implemented | Copies the annotation from the `RadixApplication` to new `RadixDeployments`                     |
-| Validating webhook | Implemented | Validates the annotations, and optionally rejects `RadixApplications` without the annotation     |
-| Dex                | Implemented | OIDC provider that users log in to, installed by the chart. Required                             |
-| Controller         | Implemented | Keeps an OAuth2 client in Dex, the client secret and `RadixDeployments` in sync with each app    |
-| Cleanup loop       | Implemented | Deletes Dex clients that no longer belong to an application, when `config.cleanupEnabled` is set |
+| Part                | Status      | Responsibility                                                                                   |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| Mutating webhook    | Implemented | Overrides the OAuth2 configuration of public components                                          |
+| RD mutating webhook | Implemented | Copies the annotation from the `RadixApplication` to new `RadixDeployments`                      |
+| Validating webhook  | Implemented | Validates the annotations, and optionally rejects `RadixApplications` without the annotation     |
+| Dex                 | Implemented | OIDC provider that users log in to, installed by the chart. Required                             |
+| Controller          | Implemented | Keeps an OAuth2 client in Dex, the client secret and `RadixDeployments` in sync with each app    |
+| Cleanup loop        | Implemented | Deletes Dex clients that no longer belong to an application, when `config.cleanupEnabled` is set |
 
 The webhooks and the controller run in the same process and Deployment, so they always share configuration and
 version. The webhooks are served by every replica, while the controller only runs on the leader. Since the webhooks
@@ -58,8 +59,8 @@ Runs on create and update of `RadixApplications` with the annotation. For each p
 set, or the deprecated `public: true`) it:
 
 - Replaces `authentication.oauth2` with the EasyAuth configuration below. Everything except `clientId`,
-  `credentials`, `oidc.issuerUrl` and `allowedIdentities` comes from [`config.oauth2`](#configuration), the example shows
-  the chart defaults. `allowedIdentities` comes from the [allowed identities](#allowed-identities). `proxyPrefix` is set to `/oauth2` if `config.oauth2.proxyPrefix` is empty, instead of relying on the
+  `credentials`, `oidc.issuerUrl` and `allowedGroups` comes from [`config.oauth2`](#configuration), the example shows
+  the chart defaults. `allowedGroups` comes from the [allowed identities](#allowed-identities). `proxyPrefix` is set to `/oauth2` if `config.oauth2.proxyPrefix` is empty, instead of relying on the
   radix-operator default, since the controller must know the callback path to register redirect URIs in Dex.
 - Removes `authentication.oauth2` from all `environmentConfig` entries, since environment configuration is merged
   on top of the component configuration by radix-operator.
@@ -73,9 +74,10 @@ authentication:
   oauth2:
     clientId: easyauth.<appID>
     credentials: secret
-    allowedIdentities:
+    allowedGroups:
       - group-a
       - group-b
+    groupClaim: groups
     scope: openid profile email groups offline_access
     setAuthorizationHeader: false
     setXAuthRequestHeaders: false
@@ -448,26 +450,27 @@ The controller is still designed so that the cluster running EasyAuth can be swi
 Configured with the `config` section in the Helm chart [values](../charts/radix-easyauth/values.yaml), which is
 rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
 
-| Value                    | Description                                                                                                           |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| `annotation`             | Annotation that enables EasyAuth on a `RadixApplication`. The value must be empty                                    |
-| `allowedIdentitiesAnnotation` | Annotation with the comma separated [allowed groups](#allowed-identities) of a `RadixApplication`                |
-| `oauth2.allowedIdentities` | Default groups when `allowedIdentitiesAnnotation` is missing or empty. A non-empty annotation replaces this list. When both are empty, the application is rejected |
-| `enforced`               | Reject `RadixApplications` without the annotation                                                                     |
-| `issuerUrl`              | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |
-| `oauth2`                 | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required         |
-| `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
-| `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
-| `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
-| `cleanupEnabled`         | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `true`, set to `false` in all but one cluster      |
-| `cleanupInterval`        | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled                               |
-| `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h` |
+| Value                         | Description                                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `annotation`                  | Annotation that enables EasyAuth on a `RadixApplication`. The value must be empty                                     |
+| `allowedIdentitiesAnnotation` | Annotation with the comma separated [allowed groups](#allowed-identities) of a `RadixApplication`                     |
+| `oauth2.allowedGroups`        | Default groups when `allowedIdentitiesAnnotation` is missing or empty. A non-empty annotation replaces this list      |
+| `oauth2.groupClaim`           | ID token claim containing the user's groups. Defaults to `groups` in oauth2-proxy                                     |
+| `enforced`                    | Reject `RadixApplications` without the annotation                                                                     |
+| `issuerUrl`                   | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |
+| `oauth2`                      | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required         |
+| `clusterName`                 | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
+| `dnsZone`                     | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
+| `appAliasBaseURL`             | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
+| `cleanupEnabled`              | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `true`, set to `false` in all but one cluster      |
+| `cleanupInterval`             | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled                               |
+| `secretRotationInterval`      | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h` |
 
 `dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
 
 `oauth2` accepts every setting of `authentication.oauth2` in `radixconfig.yaml`, except `clientId`, `credentials`,
 and `oidc.issuerUrl`, which are set by EasyAuth. Config with any of them set is rejected at startup.
-`oauth2.allowedIdentities` supplies the default groups; a non-empty allowed identities annotation replaces them. A changed config
+`oauth2.allowedGroups` supplies the default groups. A non-empty allowed identities annotation replaces the defaults. `oauth2.groupClaim` overrides oauth2-proxy's default `groups` claim. A changed config
 restarts EasyAuth (the ConfigMap checksum is a pod annotation), and the controller updates the `RadixDeployments` of
 all applications with the annotation when it reconciles them on startup. `RadixApplications` get the new config the
 next time they are applied.
@@ -528,23 +531,29 @@ Open questions and planned improvements, to be resolved in later iterations.
     [RadixDeployment mutating webhook](#radixdeployment-mutating-webhook).
   - [x] Only remove a client if no active `RadixDeployment` still uses EasyAuth
     ([`clientIDsInUse`](internal/cleanup/cleanup.go#L111)).
+  - [x] Read the application name from the `RadixDeployment` namespace instead of the deprecated `spec.appName`.
   - [-] Rotate the secret if the client is still in use? Not for orphaned clients.
 - **Validating webhook**
   - [x] Make sure the annotation value is empty even when `enforced` is `false`
     ([`validate`](internal/validator/validator.go)). The validating webhook is always installed.
+  - [x] Reject the allowed identities annotation without the EasyAuth annotation instead of returning a warning.
 - **Access control**
   - [x] Limit access to members of specific groups, see [Allowed identities](#allowed-identities). The groups are
-    set in the `easyauth.radix.equinor.com/allowed-identities` annotation, with `config.oauth2.allowedIdentities` as
+    set in the `easyauth.radix.equinor.com/allowed-identities` annotation, with `config.oauth2.allowedGroups` as
     the default, and the `easyauth.radix.equinor.com` annotation value must be empty.
     - The [mutating webhook](internal/defaulter/defaulter.go) sets the allowed groups on the OAuth2 config of
       public components, and the [controller](internal/controller/radixapplication_controller.go) syncs them
       to `RadixDeployments`.
-    - radix-operator has `authentication.oauth2.allowedIdentities`, passed to the OAuth2 proxy as
+    - radix-operator has `authentication.oauth2.allowedGroups`, passed to the OAuth2 proxy as
       `OAUTH2_PROXY_ALLOWED_GROUPS`
       ([oauthproxyresourcemanager.go](../pkg/apis/deployment/oauthproxyresourcemanager.go)).
     - The groups are validated by the [validating webhook](internal/validator/validator.go) and radix-webhook.
   - [ ] Allow selecting users instead of groups. Users and groups must be mutually exclusive.
   - [ ] Make sure the Dex connectors in each cluster include the groups in the ID token (`groups` scope).
+  - [x] Use `AllowedGroups` as the OAuth2 field for group access control.
+  - [x] Add a configurable group claim name with `groupClaim`.
+- **RadixDeployment mutating webhook**
+  - [x] The webhook only runs on `CREATE`, so it copies the EasyAuth annotation when the `RadixDeployment` is created.
 
 ## References
 

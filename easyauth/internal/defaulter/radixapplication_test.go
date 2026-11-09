@@ -38,7 +38,7 @@ func newDefaulter(objs ...client.Object) *RadixApplicationDefaulter {
 func newDefaulterWithDefaultGroups(defaultGroups []string, objs ...client.Object) *RadixApplicationDefaulter {
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
 	config := oauth2
-	config.AllowedIdentities = defaultGroups
+	config.AllowedGroups = defaultGroups
 	return NewRadixApplicationDefaulter(c, annotation, allowedIdentitiesAnnotation, oauth.NewTemplate(config, issuerURL))
 }
 
@@ -50,12 +50,12 @@ func newRR(appName, id string) *radixv1.RadixRegistration {
 	return rr
 }
 
-func expectedOAuth2(allowedIdentities ...string) *radixv1.OAuth2 {
-	if len(allowedIdentities) == 0 {
-		allowedIdentities = []string{defaultGroup}
+func expectedOAuth2(allowedGroups ...string) *radixv1.OAuth2 {
+	if len(allowedGroups) == 0 {
+		allowedGroups = []string{defaultGroup}
 	}
 	return &radixv1.OAuth2{
-		AllowedIdentities:      allowedIdentities,
+		AllowedGroups:          allowedGroups,
 		ClientID:               "easyauth." + appID,
 		Credentials:            radixv1.Secret,
 		Scope:                  "openid profile email groups offline_access",

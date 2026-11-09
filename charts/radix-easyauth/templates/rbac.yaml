@@ -11,6 +11,19 @@ metadata:
   {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "radix-easyauth.fullname" . }}-common-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: [{{ include "radix-easyauth.commonConfigName" . | quote }}]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "radix-easyauth.fullname" . }}-common-config
@@ -27,6 +40,31 @@ subjects:
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "radix-easyauth.clusterScopedName" . }}-radixapplication
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["radix.equinor.com"]
+    resources: ["radixapplications", "radixregistrations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["radix.equinor.com"]
+    resources: ["radixdeployments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  # The client secret from Dex is written to the OAuth2 proxy Secrets created by radix-operator
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "patch"]
+  # Restarts the OAuth2 proxy when the client secret changes
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "radix-easyauth.clusterScopedName" . }}-radixapplication
@@ -41,6 +79,21 @@ subjects:
     name: {{ include "radix-easyauth.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 {{- if .Values.config.enableLeaderElection }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "radix-easyauth.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

@@ -17,7 +17,7 @@ webhooks:
       path: /radix/v1/radixapplication/validate
       port: 443
   failurePolicy: {{ .Values.webhook.failurePolicy }}
-  matchPolicy: Equivalent
+  matchPolicy: Exact
   name: radixapplication.validate.easyauth.radix.equinor.com
   rules:
   - apiGroups:

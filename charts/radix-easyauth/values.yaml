@@ -30,8 +30,8 @@ config:
   # Enables EasyAuth on a RadixApplication. The value must always be empty.
   annotation: easyauth.radix.equinor.com
   # Comma separated list of groups allowed to access the public components of a RadixApplication, for example
-  # "group-a,group-b". Replaces oauth2.allowedIdentities. Required on RadixApplications with annotation when
-  # oauth2.allowedIdentities is empty.
+  # "group-a,group-b". Replaces oauth2.allowedGroups. Required on RadixApplications with annotation when
+  # oauth2.allowedGroups is empty.
   allowedIdentitiesAnnotation: easyauth.radix.equinor.com/allowed-identities
   # Required. The Dex issuer, set on all public components by the mutating webhook. Overrides dex.config.issuer.
   issuerUrl: https://simpleauth.dev.radix.equinor.com
@@ -40,8 +40,8 @@ config:
   oauth2:
     # Default groups when allowedIdentitiesAnnotation is missing or empty. The annotation replaces this list.
     # If both are empty, RadixApplications with the EasyAuth annotation are rejected.
-    # Groups must be in the groups claim of the ID token from Dex.
-    allowedIdentities: []
+    # Groups must be in the configured group claim of the ID token from Dex.
+    allowedGroups: []
     # - group-a
     # - group-b
     scope: openid profile email groups offline_access

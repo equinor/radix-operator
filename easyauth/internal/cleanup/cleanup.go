@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
@@ -140,7 +141,11 @@ func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool,
 	}
 	for _, rd := range rdList.Items {
 		if _, ok := rd.Annotations[c.annotation]; ok && rd.Status.Condition == radixv1.DeploymentActive {
-			markInUse(rd.Spec.AppName) //nolint:staticcheck
+			appName, err := kube.GetAppNameFromNamespace(ctx, rd.Namespace, c.reader)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get app name for RadixDeployment %s: %w", rd.Name, err)
+			}
+			markInUse(appName)
 		}
 	}
 	return inUse, nil

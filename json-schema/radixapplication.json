@@ -98,8 +98,8 @@
                   "oauth2": {
                     "description": "Configuration for OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#oauth2",
                     "properties": {
-                      "allowedIdentities": {
-                        "description": "AllowedIdentities restricts access to users that are members of at least one of the groups.\nThe groups are read from the groups claim of the ID token. All authenticated users get access when empty.\nGroup names must not contain commas.",
+                      "allowedGroups": {
+                        "description": "AllowedGroups restricts access to users that are members of at least one of the groups.\nThe groups are read from the configured group claim of the ID token. All authenticated users get access when empty.\nGroup names must not contain commas.",
                         "items": {
                           "type": "string"
                         },
@@ -155,6 +155,10 @@
                           "azureWorkloadIdentity",
                           ""
                         ],
+                        "type": "string"
+                      },
+                      "groupClaim": {
+                        "description": "GroupClaim is the name of the ID token claim containing the user's groups. Defaults to \"groups\" in oauth2-proxy.",
                         "type": "string"
                       },
                       "loginUrl": {
@@ -282,8 +286,8 @@
                         "oauth2": {
                           "description": "Configuration for OAuth2 authentication.\nMore info: https://www.radix.equinor.com/radix-config#oauth2",
                           "properties": {
-                            "allowedIdentities": {
-                              "description": "AllowedIdentities restricts access to users that are members of at least one of the groups.\nThe groups are read from the groups claim of the ID token. All authenticated users get access when empty.\nGroup names must not contain commas.",
+                            "allowedGroups": {
+                              "description": "AllowedGroups restricts access to users that are members of at least one of the groups.\nThe groups are read from the configured group claim of the ID token. All authenticated users get access when empty.\nGroup names must not contain commas.",
                               "items": {
                                 "type": "string"
                               },
@@ -339,6 +343,10 @@
                                 "azureWorkloadIdentity",
                                 ""
                               ],
+                              "type": "string"
+                            },
+                            "groupClaim": {
+                              "description": "GroupClaim is the name of the ID token claim containing the user's groups. Defaults to \"groups\" in oauth2-proxy.",
                               "type": "string"
                             },
                             "loginUrl": {

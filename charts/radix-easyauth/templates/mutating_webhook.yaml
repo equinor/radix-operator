@@ -17,7 +17,7 @@ webhooks:
       path: /radix/v1/radixapplication/mutate
       port: 443
   failurePolicy: {{ .Values.webhook.failurePolicy }}
-  matchPolicy: Equivalent
+  matchPolicy: Exact
   name: radixapplication.mutate.easyauth.radix.equinor.com
   reinvocationPolicy: IfNeeded
   rules:
@@ -42,7 +42,7 @@ webhooks:
       path: /radix/v1/radixdeployment/mutate
       port: 443
   failurePolicy: {{ .Values.webhook.failurePolicy }}
-  matchPolicy: Equivalent
+  matchPolicy: Exact
   name: radixdeployment.mutate.easyauth.radix.equinor.com
   reinvocationPolicy: IfNeeded
   rules:
@@ -51,6 +51,7 @@ webhooks:
     apiVersions:
     - v1
     operations:
+     # If so change the logic of our defaulter to only apply annotation when created
     - CREATE
     resources:
     - radixdeployments

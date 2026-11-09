@@ -326,7 +326,7 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // allowed identities are removed from the EasyAuth config.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
 	desired := oauth.ForApp(r.oauth2Template, clientID, oauth.SplitIdentities(ra.GetAnnotations()[r.allowedIdentitiesAnnotation]))
-	if len(desired.AllowedIdentities) == 0 {
+	if len(desired.AllowedGroups) == 0 {
 		return fmt.Errorf("annotation %q must be set, since no default allowed identities are configured", r.allowedIdentitiesAnnotation)
 	}
 

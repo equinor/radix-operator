@@ -60,9 +60,9 @@ func TestValidate(t *testing.T) {
 			annotations:   map[string]string{annotation: "", allowedIdentitiesAnnotation: "group-a,,group-b"},
 			wantErr:       allowedIdentitiesAnnotation,
 		},
-		"allowed identities annotation without easyauth annotation should pass with warning": {
+		"allowed identities annotation without easyauth annotation should fail": {
 			annotations: map[string]string{allowedIdentitiesAnnotation: "group-a"},
-			wantWarning: true,
+			wantErr:     annotation,
 		},
 	}
 

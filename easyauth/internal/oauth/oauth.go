@@ -62,13 +62,13 @@ func NewTemplate(oauth2 radixv1.OAuth2, issuerURL string) *radixv1.OAuth2 {
 }
 
 // ForApp returns the EasyAuth OAuth2 configuration for public components of an application, from template (see
-// NewTemplate) and the client ID of the application. allowedIdentities replaces the default groups in template when
+// NewTemplate) and the client ID of the application. allowedGroups replaces the default groups in template when
 // it is not empty.
-func ForApp(template *radixv1.OAuth2, clientID string, allowedIdentities []string) *radixv1.OAuth2 {
+func ForApp(template *radixv1.OAuth2, clientID string, allowedGroups []string) *radixv1.OAuth2 {
 	oauth2 := template.DeepCopy()
 	oauth2.ClientID = clientID
-	if len(allowedIdentities) > 0 {
-		oauth2.AllowedIdentities = slices.Clone(allowedIdentities)
+	if len(allowedGroups) > 0 {
+		oauth2.AllowedGroups = slices.Clone(allowedGroups)
 	}
 	return oauth2
 }

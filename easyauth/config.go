@@ -12,15 +12,15 @@ type EasyAuthConfig struct {
 	// Enables EasyAuth on a RadixApplication. The value must be empty.
 	Annotation string `json:"annotation" required:"true"`
 	// Comma separated list of groups allowed to access the public components of a RadixApplication. Overrides
-	// OAuth2.AllowedIdentities, and is required when OAuth2.AllowedIdentities is empty.
+	// OAuth2.AllowedGroups, and is required when OAuth2.AllowedGroups is empty.
 	AllowedIdentitiesAnnotation string `json:"allowedIdentitiesAnnotation" required:"true" validate:"self != config.annotation"`
 	IssuerURL                   string `json:"issuerUrl" required:"true"`
 
 	// OAuth2 configuration set on all public components by the mutating webhook and the controller.
 	// clientId, credentials and oidc.issuerUrl are set by EasyAuth and must not be set here.
-	// allowedIdentities supplies default groups when AllowedIdentitiesAnnotation is missing or empty.
+	// allowedGroups supplies default groups when AllowedIdentitiesAnnotation is missing or empty.
 	// Groups must not be empty, contain commas or have leading or trailing spaces.
-	OAuth2 radixv1.OAuth2 `json:"oauth2" required:"true" validate:"self.clientId == '' && !has(self.credentials) && (!has(self.oidc) || !has(self.oidc.issuerUrl)) && (!has(self.allowedIdentities) || self.allowedIdentities.all(g, g.matches('^[^, ]([^,]*[^, ])?$')))"`
+	OAuth2 radixv1.OAuth2 `json:"oauth2" required:"true" validate:"self.clientId == '' && !has(self.credentials) && (!has(self.oidc) || !has(self.oidc.issuerUrl))"`
 
 	// Must match config.common of radix-operator in the same cluster, used to build the redirect URIs of public hosts
 	ClusterName     string `json:"clusterName" required:"true"`

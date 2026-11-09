@@ -1,4 +1,13 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+automountServiceAccountToken: false
 {{- if include "radix-easyauth.dex.kubernetesStorage" . }}
+---
 # Dex creates the CRDs it stores its data in on startup, if they are missing (crdHandling: ensure).
 # The CRDs are not removed when the chart is uninstalled.
 apiVersion: rbac.authorization.k8s.io/v1

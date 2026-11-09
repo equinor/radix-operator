@@ -469,7 +469,7 @@ type RadixComponent struct {
 	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
 	// More info: https://www.radix.equinor.com/radix-config#monitoringconfig
 	// +optional
-	MonitoringConfig MonitoringConfig `json:"monitoringConfig"`
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitzero"`
 
 	// Enabled or disables collection of custom Prometheus metrics.
 	// More info: https://www.radix.equinor.com/radix-config#monitoring
@@ -1724,11 +1724,15 @@ type OAuth2 struct {
 	// example: GET=^/healthz$
 	SkipAuthRoutes []string `json:"skipAuthRoutes,omitempty"`
 
-	// AllowedIdentities restricts access to users that are members of at least one of the groups.
-	// The groups are read from the groups claim of the ID token. All authenticated users get access when empty.
+	// AllowedGroups restricts access to users that are members of at least one of the groups.
+	// The groups are read from the configured group claim of the ID token. All authenticated users get access when empty.
 	// Group names must not contain commas.
 	// +optional
-	AllowedIdentities []string `json:"allowedIdentities,omitempty"`
+	AllowedGroups []string `json:"allowedGroups,omitempty" validate:"self.all(g, g.matches('^[^, ]([^,]*[^, ])?$'))"`
+
+	// GroupClaim is the name of the ID token claim containing the user's groups. Defaults to "groups" in oauth2-proxy.
+	// +optional
+	GroupClaim string `json:"groupClaim,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie.

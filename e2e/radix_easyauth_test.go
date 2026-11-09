@@ -35,7 +35,7 @@ const (
 	// Must match config.annotation and config.allowedIdentitiesAnnotation in charts/radix-easyauth/values.yaml
 	easyAuthAnnotation                  = "easyauth.radix.equinor.com"
 	easyAuthAllowedIdentitiesAnnotation = "easyauth.radix.equinor.com/allowed-identities"
-	// Must match config.oauth2.allowedIdentities in testdata/radix-easyauth-values.yaml
+	// Must match config.oauth2.allowedGroups in testdata/radix-easyauth-values.yaml
 	easyAuthDefaultGroup = "e2e-default-group"
 	// Must match the allowed identities annotation in testdata/gitserver/repos/equinor/easyauth-test.git
 	easyAuthTestAppGroup = "e2e-group"
@@ -185,9 +185,9 @@ func newEasyAuthTestRA(appName string, annotations map[string]string) *v1.RadixA
 
 // assertEasyAuthOAuth2 asserts that the public component "web" only has the easyauth OAuth2 config,
 // and that the private component "api" is unchanged
-func assertEasyAuthOAuth2(t *testing.T, ra *v1.RadixApplication, appID v1.ULID, allowedIdentities ...string) {
+func assertEasyAuthOAuth2(t *testing.T, ra *v1.RadixApplication, appID v1.ULID, allowedGroups ...string) {
 	t.Helper()
-	expected := expectedEasyAuthOAuth2(appID, allowedIdentities...)
+	expected := expectedEasyAuthOAuth2(appID, allowedGroups...)
 	web, api := ra.Spec.Components[0], ra.Spec.Components[1]
 	require.NotNil(t, web.Authentication)
 	assert.Equal(t, expected, web.Authentication.OAuth2)
@@ -198,14 +198,14 @@ func assertEasyAuthOAuth2(t *testing.T, ra *v1.RadixApplication, appID v1.ULID, 
 	assert.Nil(t, api.Authentication, "private components should not be changed")
 }
 
-// expectedEasyAuthOAuth2 returns the OAuth2 config radix-easyauth sets on public components. allowedIdentities defaults
+// expectedEasyAuthOAuth2 returns the OAuth2 config radix-easyauth sets on public components. allowedGroups defaults
 // to easyAuthDefaultGroup.
-func expectedEasyAuthOAuth2(appID v1.ULID, allowedIdentities ...string) *v1.OAuth2 {
-	if len(allowedIdentities) == 0 {
-		allowedIdentities = []string{easyAuthDefaultGroup}
+func expectedEasyAuthOAuth2(appID v1.ULID, allowedGroups ...string) *v1.OAuth2 {
+	if len(allowedGroups) == 0 {
+		allowedGroups = []string{easyAuthDefaultGroup}
 	}
 	return &v1.OAuth2{
-		AllowedIdentities:      allowedIdentities,
+		AllowedGroups:          allowedGroups,
 		ClientID:               "easyauth." + appID.String(),
 		Credentials:            v1.Secret,
 		Scope:                  "openid profile email groups offline_access",

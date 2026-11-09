@@ -108,22 +108,22 @@ func TestForApp_ReturnsCopy(t *testing.T) {
 	assert.True(t, *template.SetUserHeaders)
 }
 
-func TestForApp_AllowedIdentities(t *testing.T) {
+func TestForApp_AllowedGroups(t *testing.T) {
 	config := oauth2
-	config.AllowedIdentities = []string{"default-a", "default-b"}
+	config.AllowedGroups = []string{"default-a", "default-b"}
 	template := NewTemplate(config, issuerURL)
 
-	assert.Equal(t, []string{"default-a", "default-b"}, ForApp(template, ClientID(appID), nil).AllowedIdentities,
-		"default groups are used without allowed identities")
+	assert.Equal(t, []string{"default-a", "default-b"}, ForApp(template, ClientID(appID), nil).AllowedGroups,
+		"default groups are used without an annotation override")
 
 	groups := []string{"group-a", "group-b"}
 	result := ForApp(template, ClientID(appID), groups)
-	assert.Equal(t, []string{"group-a", "group-b"}, result.AllowedIdentities, "allowed identities replace the default groups")
+	assert.Equal(t, []string{"group-a", "group-b"}, result.AllowedGroups, "allowed groups replace the default groups")
 
-	result.AllowedIdentities[0] = "changed"
-	ForApp(template, ClientID(appID), nil).AllowedIdentities[0] = "changed"
+	result.AllowedGroups[0] = "changed"
+	ForApp(template, ClientID(appID), nil).AllowedGroups[0] = "changed"
 	assert.Equal(t, []string{"group-a", "group-b"}, groups, "allowed identities must not be changed")
-	assert.Equal(t, []string{"default-a", "default-b"}, template.AllowedIdentities, "template must not be changed")
+	assert.Equal(t, []string{"default-a", "default-b"}, template.AllowedGroups, "template must not be changed")
 }
 
 func TestSplitIdentities(t *testing.T) {

@@ -11,11 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/scheme"
 )
@@ -23,11 +26,12 @@ import (
 const annotation = "easyauth.radix.equinor.com"
 
 type app struct {
-	name      string
-	appID     ulid.ULID
-	annotated bool
-	noRA      bool
-	rds       []rd
+	name                     string
+	appID                    ulid.ULID
+	annotated                bool
+	noRA                     bool
+	missingNamespaceAppLabel bool
+	rds                      []rd
 }
 
 type rd struct {
@@ -40,11 +44,15 @@ func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
 	var objs []client.Object
 	for _, a := range apps {
 		objs = append(objs, &radixv1.RadixRegistration{Name: a.name, Spec: radixv1.RadixRegistrationSpec{AppID: radixv1.ULID{ULID: a.appID}}})
+		namespaceLabels := map[string]string{}
+		if !a.missingNamespaceAppLabel {
+			namespaceLabels[kube.RadixAppLabel] = a.name
+		}
+		objs = append(objs, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: a.name + "-dev", Labels: namespaceLabels}})
 		for _, d := range a.rds {
 			rd := &radixv1.RadixDeployment{
 				Name:      d.name,
 				Namespace: a.name + "-dev",
-				Spec:      radixv1.RadixDeploymentSpec{AppName: a.name}, //nolint:staticcheck
 				Status:    radixv1.RadixDeployStatus{Condition: d.condition},
 			}
 			if d.annotated {
@@ -128,6 +136,22 @@ func TestCleanup_KeepsClientsUsedByActiveRadixDeployments(t *testing.T) {
 	assert.NotNil(t, fakeDex.Client(oauth.ClientID(activeAnnotated.String())), "an active RadixDeployment with the annotation must keep the client")
 	assert.Nil(t, fakeDex.Client(oauth.ClientID(inactiveAnnotated.String())), "inactive RadixDeployments must not keep the client")
 	assert.Nil(t, fakeDex.Client(oauth.ClientID(activeNotAnnotated.String())))
+}
+
+func TestCleanup_FailsWhenActiveDeploymentNamespaceHasNoAppLabel(t *testing.T) {
+	appID := ulid.Make()
+	fakeDex := dextest.NewFakeDex(dexClient(oauth.ClientID(appID.String())))
+	c := newCleaner(fakeDex, app{
+		name:                     "active-app",
+		appID:                    appID,
+		missingNamespaceAppLabel: true,
+		rds:                      []rd{{name: "current", condition: radixv1.DeploymentActive, annotated: true}},
+	})
+
+	err := c.Cleanup(context.Background())
+	assert.ErrorContains(t, err, kube.RadixAppLabel)
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(appID.String())))
+	assert.Zero(t, fakeDex.Calls("DeleteClient"))
 }
 
 func TestCleanup_DeletesNothingWhenDexFails(t *testing.T) {

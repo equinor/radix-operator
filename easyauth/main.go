@@ -125,7 +125,7 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to create RadixDeployment mutating webhook")
 	}
 
-	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.AllowedIdentitiesAnnotation, cfg.OAuth2.AllowedIdentities, cfg.Enforced).SetupWithManager(mgr); err != nil {
+	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.AllowedIdentitiesAnnotation, cfg.OAuth2.AllowedGroups, cfg.Enforced).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create validating webhook")
 	}
 

@@ -25,7 +25,7 @@ type RadixApplicationDefaulter struct {
 // configuration from oauth2Template (see oauth.NewTemplate) on public components. reader reads the RadixRegistration
 // of the application, to get the AppID used in the client ID. It should read from the API server and not a cache,
 // since the RadixRegistration may have just been created. The OAuth2 configuration only allows the groups from
-// allowedIdentitiesAnnotation, or oauth2Template.AllowedIdentities by default. The validating webhook rejects
+// allowedIdentitiesAnnotation, or oauth2Template.AllowedGroups by default. The validating webhook rejects
 // RadixApplications without allowed groups.
 func NewRadixApplicationDefaulter(reader client.Reader, annotation, allowedIdentitiesAnnotation string, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
 	return &RadixApplicationDefaulter{reader: reader, annotation: annotation, allowedIdentitiesAnnotation: allowedIdentitiesAnnotation, oauth2Template: oauth2Template}

@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/rs/zerolog/log"
@@ -10,7 +11,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// GetAppNameFromNamespace returns the Radix application name from a namespace's radix-app label.
+func GetAppNameFromNamespace(ctx context.Context, namespace string, reader client.Reader) (string, error) {
+	ns := &corev1.Namespace{}
+	if err := reader.Get(ctx, client.ObjectKey{Name: namespace}, ns); err != nil {
+		return "", fmt.Errorf("failed to get namespace %s: %w", namespace, err)
+	}
+
+	appName := ns.Labels[RadixAppLabel]
+	if appName == "" {
+		return "", fmt.Errorf("namespace %s has no %s label", namespace, RadixAppLabel)
+	}
+	return appName, nil
+}
 
 func (kubeutil *Kube) CreateNamespace(ctx context.Context, namespace *corev1.Namespace) (*corev1.Namespace, error) {
 	created, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})

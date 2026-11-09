@@ -90,10 +90,10 @@ spec:
                             Configuration for OAuth2 authentication.
                             More info: https://www.radix.equinor.com/radix-config#oauth2
                           properties:
-                            allowedIdentities:
+                            allowedGroups:
                               description: |-
-                                AllowedIdentities restricts access to users that are members of at least one of the groups.
-                                The groups are read from the groups claim of the ID token. All authenticated users get access when empty.
+                                AllowedGroups restricts access to users that are members of at least one of the groups.
+                                The groups are read from the configured group claim of the ID token. All authenticated users get access when empty.
                                 Group names must not contain commas.
                               items:
                                 type: string
@@ -145,6 +145,11 @@ spec:
                               - secret
                               - azureWorkloadIdentity
                               - ""
+                              type: string
+                            groupClaim:
+                              description: GroupClaim is the name of the ID token
+                                claim containing the user's groups. Defaults to "groups"
+                                in oauth2-proxy.
                               type: string
                             loginUrl:
                               description: |-

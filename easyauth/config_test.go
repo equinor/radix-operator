@@ -36,7 +36,7 @@ func TestParse_HappyPath(t *testing.T) {
 		AllowedIdentitiesAnnotation: "easyauth.radix.equinor.com/allowed-identities",
 		IssuerURL:                   "https://simpleauth.dev.radix.equinor.com",
 		OAuth2: radixv1.OAuth2{
-			AllowedIdentities:      []string{"group-a", "group-b"},
+			AllowedGroups:          []string{"group-a", "group-b"},
 			Scope:                  "openid profile email groups offline_access",
 			SetAuthorizationHeader: new(false),
 			SetXAuthRequestHeaders: new(false),
@@ -102,29 +102,29 @@ func TestParse_Validation(t *testing.T) {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.AllowedIdentitiesAnnotation = cfg.Annotation },
 			expectedError: `field "AllowedIdentitiesAnnotation" did not pass validation expression`,
 		},
-		"no oauth2 allowedIdentities should pass": {
-			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = nil },
+		"no oauth2 allowedGroups should pass": {
+			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = nil },
 		},
-		"empty oauth2 allowedIdentities should pass": {
-			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = []string{} },
+		"empty oauth2 allowedGroups should pass": {
+			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = []string{} },
 		},
-		"oauth2 allowedIdentities with empty group should fail": {
-			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = []string{"group-a", ""} },
-			expectedError: `field "OAuth2" did not pass validation expression`,
+		"oauth2 allowedGroups with empty group should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = []string{"group-a", ""} },
+			expectedError: `field "OAuth2.AllowedGroups" did not pass validation expression`,
 		},
-		"oauth2 allowedIdentities with comma should fail": {
-			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = []string{"group-a,group-b"} },
-			expectedError: `field "OAuth2" did not pass validation expression`,
+		"oauth2 allowedGroups with comma should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = []string{"group-a,group-b"} },
+			expectedError: `field "OAuth2.AllowedGroups" did not pass validation expression`,
 		},
-		"oauth2 allowedIdentities with surrounding spaces should fail": {
-			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = []string{" group-a"} },
-			expectedError: `field "OAuth2" did not pass validation expression`,
+		"oauth2 allowedGroups with surrounding spaces should fail": {
+			mutate:        func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = []string{" group-a"} },
+			expectedError: `field "OAuth2.AllowedGroups" did not pass validation expression`,
 		},
-		"oauth2 allowedIdentities with inner spaces should pass": {
-			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = []string{"group a", "b"} },
+		"oauth2 allowedGroups with inner spaces should pass": {
+			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = []string{"group a", "b"} },
 		},
-		"oauth2 with allowedIdentities should pass": {
-			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedIdentities = []string{"any"} },
+		"oauth2 with allowedGroups should pass": {
+			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = []string{"any"} },
 		},
 		"missing issuerUrl should fail": {
 			mutate:        func(cfg *EasyAuthConfig) { cfg.IssuerURL = "" },

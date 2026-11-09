@@ -36,6 +36,7 @@ const (
 	oauth2ProxyEntraIdFederatedTokenAuthEnvironmentVariable = "OAUTH2_PROXY_ENTRA_ID_FEDERATED_TOKEN_AUTH"
 	oauth2ProxySkipAuthRoutesEnvironmentVariable            = "OAUTH2_PROXY_SKIP_AUTH_ROUTES"
 	oauth2ProxyAllowedGroupsEnvironmentVariable             = "OAUTH2_PROXY_ALLOWED_GROUPS"
+	oauth2ProxyOIDCGroupsClaimEnvironmentVariable           = "OAUTH2_PROXY_OIDC_GROUPS_CLAIM"
 	oauthProxyRedisConnectionUrlEnvironmentVariable         = "OAUTH2_PROXY_REDIS_CONNECTION_URL"
 	ProxyContainerName                                      = "proxy"
 )
@@ -692,8 +693,9 @@ func (o *oauthProxyResourceManager) getEnvVars(component radixv1.RadixCommonDepl
 		addEnvVarIfSet(oauth2ProxySkipAuthRoutesEnvironmentVariable, strings.Join(oauth.SkipAuthRoutes, ","))
 	}
 
-	if len(oauth.AllowedIdentities) > 0 {
-		addEnvVarIfSet(oauth2ProxyAllowedGroupsEnvironmentVariable, strings.Join(oauth.AllowedIdentities, ","))
+	addEnvVarIfSet(oauth2ProxyOIDCGroupsClaimEnvironmentVariable, oauth.GroupClaim)
+	if len(oauth.AllowedGroups) > 0 {
+		addEnvVarIfSet(oauth2ProxyAllowedGroupsEnvironmentVariable, strings.Join(oauth.AllowedGroups, ","))
 	}
 
 	if v, ok := component.GetEnvironmentVariables()[defaults.RadixRestartEnvironmentVariable]; ok {

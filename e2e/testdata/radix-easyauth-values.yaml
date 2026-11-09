@@ -14,7 +14,7 @@ config:
   appAliasBaseURL: app.example.com
   oauth2:
     # Must match easyAuthDefaultGroup in radix_easyauth_test.go
-    allowedIdentities:
+    allowedGroups:
       - e2e-default-group
 
 # Dex uses the throwaway Postgres from testdata/dex-postgres.yaml

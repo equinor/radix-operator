@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+
 	admissionv1 "k8s.io/api/admission/v1"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -43,14 +44,13 @@ func (d *RadixDeploymentDefaulter) Default(ctx context.Context, obj *radixv1.Rad
 		return nil
 	}
 
-	appName := obj.Spec.AppName //nolint:staticcheck
-	if appName == "" {
-		return fmt.Errorf("RadixDeployment %s/%s has no app name", obj.Namespace, obj.Name)
+	appName, err := kube.GetAppNameFromNamespace(ctx, obj.Namespace, d.reader)
+	if err != nil {
+		return fmt.Errorf("failed to get app name for RadixDeployment %s/%s: %w", obj.Namespace, obj.Name, err)
 	}
 
 	ra := &radixv1.RadixApplication{Name: appName, Namespace: utils.GetAppNamespace(appName)}
-	err := d.reader.Get(ctx, client.ObjectKeyFromObject(ra), ra)
-	if err != nil && !kubeerrors.IsNotFound(err) {
+	if err := d.reader.Get(ctx, client.ObjectKeyFromObject(ra), ra); client.IgnoreNotFound(err) != nil {
 		return fmt.Errorf("failed to get RadixApplication %s: %w", appName, err)
 	}
 

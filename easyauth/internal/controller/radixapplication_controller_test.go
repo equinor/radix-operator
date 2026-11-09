@@ -53,7 +53,7 @@ const (
 
 const allowedIdentitiesAnnotation = "easyauth.radix.equinor.com/allowed-identities"
 
-var oauth2Template = oauth.NewTemplate(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true), AllowedIdentities: []string{defaultGroup}}, issuerURL)
+var oauth2Template = oauth.NewTemplate(radixv1.OAuth2{Scope: "openid profile email", SetUserHeaders: new(true), AllowedGroups: []string{defaultGroup}}, issuerURL)
 
 const rotationInterval = 90 * 24 * time.Hour
 
@@ -235,7 +235,7 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 
 func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
-	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/", AllowedIdentities: []string{defaultGroup}}, issuerURL)
+	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/", AllowedGroups: []string{defaultGroup}}, issuerURL)
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
 		annotation, allowedIdentitiesAnnotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
@@ -724,7 +724,7 @@ func TestReconcile_AllowedIdentitiesAnnotationOverridesDefaultGroups(t *testing.
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"group-a", "group-b"}, getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2.AllowedIdentities)
+	assert.Equal(t, []string{"group-a", "group-b"}, getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2.AllowedGroups)
 }
 
 func TestReconcile_WithoutAllowedGroupsKeepsRadixDeploymentsAndSyncsDex(t *testing.T) {
@@ -737,7 +737,7 @@ func TestReconcile_WithoutAllowedGroupsKeepsRadixDeploymentsAndSyncsDex(t *testi
 		})),
 	).Build()
 	noDefaults := oauth2Template.DeepCopy()
-	noDefaults.AllowedIdentities = nil
+	noDefaults.AllowedGroups = nil
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
 		annotation, allowedIdentitiesAnnotation, noDefaults, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 

@@ -4,7 +4,7 @@ metadata:
   name: easyauth-test
   annotations:
     easyauth.radix.equinor.com: ""
-    # Overrides config.oauth2.allowedIdentities in testdata/radix-easyauth-values.yaml
+    # Overrides config.oauth2.allowedGroups in testdata/radix-easyauth-values.yaml
     easyauth.radix.equinor.com/allowed-identities: e2e-group
 spec:
   environments:

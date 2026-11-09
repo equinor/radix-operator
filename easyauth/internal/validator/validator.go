@@ -20,18 +20,18 @@ const Path = "/radix/v1/radixapplication/validate"
 type RadixApplicationValidator struct {
 	annotation                  string
 	allowedIdentitiesAnnotation string
-	defaultAllowedIdentities    []string
+	defaultAllowedGroups        []string
 	enforced                    bool
 }
 
 // NewRadixApplicationValidator returns a validator that requires annotation to be empty, and rejects RadixApplications
-// with annotation that have no allowed groups in allowedIdentitiesAnnotation or defaultAllowedIdentities, or invalid
+// with annotation that have no allowed groups in allowedIdentitiesAnnotation or defaultAllowedGroups, or invalid
 // groups in allowedIdentitiesAnnotation. RadixApplications without annotation are rejected when enforced is true.
-func NewRadixApplicationValidator(annotation, allowedIdentitiesAnnotation string, defaultAllowedIdentities []string, enforced bool) *RadixApplicationValidator {
+func NewRadixApplicationValidator(annotation, allowedIdentitiesAnnotation string, defaultAllowedGroups []string, enforced bool) *RadixApplicationValidator {
 	return &RadixApplicationValidator{
 		annotation:                  annotation,
 		allowedIdentitiesAnnotation: allowedIdentitiesAnnotation,
-		defaultAllowedIdentities:    defaultAllowedIdentities,
+		defaultAllowedGroups:        defaultAllowedGroups,
 		enforced:                    enforced,
 	}
 }
@@ -65,7 +65,7 @@ func (v *RadixApplicationValidator) validate(obj *radixv1.RadixApplication) (adm
 			return nil, fmt.Errorf("RadixApplication %s must have the annotation %q", obj.Name, v.annotation)
 		}
 		if _, ok := annotations[v.allowedIdentitiesAnnotation]; ok {
-			return admission.Warnings{fmt.Sprintf("annotation %q is ignored without the annotation %q", v.allowedIdentitiesAnnotation, v.annotation)}, nil
+			return nil, fmt.Errorf("RadixApplication %s annotation %q requires annotation %q", obj.Name, v.allowedIdentitiesAnnotation, v.annotation)
 		}
 		return nil, nil
 	}
@@ -76,7 +76,7 @@ func (v *RadixApplicationValidator) validate(obj *radixv1.RadixApplication) (adm
 
 	groups := oauth.SplitIdentities(annotations[v.allowedIdentitiesAnnotation])
 	if len(groups) == 0 {
-		groups = v.defaultAllowedIdentities
+		groups = v.defaultAllowedGroups
 	}
 	if len(groups) == 0 {
 		return nil, fmt.Errorf("RadixApplication %s must have the annotation %q, since no default allowed identities are configured", obj.Name, v.allowedIdentitiesAnnotation)
