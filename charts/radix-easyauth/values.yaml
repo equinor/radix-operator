@@ -156,6 +156,9 @@ dex:
       # json or text
       format: json
 
+    oauth2:
+      skipApprovalScreen: true
+
   # Additional environment variables, for example storage passwords or connector client secrets referenced from config
   extraEnv: []
   # - name: DEX_POSTGRES_PASSWORD

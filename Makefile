@@ -96,11 +96,9 @@ build-operator:
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile . --no-cache
 
 .PHONY: deploy-operator
-deploy-operator: build-operator
+deploy-operator:
 	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
-	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
-	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
-	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile --push . --no-cache
 
 .PHONY: build-webhook
 build-webhook:
@@ -110,6 +108,11 @@ build-webhook:
 deploy-webhook:
 	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-webhook:$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(TAG) --platform linux/arm64,linux/amd64 -f webhook.Dockerfile --push .
+
+.PHONY: deploy-easyauth
+deploy-easyauth:
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-easyauth:$(VERSION) -t $(DOCKER_REGISTRY)/radix-easyauth:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-easyauth:$(TAG) --platform linux/arm64,linux/amd64 -f easyauth.Dockerfile --push .
 
 .PHONY: build-api-server
 build-api-server:
