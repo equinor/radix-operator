@@ -2,7 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.133.2](https://github.com/equinor/radix-operator/compare/v1.133.1..v1.133.2) - 2026-11-05
+## [1.133.3](https://github.com/equinor/radix-operator/compare/v1.133.2..v1.133.3) - 2026-11-10
+
+### 🐛 Bug Fixes
+
+- Update go-jose and mockoidc dependencies to latest versions (#2055) - ([84156be](https://github.com/equinor/radix-operator/commit/84156beece576d5b0e0a471219fe90f6e8d4f854)) by @ingeknudsen in [#2055](https://github.com/equinor/radix-operator/pull/2055)
+
+
+## [1.133.2](https://github.com/equinor/radix-operator/compare/v1.133.1..v1.133.2) - 2026-11-06
 
 ### 🐛 Bug Fixes
 
