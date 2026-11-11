@@ -290,20 +290,16 @@ flowchart TD
     start([RadixApplication event,<br/>RadixDeployment / OAuth2 proxy Secret event,<br/>or requeue]) --> annotated{Has EasyAuth<br/>annotation?}
     annotated -- No --> ignore([Ignore])
     annotated -- Yes --> appID[Read AppID from RadixRegistration<br/>client ID = easyauth.&lt;appID&gt;]
-    appID -- Missing --> fail([Return error, retry with backoff])
-    appID --> syncRD[Set EasyAuth OAuth2 config on public components<br/>of all RadixDeployments, active and inactive]
+    appID --> syncRD[Set EasyAuth OAuth2 config on public components<br/>of the active RadixDeployments]
     syncRD --> activeRD[Read active RadixDeployment<br/>of each environment]
     activeRD --> desired[Build desired client:<br/>name + redirect URIs<br/>https://&lt;host&gt;&lt;proxyPrefix&gt;/callback]
     desired --> get{GetClient}
     get -- Not found --> create[CreateClient with new secret]
-    create -- AlreadyExists --> reread[GetClient again]
-    create -- Created --> rotate
-    reread --> rotate
-    get -- Error --> fail
-    get -- Found --> rotate{Secret older than<br/>secretRotationInterval?}
-    rotate -- Yes --> recreate[DeleteClient + CreateClient<br/>new secret, merged redirect URIs]
-    rotate -- No --> changed{Redirect URIs missing<br/>or name differs?}
-    changed -- Yes --> update[UpdateClient<br/>merged redirect URIs, keep secret]
+    create --> rotate
+    get -- Found --> rotate{Secret older than<br/>secretRotationInterval<br/>or without creation time?}
+    rotate -- Yes --> recreate[DeleteClient + CreateClient<br/>new secret, desired name and redirect URIs]
+    rotate -- No --> changed{Name or redirect URIs<br/>differ from desired?}
+    changed -- Yes --> update[UpdateClient<br/>desired name and redirect URIs, keep secret]
     changed -- No --> secrets
     update --> secrets
     recreate --> secrets[Write client secret to OAuth2 proxy Secret<br/>of public components of the active RadixDeployments]
@@ -328,15 +324,18 @@ For each `RadixApplication` with the annotation, the controller:
    external DNS hosts of each public component, and the `dnsAlias` entries of the `RadixApplication` for the
    component and environment. Since the hosts don't depend on the HTTPRoutes, redirect URIs are in Dex before the
    routes are ready.
-3. Calls `GetClient`:
-   - Not found: generates a secret and calls `CreateClient`. If the client was created concurrently, for example by
-     another cluster, it is read again with `GetClient`. Dex returns a missing client as gRPC `Unknown` with the
-     message `not found`, which is handled the same as `NotFound`.
-   - Found: calls `UpdateClient` if redirect URIs are missing or the name differs, and keeps the existing secret.
-    Redirect URIs are replaced with hosts from every active RadixDeployment, including orphaned environments, plus
-    aliases from the latest RadixApplication. If the secret is due for rotation, the client is rotated instead, see
-    [Secret rotation](#secret-rotation).
-   - Other errors: nothing is created, and the reconcile is retried.
+3. Ensures the client with `EnsureClient` of the Dex client manager (`internal/dex`):
+   1. Calls `GetClient`. If the client doesn't exist, generates a secret and calls `CreateClient` with the desired
+      name and redirect URIs. Dex returns a missing client as gRPC `Unknown` with the message `not found`, which is
+      handled the same as `NotFound`. Any other error, including `AlreadyExists` when the client was created
+      concurrently, fails the reconcile, and the next reconcile reads the client with `GetClient`.
+   2. If the secret is due for rotation, or has no creation time, the client is deleted and created again with a new
+      secret, see [Secret rotation](#secret-rotation).
+   3. Otherwise, calls `UpdateClient` if the name or redirect URIs differ from the desired client, and keeps the
+      existing secret. The redirect URIs are replaced, not merged, with the hosts of every active `RadixDeployment`,
+      including orphaned environments, and the aliases of the latest `RadixApplication`. If the client was deleted
+      during the update, the reconcile fails.
+   4. Returns the secret and when it must be rotated.
 4. Writes the client secret from Dex to the OAuth2 client secret of each public component of the active
    `RadixDeployment`, so the OAuth2 proxy can authenticate against Dex.
 5. Requeues periodically to correct drift, or at the secret rotation time if that is sooner, and retries with
