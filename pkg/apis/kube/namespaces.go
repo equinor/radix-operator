@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-common/utils/slice"
@@ -14,6 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ErrNamespaceHasNoAppLabel is returned by GetAppNameFromNamespace for a namespace that doesn't belong to an application
+var ErrNamespaceHasNoAppLabel = errors.New("namespace has no " + RadixAppLabel + " label")
+
 // GetAppNameFromNamespace returns the Radix application name from a namespace's radix-app label.
 func GetAppNameFromNamespace(ctx context.Context, namespace string, reader client.Reader) (string, error) {
 	ns := &corev1.Namespace{}
@@ -23,7 +27,7 @@ func GetAppNameFromNamespace(ctx context.Context, namespace string, reader clien
 
 	appName := ns.Labels[RadixAppLabel]
 	if appName == "" {
-		return "", fmt.Errorf("namespace %s has no %s label", namespace, RadixAppLabel)
+		return "", fmt.Errorf("%w: %s", ErrNamespaceHasNoAppLabel, namespace)
 	}
 	return appName, nil
 }

@@ -102,11 +102,12 @@ application from the API server, not a cache, since it may have just been create
 ## RadixDeployment mutating webhook
 
 Runs on create of `RadixDeployments` ([`RadixDeploymentDefaulter`](internal/defaulter/radixdeployment.go)). It reads
-the `RadixApplication` of the app (`spec.appname`) from the API server, not a cache, since
+the `RadixApplication` of the app (the `radix-app` label of the namespace) from the API server, not a cache, since
 the pipeline may have just applied it, and:
 
 - Sets the annotation on the `RadixDeployment`, with the same value, if the `RadixApplication` has it.
-- Removes the annotation from the `RadixDeployment` if the `RadixApplication` doesn't have it, or doesn't exist.
+- Removes the annotation from the `RadixDeployment` if the `RadixApplication` doesn't have it, or doesn't exist, or
+  the namespace has no `radix-app` label.
   This also removes an annotation copied from another `RadixDeployment`, for example when promoting.
 
 Updates are not changed, so the annotation tells whether EasyAuth was enabled when the `RadixDeployment` was
@@ -502,8 +503,8 @@ Dex is configured with the `dex` section:
   kind cluster, and waits for Dex to be ready. The issuer is the in-cluster Dex Service, and Dex has a static
   password user. The pipeline test logs in as that user through port forwards to the OAuth2 proxy and Dex pods, and
   verifies that the web component is reached. It also verifies that unauthenticated requests, forged session cookies,
-  wrong passwords, unknown users and cancelled approvals are rejected. Dex always shows the approval screen, since
-  the OAuth2 proxy sends `approval_prompt=force`, which overrides `oauth2.skipApprovalScreen` in Dex.
+  wrong passwords, unknown users and users outside the allowed groups are rejected. Dex skips the approval screen,
+  since `dex.config.oauth2.skipApprovalScreen` is `true` and the OAuth2 proxy sends `approval_prompt=auto`.
   The promote test deploys twice without the annotation (`radixconfig-before-easyauth.yaml`), activates EasyAuth by
   pointing the `RadixRegistration` to `radixconfig.yaml`, and promotes the old inactive `RadixDeployment`. It verifies
   that the promoted `RadixDeployment` gets the EasyAuth OAuth2 config, and that the inactive one is not changed.

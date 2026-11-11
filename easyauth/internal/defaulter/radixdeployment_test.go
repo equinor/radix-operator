@@ -98,6 +98,14 @@ func TestRadixDeploymentDefault_FailsWithoutAppName(t *testing.T) {
 	assert.Error(t, d.Default(requestContext(admissionv1.Create), rd))
 }
 
+func TestRadixDeploymentDefault_RemovesAnnotationInNamespaceWithoutApp(t *testing.T) {
+	rd := newRD("my-app", map[string]string{annotation: "", "other": "keep"})
+
+	d := newRDDefaulter(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: rd.Namespace}})
+	require.NoError(t, d.Default(requestContext(admissionv1.Create), rd))
+	assert.Equal(t, map[string]string{"other": "keep"}, rd.Annotations)
+}
+
 func TestRadixDeploymentDefault_IgnoresUpdate(t *testing.T) {
 	tests := map[string]struct {
 		ra *radixv1.RadixApplication

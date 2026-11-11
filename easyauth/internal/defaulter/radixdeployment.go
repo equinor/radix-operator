@@ -2,6 +2,7 @@ package defaulter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -45,6 +46,10 @@ func (d *RadixDeploymentDefaulter) Default(ctx context.Context, obj *radixv1.Rad
 	}
 
 	appName, err := kube.GetAppNameFromNamespace(ctx, obj.Namespace, d.reader)
+	if errors.Is(err, kube.ErrNamespaceHasNoAppLabel) {
+		delete(obj.Annotations, d.annotation)
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to get app name for RadixDeployment %s/%s: %w", obj.Namespace, obj.Name, err)
 	}

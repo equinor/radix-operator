@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -345,7 +344,6 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 		loginURL := browser.openLoginForm(t, client)
 
 		resp, body := browser.submitLogin(t, client, loginURL, easyAuthTestUser, easyAuthTestPassword)
-		resp, body = browser.submitApproval(t, client, resp, body, "approve")
 		require.Equal(t, http.StatusOK, resp.StatusCode, "login should succeed, body: %s", body)
 		assert.Equal(t, browser.webURL.Host, resp.Request.URL.Host, "login should redirect back to the web component")
 		assert.Contains(t, body, easyAuthWebContent)
@@ -361,7 +359,6 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 		loginURL := browser.openLoginForm(t, client)
 
 		resp, body := browser.submitLogin(t, client, loginURL, easyAuthOtherTestUser, easyAuthTestPassword)
-		resp, body = browser.submitApproval(t, client, resp, body, "approve")
 		assert.Equal(t, http.StatusForbidden, resp.StatusCode, "body: %s", body)
 		assert.NotContains(t, body, easyAuthWebContent)
 
@@ -405,23 +402,6 @@ func TestRadixEasyAuthPipeline(t *testing.T) {
 		resp, body := browser.submitLogin(t, client, loginURL, "unknown@example.com", easyAuthTestPassword)
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "body: %s", body)
 		assert.Equal(t, browser.issuerURL.Host, resp.Request.URL.Host, "Dex should not redirect back to the web component")
-		assert.NotContains(t, body, easyAuthWebContent)
-	})
-
-	t.Run("cancelled approval is rejected by Dex", func(t *testing.T) {
-		client := browser.newClient(t)
-		loginURL := browser.openLoginForm(t, client)
-
-		// Dex shows an error page instead of redirecting back to the OAuth2 proxy
-		resp, body := browser.submitLogin(t, client, loginURL, easyAuthTestUser, easyAuthTestPassword)
-		resp, body = browser.submitApproval(t, client, resp, body, "rejected")
-		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode, "body: %s", body)
-		assert.Equal(t, browser.issuerURL.Host, resp.Request.URL.Host, "Dex should not redirect back to the web component")
-		assert.Contains(t, body, "Approval rejected.")
-		assert.NotContains(t, body, easyAuthWebContent)
-
-		resp, body = browser.get(t, withoutRedirects(client), browser.webURL)
-		browser.assertRedirectedToDex(t, resp)
 		assert.NotContains(t, body, easyAuthWebContent)
 	})
 
@@ -646,22 +626,6 @@ func (b *easyAuthBrowser) submitLogin(t *testing.T, c *http.Client, loginURL *ur
 	require.NoError(t, err)
 	return resp, readBody(t, resp)
 }
-
-// submitApproval posts the Dex approval form shown in resp and body with approval ("approve" or "rejected"),
-// follows the redirects and returns the last response. Dex always asks for approval, since the OAuth2 proxy sends
-// approval_prompt=force, which overrides the skipApprovalScreen setting in Dex.
-func (b *easyAuthBrowser) submitApproval(t *testing.T, c *http.Client, resp *http.Response, body, approval string) (*http.Response, string) {
-	t.Helper()
-	require.Equal(t, http.StatusOK, resp.StatusCode, "Dex should show the approval form, body: %s", body)
-	require.Equal(t, b.issuerURL.Host, resp.Request.URL.Host, "Dex should show the approval form, body: %s", body)
-	match := dexApprovalReqPattern.FindStringSubmatch(body)
-	require.NotNil(t, match, "Dex approval form should contain the auth request ID, body: %s", body)
-	resp, err := c.PostForm(resp.Request.URL.String(), url.Values{"req": {match[1]}, "approval": {approval}})
-	require.NoError(t, err)
-	return resp, readBody(t, resp)
-}
-
-var dexApprovalReqPattern = regexp.MustCompile(`name="req" value="([^"]+)"`)
 
 func (b *easyAuthBrowser) get(t *testing.T, c *http.Client, u *url.URL) (*http.Response, string) {
 	t.Helper()
