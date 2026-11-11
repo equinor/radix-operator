@@ -5,6 +5,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+    {{- with .Values.dex.serviceAccount.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.dex.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 automountServiceAccountToken: false
 {{- if include "radix-easyauth.dex.kubernetesStorage" . }}
 ---

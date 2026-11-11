@@ -25,7 +25,7 @@ spec:
     spec:
       serviceAccountName: {{ include "radix-easyauth.dex.fullname" . }}
       # Kubernetes storage uses the service account token to read and write its custom resources
-      automountServiceAccountToken: {{ eq (include "radix-easyauth.dex.kubernetesStorage" .) "true" }}
+      automountServiceAccountToken: {{ or .Values.dex.automountServiceAccountToken (eq (include "radix-easyauth.dex.kubernetesStorage" .) "true") }}
       {{- with .Values.dex.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

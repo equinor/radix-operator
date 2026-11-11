@@ -231,6 +231,10 @@ The chart always installs Dex, since EasyAuth stores OAuth2 clients in it:
   Dex gRPC address are added to the EasyAuth config as `dex.certsDir` and `dex.grpcAddress`.
 - **Image entrypoint:** the container runs the `dex` binary directly instead of the image entrypoint, which
   renders the config with gomplate into `/tmp` and doesn't work with a read-only root filesystem.
+- **Azure Workload Identity:** set `azure.workload.identity/client-id` in `dex.serviceAccount.annotations` and
+  `azure.workload.identity/use: "true"` in `dex.podLabels`. The Workload Identity webhook projects its own token,
+  so `dex.automountServiceAccountToken` can stay `false`, but it can be set to `true` if the Kubernetes API token
+  is needed.
 
 ## Dex integration
 

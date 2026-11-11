@@ -129,7 +129,7 @@ dex:
 
   image:
     repository: ghcr.io/dexidp/dex
-    tag: v2.46.0
+    tag: latest
     pullPolicy: IfNotPresent
 
   # Dex configuration, merged with these defaults. See https://github.com/dexidp/dex/blob/master/examples/config-dev.yaml
@@ -190,6 +190,16 @@ dex:
   # Restricts the gRPC API to the EasyAuth pods. The HTTP and telemetry ports are open to all.
   networkPolicy:
     enabled: true
+
+  # Mounts the service account token in the Dex pods. Always true with Kubernetes storage.
+  # Not required by Azure Workload Identity, which projects its own token.
+  automountServiceAccountToken: false
+
+  serviceAccount:
+    # For Azure Workload Identity, set azure.workload.identity/client-id and add the label
+    # azure.workload.identity/use: "true" to dex.podLabels
+    annotations: {}
+    labels: {}
 
   certificate:
     # Duration and renewal window for the gRPC server and EasyAuth client certificates
