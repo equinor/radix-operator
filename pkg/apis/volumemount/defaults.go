@@ -6,8 +6,8 @@ const (
 	// CsiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
 	CsiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
 
-	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<randomstring5>
-	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-<guid>
+	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<hash>
+	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-radixvolumemount-<hash>
 	csiVolumeAttributeStorageAccount     = "storageAccount"
 	csiVolumeAttributeClientID           = "clientID"
 	csiVolumeAttributeResourceGroup      = "resourcegroup"
@@ -23,6 +23,10 @@ const (
 	csiVolumeMountAttributeProvisionerIdentity = "storage.kubernetes.io/csiProvisionerIdentity"
 
 	nameRandPartLength = 5 // The length of a trailing random part in names
+
+	// legacyMountTypeAzureBlob is the mount type label value of credential secrets for the removed azure-blob volume mount type.
+	// Secrets with this label can still exist, and must be garbage collected.
+	legacyMountTypeAzureBlob = "azure-blob"
 
 	provisionerBlobCsiAzure string = "blob.csi.azure.com" // Use of azure/csi driver for blob in Azure storage account
 )

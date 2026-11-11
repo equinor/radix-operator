@@ -14,7 +14,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -78,7 +77,32 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return nil
 	}
 
-	return s.syncStatus(ctx, s.reconcile(ctx))
+	wasCompleted := s.isBatchDone()
+	err := s.syncStatus(ctx, s.reconcile(ctx))
+	if !wasCompleted && s.isBatchDone() {
+		s.garbageCollectVolumes(ctx)
+	}
+	return err
+}
+
+// garbageCollectVolumes releases storage that is no longer needed when the batch is completed.
+// It uses the active RadixDeployment of the namespace, and is skipped if there is none.
+// Errors are logged, and do not fail the sync, since garbage collection also runs when RadixDeployments sync.
+func (s *syncer) garbageCollectVolumes(ctx context.Context) {
+	logger := log.Ctx(ctx)
+	rds, err := s.kubeUtil.ListRadixDeployments(ctx, s.radixBatch.GetNamespace())
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to list RadixDeployments for garbage collection of volumes")
+		return
+	}
+	activeRd, ok := slice.FindFirst(rds, func(rd *radixv1.RadixDeployment) bool { return rd.Status.Condition == radixv1.DeploymentActive })
+	if !ok {
+		logger.Debug().Msg("Skip garbage collection of volumes, no active RadixDeployment")
+		return
+	}
+	if err := volumemount.GarbageCollectVolumes(ctx, s.kubeUtil, activeRd, s.clock.Now(), s.config.Operator.VolumeGarbageCollectionGracePeriod); err != nil {
+		logger.Error().Err(err).Msg("Failed to garbage collect volumes")
+	}
 }
 
 func (s *syncer) reconcile(ctx context.Context) error {
@@ -98,16 +122,18 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		return err
 	}
 
-	actualVolumesGetter := sync.OnceValues(func() ([]corev1.Volume, error) {
-		existingVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
+	// Volumes are ensured at most once per reconcile, and only when a Kubernetes Job is going to be created.
+	// The RadixDeployment referenced by the batch may be an older, inactive RadixDeployment; its jobs get the storage defined in it.
+	jobVolumesGetter := sync.OnceValues(func() (*jobVolumes, error) {
+		auxVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
 		if err != nil {
 			return nil, err
 		}
-		desiredVolumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, jobComponent, rd.Name, existingVolumes)
+		volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, rd, jobComponent, auxVolumes)
 		if err != nil {
 			return nil, err
 		}
-		return volumemount.CreateOrUpdatePVCVolumeResourcesForDeployComponent(ctx, s.kubeUtil.KubeClient(), rd, jobComponent, desiredVolumes)
+		return &jobVolumes{volumes: volumes, volumeMounts: volumeMounts}, nil
 	})
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
@@ -115,7 +141,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, actualVolumesGetter); err != nil {
+		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, jobVolumesGetter); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 

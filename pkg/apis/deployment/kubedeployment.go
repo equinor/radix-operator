@@ -38,13 +38,9 @@ func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployCo
 			return err
 		}
 	}
-	actualVolumes, err := volumemount.CreateOrUpdatePVCVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
-	if err != nil {
-		return err
-	}
-	desiredDeployment.Spec.Template.Spec.Volumes = actualVolumes
+	desiredVolumes := desiredDeployment.Spec.Template.Spec.Volumes
 	desiredVolumeMounts := desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
+	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment, desiredVolumes, desiredVolumeMounts); err != nil {
 		return err
 	}
 	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment)
@@ -306,11 +302,11 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent)
 
-	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
+	currentVolumes, err := deploy.getDeployComponentCurrentVolumes(ctx, deployComponent, desiredDeployment)
 	if err != nil {
 		return err
 	}
-	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
+	volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment, deployComponent, currentVolumes)
 	if err != nil {
 		return err
 	}
@@ -337,10 +333,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = deployComponent.GetCommand()
 	desiredDeployment.Spec.Template.Spec.Containers[0].Args = deployComponent.GetArgs()
 
-	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
-	if err != nil {
-		return err
-	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 	if hc := deployComponent.GetHealthChecks(); hc != nil {
@@ -363,7 +355,9 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	return nil
 }
 
-func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
+// getDeployComponentCurrentVolumes returns the volumes currently used by the workload of the component.
+// They are used as a hint to keep the current claims, when they match the desired spec.
+func (deploy *Deployment) getDeployComponentCurrentVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
 	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
 		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent.GetName())
 		if err != nil {

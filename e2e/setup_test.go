@@ -135,6 +135,11 @@ func TestMain(m *testing.M) {
 		return internal.BuildGitServerImage(testContext, imageTag)
 	})
 
+	// Build the fake Azure Blob CSI node plugin used to mount BlobFuse2 volumes.
+	eg.Go(func() error {
+		return internal.BuildFakeBlobCSIImage(testContext, imageTag)
+	})
+
 	// Wait for both to complete
 	err = eg.Wait()
 	if err != nil {
@@ -157,6 +162,9 @@ func TestMain(m *testing.M) {
 	}
 	if err = testCluster.LoadImage(testContext, internal.GitServerImageName, imageTag); err != nil {
 		log.Fatal().Err(err).Msg("failed to load git server image")
+	}
+	if err = testCluster.LoadImage(testContext, internal.FakeBlobCSIImageName, imageTag); err != nil {
+		log.Fatal().Err(err).Msg("failed to load fake blob CSI image")
 	}
 
 	// Create scheme with all required types
@@ -203,6 +211,12 @@ func TestMain(m *testing.M) {
 	}
 	if err := internal.ConfigureCoreDNSGithubRewrite(testContext, cleanupClient); err != nil {
 		log.Fatal().Err(err).Msg("failed to configure CoreDNS github rewrite")
+	}
+
+	// Deploy a fake Azure Blob CSI node plugin, so Pods can mount the PersistentVolumes the operator creates for BlobFuse2 volume mounts.
+	log.Info().Msgf("Deploying fake blob CSI driver...")
+	if err := internal.DeployFakeBlobCSIDriver(testContext, cleanupClient, imageTag); err != nil {
+		log.Fatal().Err(err).Msg("failed to deploy fake blob CSI driver")
 	}
 
 	// Create manager
