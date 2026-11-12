@@ -233,6 +233,7 @@ EASYAUTH-HELM-ARGS:= \
 EASYAUTH-K8S-STORAGE-HELM-ARGS:= \
 	--set config.clusterName=mycluster \
 	--set config.dnsZone=radix.example.com \
+	--set config.issuerUrl=https://simpleauth.radix.equinor.com \
 	--set config.appAliasBaseURL=app.radix.example.com \
 	--set dex.config.storage.type=kubernetes \
 	--set dex.config.storage.config.inCluster=true \
