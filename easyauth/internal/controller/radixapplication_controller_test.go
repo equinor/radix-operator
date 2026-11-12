@@ -439,6 +439,29 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 	assert.Nil(t, getRD(t, r, "other-app-dev", "other-app").Spec.Components[0].Authentication, "RadixDeployments of other apps must not be changed")
 }
 
+func TestReconcile_AddsEasyAuthAnnotationToActiveRadixDeployments(t *testing.T) {
+	// OAuth2 is already in sync, so only the annotation must be added
+	inSync := activeRD(newRD(prodNs, "prod-active", radixv1.RadixDeployComponent{
+		Name: "web", PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: oauth.ForApp(oauth2Template, clientID, nil)},
+	}))
+	inSync.Annotations = map[string]string{"other": "value"}
+
+	r := newReconciler(dextest.NewFakeDex(),
+		newRA(true),
+		newRR(),
+		webRD(),
+		inSync,
+		newRD(devNs, "dev-inactive", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}),
+	)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]string{annotations.EasyAuth: ""}, getRD(t, r, devNs, "dev-1").Annotations)
+	assert.Equal(t, map[string]string{annotations.EasyAuth: "", "other": "value"}, getRD(t, r, prodNs, "prod-active").Annotations, "existing annotations must be kept")
+	assert.NotContains(t, getRD(t, r, devNs, "dev-inactive").Annotations, annotations.EasyAuth, "inactive RadixDeployments must not be changed")
+}
+
 func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeploymentsInOrphanedEnvironments(t *testing.T) {
 	// The orphaned environment is removed from the RadixApplication, but its namespace and active RadixDeployment
 	// still exist, so its OAuth2 proxy must keep using the EasyAuth config

@@ -356,6 +356,15 @@ func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd
 func (r *RadixApplicationReconciler) patchRadixDeployment(ctx context.Context, rd *radixv1.RadixDeployment, desired *radixv1.OAuth2) error {
 	original := rd.DeepCopy()
 	changed := false
+
+	if _, ok := rd.Annotations[annotations.EasyAuth]; !ok {
+		if rd.Annotations == nil {
+			rd.Annotations = map[string]string{}
+		}
+		rd.Annotations[annotations.EasyAuth] = ""
+		changed = true
+	}
+
 	for i := range rd.Spec.Components {
 		component := &rd.Spec.Components[i] // Keep a reference to the original, 'for _, comp := ...' makes a copy
 		if !component.IsPublic() {
