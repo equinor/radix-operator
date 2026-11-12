@@ -32,7 +32,7 @@ func SetupWebhook(mgr manager.Manager, cfg config.Config) {
 		NewGenericAdmissionValidator(rbValidator, rbValidator, nil).
 		Register(mgr, RadixBatchValidatorWebhookPath)
 
-	hrValidator := httproute.CreateOnlineValidator(mgr.GetClient())
+	hrValidator := httproute.CreateOnlineValidator(mgr.GetAPIReader())
 	genericvalidator.
 		NewGenericAdmissionValidator(hrValidator, hrValidator, nil).
 		Register(mgr, HttpRouteValidatorWebhookPath)
