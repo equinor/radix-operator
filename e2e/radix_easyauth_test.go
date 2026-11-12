@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	// Must match config.annotation and config.allowedIdentitiesAnnotation in charts/radix-easyauth/values.yaml
+	// Must match annotations.EasyAuth and annotations.AllowedIdentities in easyauth/internal/annotations
 	easyAuthAnnotation                  = "easyauth.radix.equinor.com"
 	easyAuthAllowedIdentitiesAnnotation = "easyauth.radix.equinor.com/allowed-identities"
 	// Must match config.oauth2.allowedGroups in testdata/radix-easyauth-values.yaml
@@ -45,7 +45,7 @@ const (
 	easyAuthTestPassword = "e2e-password"
 	// A static user that is not in easyAuthTestAppGroup
 	easyAuthOtherTestUser = "e2e-other-user@example.com"
-	// Must match the annotations in easyauth/internal/controller
+	// Must match annotations.RestartPending and annotations.RestartedAt in easyauth/internal/annotations
 	easyAuthRestartPendingAnnotation = "easyauth.radix.equinor.com/restart-pending"
 	easyAuthRestartedAtAnnotation    = "easyauth.radix.equinor.com/restartedAt"
 	// Shown by the web component in testdata/gitserver/repos/equinor/easyauth-test.git

@@ -1,6 +1,4 @@
 enforced: true
-annotation: easyauth.radix.equinor.com
-allowedIdentitiesAnnotation: easyauth.radix.equinor.com/allowed-identities
 issuerUrl: https://simpleauth.dev.radix.equinor.com
 oauth2:
   allowedGroups:

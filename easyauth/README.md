@@ -452,13 +452,12 @@ The controller is still designed so that the cluster running EasyAuth can be swi
 ## Configuration
 
 Configured with the `config` section in the Helm chart [values](../charts/radix-easyauth/values.yaml), which is
-rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go).
+rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go). The annotations used by EasyAuth are constants
+in [annotations.go](internal/annotations/annotations.go) and can't be configured.
 
 | Value                         | Description                                                                                                           |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `annotation`                  | Annotation that enables EasyAuth on a `RadixApplication`. The value must be empty                                     |
-| `allowedIdentitiesAnnotation` | Annotation with the comma separated [allowed groups](#allowed-identities) of a `RadixApplication`                     |
-| `oauth2.allowedGroups`        | Default groups when `allowedIdentitiesAnnotation` is missing or empty. A non-empty annotation replaces this list      |
+| `oauth2.allowedGroups`        | Default groups when the [allowed identities](#allowed-identities) annotation is missing or empty. A non-empty annotation replaces this list |
 | `oauth2.groupClaim`           | ID token claim containing the user's groups. Defaults to `groups` in oauth2-proxy                                     |
 | `enforced`                    | Reject `RadixApplications` without the annotation                                                                     |
 | `issuerUrl`                   | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |

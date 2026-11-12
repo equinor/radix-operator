@@ -117,15 +117,15 @@ func main() {
 	defer func() { _ = dexConn.Close() }()
 
 	oauth2Template := oauth.NewTemplate(cfg.OAuth2, cfg.IssuerURL)
-	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), cfg.Annotation, cfg.AllowedIdentitiesAnnotation, oauth2Template).SetupWithManager(mgr); err != nil {
+	if err := defaulter.NewRadixApplicationDefaulter(mgr.GetAPIReader(), oauth2Template).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create mutating webhook")
 	}
 
-	if err := defaulter.NewRadixDeploymentDefaulter(mgr.GetAPIReader(), cfg.Annotation).SetupWithManager(mgr); err != nil {
+	if err := defaulter.NewRadixDeploymentDefaulter(mgr.GetAPIReader()).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create RadixDeployment mutating webhook")
 	}
 
-	if err := validator.NewRadixApplicationValidator(cfg.Annotation, cfg.AllowedIdentitiesAnnotation, cfg.OAuth2.AllowedGroups, cfg.Enforced).SetupWithManager(mgr); err != nil {
+	if err := validator.NewRadixApplicationValidator(cfg.OAuth2.AllowedGroups, cfg.Enforced).SetupWithManager(mgr); err != nil {
 		logger.Fatal().Err(err).Msg("unable to create validating webhook")
 	}
 
@@ -133,8 +133,6 @@ func main() {
 	reconciler := controller.NewRadixApplicationReconciler(
 		mgr.GetClient(),
 		dexClients,
-		cfg.Annotation,
-		cfg.AllowedIdentitiesAnnotation,
 		oauth2Template,
 		cfg.ClusterName,
 		cfg.DNSZone,
@@ -146,7 +144,7 @@ func main() {
 	}
 
 	if cfg.CleanupEnabled {
-		cleaner := cleanup.NewDexClientCleaner(mgr.GetClient(), dexClient, cfg.Annotation, cfg.CleanupInterval)
+		cleaner := cleanup.NewDexClientCleaner(mgr.GetClient(), dexClient, cfg.CleanupInterval)
 		if err := cleaner.SetupWithManager(mgr); err != nil {
 			logger.Fatal().Err(err).Msg("unable to register Dex client cleanup with manager")
 		}

@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/equinor/radix-operator/easyauth/internal/annotations"
 	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -38,10 +39,6 @@ import (
 const (
 	// ClientSecretKey is the key in the OAuth2 proxy Secret that holds the OAuth2 client secret
 	ClientSecretKey = defaults.OAuthClientSecretKeyName
-	// RestartPendingAnnotation is set on the OAuth2 proxy Secret when the client secret has changed, until the OAuth2 proxy is restarted
-	RestartPendingAnnotation = "easyauth.radix.equinor.com/restart-pending"
-	// RestartedAtAnnotation is set on the pod template of the OAuth2 proxy Deployment to restart it
-	RestartedAtAnnotation = "easyauth.radix.equinor.com/restartedAt"
 
 	// DefaultResyncInterval is how often each RadixApplication is reconciled to correct drift
 	DefaultResyncInterval = time.Hour
@@ -65,10 +62,6 @@ var _ DexClientManager = (*dex.ClientManager)(nil)
 type RadixApplicationReconciler struct {
 	client.Client
 	dexClients DexClientManager
-	// Annotation that enables EasyAuth on a RadixApplication
-	annotation string
-	// Annotation with the groups allowed to access the public components of an application
-	allowedIdentitiesAnnotation string
 	// OAuth2 configuration of public components, without the client ID (see oauth.NewTemplate)
 	oauth2Template *radixv1.OAuth2
 	// Cluster name, DNS zone and app alias base URL of radix-operator, used to build the public hostnames of components
@@ -89,8 +82,6 @@ type RadixApplicationReconciler struct {
 func NewRadixApplicationReconciler(
 	c client.Client,
 	dexClients DexClientManager,
-	annotation string,
-	allowedIdentitiesAnnotation string,
 	oauth2Template *radixv1.OAuth2,
 	clusterName, dnsZone, appAliasBaseURL string,
 	secretRotationInterval time.Duration,
@@ -100,17 +91,15 @@ func NewRadixApplicationReconciler(
 		secretRotationInterval = DefaultSecretRotationInterval
 	}
 	return &RadixApplicationReconciler{
-		Client:                      c,
-		dexClients:                  dexClients,
-		annotation:                  annotation,
-		allowedIdentitiesAnnotation: allowedIdentitiesAnnotation,
-		oauth2Template:              oauth2Template,
-		clusterName:                 clusterName,
-		dnsZone:                     dnsZone,
-		appAliasBaseURL:             appAliasBaseURL,
-		resyncInterval:              DefaultResyncInterval,
-		secretRotationInterval:      secretRotationInterval,
-		MaxConcurrentReconciles:     maxConcurrentReconciles,
+		Client:                  c,
+		dexClients:              dexClients,
+		oauth2Template:          oauth2Template,
+		clusterName:             clusterName,
+		dnsZone:                 dnsZone,
+		appAliasBaseURL:         appAliasBaseURL,
+		resyncInterval:          DefaultResyncInterval,
+		secretRotationInterval:  secretRotationInterval,
+		MaxConcurrentReconciles: maxConcurrentReconciles,
 	}
 }
 
@@ -135,7 +124,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if !ra.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}
-	if _, ok := ra.GetAnnotations()[r.annotation]; !ok {
+	if _, ok := ra.GetAnnotations()[annotations.EasyAuth]; !ok {
 		return ctrl.Result{}, nil
 	}
 
@@ -272,7 +261,7 @@ func (r *RadixApplicationReconciler) syncComponentSecret(ctx context.Context, na
 			if secret.Annotations == nil {
 				secret.Annotations = map[string]string{}
 			}
-			secret.Annotations[RestartPendingAnnotation] = "true"
+			secret.Annotations[annotations.RestartPending] = "true"
 		}
 		if secret.Data == nil {
 			secret.Data = map[string][]byte{}
@@ -284,14 +273,14 @@ func (r *RadixApplicationReconciler) syncComponentSecret(ctx context.Context, na
 		log.Ctx(ctx).Info().Str("namespace", namespace).Str("secret", name).Msg("Synced client secret")
 	}
 
-	if _, ok := secret.Annotations[RestartPendingAnnotation]; !ok {
+	if _, ok := secret.Annotations[annotations.RestartPending]; !ok {
 		return nil
 	}
 	if err := r.restartOAuthProxy(ctx, namespace, componentName); err != nil {
 		return fmt.Errorf("failed to restart OAuth2 proxy: %w", err)
 	}
 	original := secret.DeepCopy()
-	delete(secret.Annotations, RestartPendingAnnotation)
+	delete(secret.Annotations, annotations.RestartPending)
 	return r.Patch(ctx, secret, client.MergeFrom(original))
 }
 
@@ -304,7 +293,7 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 	}
 	patch, err := json.Marshal(map[string]any{
 		"spec": map[string]any{"template": map[string]any{"metadata": map[string]any{"annotations": map[string]string{
-			RestartedAtAnnotation: time.Now().UTC().Format(time.RFC3339),
+			annotations.RestartedAt: time.Now().UTC().Format(time.RFC3339),
 		}}}},
 	})
 	if err != nil {
@@ -325,9 +314,9 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // RadixDeployments are not changed when the RadixApplication has no allowed groups, for example when the default
 // allowed identities are removed from the EasyAuth config.
 func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
-	desired := oauth.ForApp(r.oauth2Template, clientID, oauth.SplitIdentities(ra.GetAnnotations()[r.allowedIdentitiesAnnotation]))
+	desired := oauth.ForApp(r.oauth2Template, clientID, oauth.SplitIdentities(ra.GetAnnotations()[annotations.AllowedIdentities]))
 	if len(desired.AllowedGroups) == 0 {
-		return fmt.Errorf("annotation %q must be set, since no default allowed identities are configured", r.allowedIdentitiesAnnotation)
+		return fmt.Errorf("annotation %q must be set, since no default allowed identities are configured", annotations.AllowedIdentities)
 	}
 
 	rdList := &radixv1.RadixDeploymentList{}

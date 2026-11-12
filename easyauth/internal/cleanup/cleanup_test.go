@@ -70,7 +70,7 @@ func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
 		objs = append(objs, ra)
 	}
 	reader := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
-	return NewDexClientCleaner(reader, fakeDex, annotation, time.Hour)
+	return NewDexClientCleaner(reader, fakeDex, time.Hour)
 }
 
 func dexClient(id string) *api.Client {

@@ -7,18 +7,13 @@ import (
 )
 
 type EasyAuthConfig struct {
-	// When true, RadixApplications without RequiredAnnotation are rejected by the validating webhook
-	Enforced bool `json:"enforced"`
-	// Enables EasyAuth on a RadixApplication. The value must be empty.
-	Annotation string `json:"annotation" required:"true"`
-	// Comma separated list of groups allowed to access the public components of a RadixApplication. Overrides
-	// OAuth2.AllowedGroups, and is required when OAuth2.AllowedGroups is empty.
-	AllowedIdentitiesAnnotation string `json:"allowedIdentitiesAnnotation" required:"true" validate:"self != config.annotation"`
-	IssuerURL                   string `json:"issuerUrl" required:"true"`
+	// When true, RadixApplications without annotations.EasyAuth are rejected by the validating webhook
+	Enforced  bool   `json:"enforced"`
+	IssuerURL string `json:"issuerUrl" required:"true"`
 
 	// OAuth2 configuration set on all public components by the mutating webhook and the controller.
 	// clientId, credentials and oidc.issuerUrl are set by EasyAuth and must not be set here.
-	// allowedGroups supplies default groups when AllowedIdentitiesAnnotation is missing or empty.
+	// allowedGroups supplies default groups when annotations.AllowedIdentities is missing or empty.
 	// Groups must not be empty, contain commas or have leading or trailing spaces.
 	OAuth2 radixv1.OAuth2 `json:"oauth2" required:"true" validate:"self.clientId == '' && !has(self.credentials) && (!has(self.oidc) || !has(self.oidc.issuerUrl))"`
 

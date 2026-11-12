@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/equinor/radix-operator/easyauth/internal/annotations"
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -26,19 +27,17 @@ type DexClientCleaner struct {
 	// Waits for the cache used by reader to sync before the first run. Set by SetupWithManager.
 	waitForCacheSync func(ctx context.Context) bool
 	dex              api.DexClient
-	annotation       string
 	interval         time.Duration
 }
 
 // NewDexClientCleaner returns a cleaner that deletes Dex clients every interval, unless they belong to a
-// RadixApplication or an active RadixDeployment with annotation. reader reads RadixApplications, RadixDeployments
+// RadixApplication or an active RadixDeployment with annotations.EasyAuth. reader reads RadixApplications, RadixDeployments
 // and RadixRegistrations, normally from the manager cache.
-func NewDexClientCleaner(reader client.Reader, dex api.DexClient, annotation string, interval time.Duration) *DexClientCleaner {
+func NewDexClientCleaner(reader client.Reader, dex api.DexClient, interval time.Duration) *DexClientCleaner {
 	return &DexClientCleaner{
 		reader:           reader,
 		waitForCacheSync: func(context.Context) bool { return true },
 		dex:              dex,
-		annotation:       annotation,
 		interval:         interval,
 	}
 }
@@ -135,12 +134,12 @@ func (c *DexClientCleaner) clientIDsInUse(ctx context.Context) (map[string]bool,
 		}
 	}
 	for _, ra := range raList.Items {
-		if _, ok := ra.Annotations[c.annotation]; ok {
+		if _, ok := ra.Annotations[annotations.EasyAuth]; ok {
 			markInUse(ra.Name)
 		}
 	}
 	for _, rd := range rdList.Items {
-		if _, ok := rd.Annotations[c.annotation]; ok && rd.Status.Condition == radixv1.DeploymentActive {
+		if _, ok := rd.Annotations[annotations.EasyAuth]; ok && rd.Status.Condition == radixv1.DeploymentActive {
 			appName, err := kube.GetAppNameFromNamespace(ctx, rd.Namespace, c.reader)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get app name for RadixDeployment %s: %w", rd.Name, err)

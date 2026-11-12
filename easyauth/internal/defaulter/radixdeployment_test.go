@@ -20,7 +20,7 @@ import (
 
 func newRDDefaulter(objs ...client.Object) *RadixDeploymentDefaulter {
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
-	return NewRadixDeploymentDefaulter(c, annotation)
+	return NewRadixDeploymentDefaulter(c)
 }
 
 func newRA(appName string, annotations map[string]string) *radixv1.RadixApplication {

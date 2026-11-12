@@ -39,7 +39,7 @@ func newDefaulterWithDefaultGroups(defaultGroups []string, objs ...client.Object
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
 	config := oauth2
 	config.AllowedGroups = defaultGroups
-	return NewRadixApplicationDefaulter(c, annotation, allowedIdentitiesAnnotation, oauth.NewTemplate(config, issuerURL))
+	return NewRadixApplicationDefaulter(c, oauth.NewTemplate(config, issuerURL))
 }
 
 func newRR(appName, id string) *radixv1.RadixRegistration {

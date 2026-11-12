@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/equinor/radix-operator/easyauth/internal/annotations"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -20,15 +21,14 @@ const RadixDeploymentPath = "/radix/v1/radixdeployment/mutate"
 
 // RadixDeploymentDefaulter copies the EasyAuth annotation from the RadixApplication to new RadixDeployments
 type RadixDeploymentDefaulter struct {
-	reader     client.Reader
-	annotation string
+	reader client.Reader
 }
 
-// NewRadixDeploymentDefaulter returns a defaulter that, when a RadixDeployment is created, sets annotation with the
+// NewRadixDeploymentDefaulter returns a defaulter that, when a RadixDeployment is created, sets annotations.EasyAuth with the
 // value from the RadixApplication of the app, or removes it if the RadixApplication doesn't have it. reader should
 // read from the API server and not a cache, since the RadixApplication may have just been applied by the pipeline.
-func NewRadixDeploymentDefaulter(reader client.Reader, annotation string) *RadixDeploymentDefaulter {
-	return &RadixDeploymentDefaulter{reader: reader, annotation: annotation}
+func NewRadixDeploymentDefaulter(reader client.Reader) *RadixDeploymentDefaulter {
+	return &RadixDeploymentDefaulter{reader: reader}
 }
 
 // SetupWithManager registers the mutating webhook with the Manager
@@ -47,7 +47,7 @@ func (d *RadixDeploymentDefaulter) Default(ctx context.Context, obj *radixv1.Rad
 
 	appName, err := kube.GetAppNameFromNamespace(ctx, obj.Namespace, d.reader)
 	if errors.Is(err, kube.ErrNamespaceHasNoAppLabel) {
-		delete(obj.Annotations, d.annotation)
+		delete(obj.Annotations, annotations.EasyAuth)
 		return nil
 	}
 	if err != nil {
@@ -59,16 +59,16 @@ func (d *RadixDeploymentDefaulter) Default(ctx context.Context, obj *radixv1.Rad
 		return fmt.Errorf("failed to get RadixApplication %s: %w", appName, err)
 	}
 
-	value, enabled := ra.GetAnnotations()[d.annotation]
+	value, enabled := ra.GetAnnotations()[annotations.EasyAuth]
 	if !enabled {
-		delete(obj.Annotations, d.annotation)
+		delete(obj.Annotations, annotations.EasyAuth)
 		return nil
 	}
 
 	if obj.Annotations == nil {
 		obj.Annotations = map[string]string{}
 	}
-	obj.Annotations[d.annotation] = value
+	obj.Annotations[annotations.EasyAuth] = value
 	return nil
 }
 

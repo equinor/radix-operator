@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	"github.com/equinor/radix-operator/easyauth/internal/annotations"
 	"github.com/equinor/radix-operator/easyauth/internal/dex"
 	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
@@ -130,7 +131,7 @@ func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplic
 
 func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixApplicationReconciler {
 	return NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, allowedIdentitiesAnnotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
+		oauth2Template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 }
 
 func getSecret(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *corev1.Secret {
@@ -238,7 +239,7 @@ func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
 	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/", AllowedGroups: []string{defaultGroup}}, issuerURL)
 	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, allowedIdentitiesAnnotation, template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
+		template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
@@ -567,8 +568,8 @@ func TestReconcile_RestartsOAuthProxyWhenClientSecretChanges(t *testing.T) {
 
 	secret := getSecret(t, r, devNs, webSecret.Name)
 	assert.Equal(t, []byte(dexSecret), secret.Data[ClientSecretKey])
-	assert.NotContains(t, secret.Annotations, RestartPendingAnnotation, "pending restart must be cleared after the restart")
-	assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[RestartedAtAnnotation])
+	assert.NotContains(t, secret.Annotations, annotations.RestartPending, "pending restart must be cleared after the restart")
+	assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[annotations.RestartedAt])
 }
 
 func TestReconcile_DoesNotRestartOAuthProxyWhenClientSecretIsMissing(t *testing.T) {
@@ -582,14 +583,14 @@ func TestReconcile_DoesNotRestartOAuthProxyWhenClientSecretIsMissing(t *testing.
 	require.NoError(t, err)
 
 	assert.Equal(t, []byte(dexSecret), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
-	assert.NotContains(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations, RestartedAtAnnotation)
+	assert.NotContains(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations, annotations.RestartedAt)
 }
 
 func TestReconcile_RetriesPendingRestart(t *testing.T) {
 	dexSecret := newDexSecret()
 	// The client secret was synced, but the restart failed in a previous reconcile
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte(dexSecret)})
-	webSecret.Annotations = map[string]string{RestartPendingAnnotation: "true"}
+	webSecret.Annotations = map[string]string{annotations.RestartPending: "true"}
 	r := newReconciler(dextest.NewFakeDex(&api.Client{Id: clientID, Name: appName, Secret: dexSecret}),
 		newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web"),
 	)
@@ -597,8 +598,8 @@ func TestReconcile_RetriesPendingRestart(t *testing.T) {
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.NoError(t, err)
 
-	assert.NotContains(t, getSecret(t, r, devNs, webSecret.Name).Annotations, RestartPendingAnnotation)
-	assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[RestartedAtAnnotation])
+	assert.NotContains(t, getSecret(t, r, devNs, webSecret.Name).Annotations, annotations.RestartPending)
+	assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[annotations.RestartedAt])
 }
 
 func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
@@ -622,7 +623,7 @@ func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
 
 	secret := getSecret(t, r, devNs, webSecret.Name)
 	assert.Equal(t, []byte(dexSecret), secret.Data[ClientSecretKey])
-	assert.Contains(t, secret.Annotations, RestartPendingAnnotation, "pending restart must be kept so it is retried")
+	assert.Contains(t, secret.Annotations, annotations.RestartPending, "pending restart must be kept so it is retried")
 }
 
 func TestReconcile_ClearsPendingRestartWithoutOAuthProxyDeployment(t *testing.T) {
@@ -637,7 +638,7 @@ func TestReconcile_ClearsPendingRestartWithoutOAuthProxyDeployment(t *testing.T)
 
 	secret := getSecret(t, r, devNs, webSecret.Name)
 	assert.Equal(t, []byte(dexSecret), secret.Data[ClientSecretKey])
-	assert.NotContains(t, secret.Annotations, RestartPendingAnnotation)
+	assert.NotContains(t, secret.Annotations, annotations.RestartPending)
 }
 
 func TestReconcile_RotatesExpiredClientSecret(t *testing.T) {
@@ -656,7 +657,7 @@ func TestReconcile_RotatesExpiredClientSecret(t *testing.T) {
 		require.True(t, ok)
 		assert.WithinDuration(t, time.Now(), createdAt, 0)
 		assert.Equal(t, []byte(rotated), getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
-		assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[RestartedAtAnnotation], "OAuth2 proxy must be restarted with the rotated secret")
+		assert.NotEmpty(t, getDeployment(t, r, devNs, "web").Spec.Template.Annotations[annotations.RestartedAt], "OAuth2 proxy must be restarted with the rotated secret")
 		assert.Equal(t, DefaultResyncInterval, result.RequeueAfter)
 	})
 }
@@ -689,7 +690,7 @@ func TestReconcile_DoesNotRotateClientSecretBeforeInterval(t *testing.T) {
 }
 
 func TestNewRadixApplicationReconciler_Defaults(t *testing.T) {
-	r := NewRadixApplicationReconciler(nil, nil, annotation, allowedIdentitiesAnnotation, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0, 1)
+	r := NewRadixApplicationReconciler(nil, nil, oauth2Template, clusterName, dnsZone, appAliasBaseURL, 0, 1)
 	assert.Equal(t, DefaultResyncInterval, r.resyncInterval)
 	assert.Equal(t, DefaultSecretRotationInterval, r.secretRotationInterval)
 }
@@ -739,7 +740,7 @@ func TestReconcile_WithoutAllowedGroupsKeepsRadixDeploymentsAndSyncsDex(t *testi
 	noDefaults := oauth2Template.DeepCopy()
 	noDefaults.AllowedGroups = nil
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
-		annotation, allowedIdentitiesAnnotation, noDefaults, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
+		noDefaults, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 
 	_, err := r.Reconcile(context.Background(), appRequest)
 	require.ErrorContains(t, err, allowedIdentitiesAnnotation)

@@ -7,28 +7,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/equinor/radix-operator/easyauth/internal/annotations"
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 const Path = "/radix/v1/radixapplication/mutate"
 
-// RadixApplicationDefaulter mutates RadixApplications that have the configured annotation
+// RadixApplicationDefaulter mutates RadixApplications that have annotations.EasyAuth
 type RadixApplicationDefaulter struct {
-	reader                      client.Reader
-	annotation                  string
-	allowedIdentitiesAnnotation string
-	oauth2Template              *radixv1.OAuth2
+	reader         client.Reader
+	oauth2Template *radixv1.OAuth2
 }
 
-// NewRadixApplicationDefaulter returns a defaulter for RadixApplications with annotation, that sets the OAuth2
+// NewRadixApplicationDefaulter returns a defaulter for RadixApplications with annotations.EasyAuth, that sets the OAuth2
 // configuration from oauth2Template (see oauth.NewTemplate) on public components. reader reads the RadixRegistration
 // of the application, to get the AppID used in the client ID. It should read from the API server and not a cache,
 // since the RadixRegistration may have just been created. The OAuth2 configuration only allows the groups from
-// allowedIdentitiesAnnotation, or oauth2Template.AllowedGroups by default. The validating webhook rejects
+// annotations.AllowedIdentities, or oauth2Template.AllowedGroups by default. The validating webhook rejects
 // RadixApplications without allowed groups.
-func NewRadixApplicationDefaulter(reader client.Reader, annotation, allowedIdentitiesAnnotation string, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
-	return &RadixApplicationDefaulter{reader: reader, annotation: annotation, allowedIdentitiesAnnotation: allowedIdentitiesAnnotation, oauth2Template: oauth2Template}
+func NewRadixApplicationDefaulter(reader client.Reader, oauth2Template *radixv1.OAuth2) *RadixApplicationDefaulter {
+	return &RadixApplicationDefaulter{reader: reader, oauth2Template: oauth2Template}
 }
 
 // SetupWithManager registers the mutating webhook with the Manager
@@ -40,7 +39,7 @@ func (d *RadixApplicationDefaulter) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.RadixApplication) error {
-	if _, ok := obj.GetAnnotations()[d.annotation]; !ok {
+	if _, ok := obj.GetAnnotations()[annotations.EasyAuth]; !ok {
 		return nil
 	}
 
@@ -58,7 +57,7 @@ func (d *RadixApplicationDefaulter) Default(ctx context.Context, obj *radixv1.Ra
 		if component.Authentication == nil {
 			component.Authentication = &radixv1.Authentication{}
 		}
-		component.Authentication.OAuth2 = oauth.ForApp(d.oauth2Template, clientID, oauth.SplitIdentities(obj.GetAnnotations()[d.allowedIdentitiesAnnotation]))
+		component.Authentication.OAuth2 = oauth.ForApp(d.oauth2Template, clientID, oauth.SplitIdentities(obj.GetAnnotations()[annotations.AllowedIdentities]))
 
 		// Environment specific OAuth2 config is merged on top of the component config, so it must be
 		// removed for the component config to take effect

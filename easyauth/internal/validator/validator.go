@@ -8,6 +8,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/equinor/radix-operator/easyauth/internal/annotations"
 	"github.com/equinor/radix-operator/easyauth/internal/oauth"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -18,21 +19,18 @@ const Path = "/radix/v1/radixapplication/validate"
 // RadixApplicationValidator validates the EasyAuth annotations of RadixApplications, and rejects RadixApplications
 // missing the required annotation when enforced is true
 type RadixApplicationValidator struct {
-	annotation                  string
-	allowedIdentitiesAnnotation string
-	defaultAllowedGroups        []string
-	enforced                    bool
+	defaultAllowedGroups []string
+	enforced             bool
 }
 
-// NewRadixApplicationValidator returns a validator that requires annotation to be empty, and rejects RadixApplications
-// with annotation that have no allowed groups in allowedIdentitiesAnnotation or defaultAllowedGroups, or invalid
-// groups in allowedIdentitiesAnnotation. RadixApplications without annotation are rejected when enforced is true.
-func NewRadixApplicationValidator(annotation, allowedIdentitiesAnnotation string, defaultAllowedGroups []string, enforced bool) *RadixApplicationValidator {
+// NewRadixApplicationValidator returns a validator that requires annotations.EasyAuth to be empty, and rejects
+// RadixApplications with annotations.EasyAuth that have no allowed groups in annotations.AllowedIdentities or
+// defaultAllowedGroups, or invalid groups in annotations.AllowedIdentities. RadixApplications without
+// annotations.EasyAuth are rejected when enforced is true.
+func NewRadixApplicationValidator(defaultAllowedGroups []string, enforced bool) *RadixApplicationValidator {
 	return &RadixApplicationValidator{
-		annotation:                  annotation,
-		allowedIdentitiesAnnotation: allowedIdentitiesAnnotation,
-		defaultAllowedGroups:        defaultAllowedGroups,
-		enforced:                    enforced,
+		defaultAllowedGroups: defaultAllowedGroups,
+		enforced:             enforced,
 	}
 }
 
@@ -57,33 +55,33 @@ func (v *RadixApplicationValidator) ValidateDelete(_ context.Context, _ *radixv1
 }
 
 func (v *RadixApplicationValidator) validate(obj *radixv1.RadixApplication) (admission.Warnings, error) {
-	annotations := obj.GetAnnotations()
-	value, ok := annotations[v.annotation]
+	objAnnotations := obj.GetAnnotations()
+	value, ok := objAnnotations[annotations.EasyAuth]
 
 	if !ok {
 		if v.enforced {
-			return nil, fmt.Errorf("RadixApplication %s must have the annotation %q", obj.Name, v.annotation)
+			return nil, fmt.Errorf("RadixApplication %s must have the annotation %q", obj.Name, annotations.EasyAuth)
 		}
-		if _, ok := annotations[v.allowedIdentitiesAnnotation]; ok {
-			return nil, fmt.Errorf("RadixApplication %s annotation %q requires annotation %q", obj.Name, v.allowedIdentitiesAnnotation, v.annotation)
+		if _, ok := objAnnotations[annotations.AllowedIdentities]; ok {
+			return nil, fmt.Errorf("RadixApplication %s annotation %q requires annotation %q", obj.Name, annotations.AllowedIdentities, annotations.EasyAuth)
 		}
 		return nil, nil
 	}
 
 	if value != "" {
-		return nil, fmt.Errorf("RadixApplication %s annotation %q must be empty", obj.Name, v.annotation)
+		return nil, fmt.Errorf("RadixApplication %s annotation %q must be empty", obj.Name, annotations.EasyAuth)
 	}
 
-	groups := oauth.SplitIdentities(annotations[v.allowedIdentitiesAnnotation])
+	groups := oauth.SplitIdentities(objAnnotations[annotations.AllowedIdentities])
 	if len(groups) == 0 {
 		groups = v.defaultAllowedGroups
 	}
 	if len(groups) == 0 {
-		return nil, fmt.Errorf("RadixApplication %s must have the annotation %q, since no default allowed identities are configured", obj.Name, v.allowedIdentitiesAnnotation)
+		return nil, fmt.Errorf("RadixApplication %s must have the annotation %q, since no default allowed identities are configured", obj.Name, annotations.AllowedIdentities)
 	}
 	for _, group := range groups {
 		if group == "" || group != strings.TrimSpace(group) {
-			return nil, fmt.Errorf("RadixApplication %s annotation %q must be a comma separated list of groups without spaces around them, got %q", obj.Name, v.allowedIdentitiesAnnotation, group)
+			return nil, fmt.Errorf("RadixApplication %s annotation %q must be a comma separated list of groups without spaces around them, got %q", obj.Name, annotations.AllowedIdentities, group)
 		}
 	}
 

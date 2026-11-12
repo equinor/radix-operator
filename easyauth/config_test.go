@@ -31,10 +31,8 @@ func TestParse_HappyPath(t *testing.T) {
 	require.NoError(t, configcodec.Decode(configHappyYaml, &cfg))
 
 	expected := EasyAuthConfig{
-		Enforced:                    true,
-		Annotation:                  "easyauth.radix.equinor.com",
-		AllowedIdentitiesAnnotation: "easyauth.radix.equinor.com/allowed-identities",
-		IssuerURL:                   "https://simpleauth.dev.radix.equinor.com",
+		Enforced:  true,
+		IssuerURL: "https://simpleauth.dev.radix.equinor.com",
 		OAuth2: radixv1.OAuth2{
 			AllowedGroups:          []string{"group-a", "group-b"},
 			Scope:                  "openid profile email groups offline_access",
@@ -89,18 +87,6 @@ func TestParse_Validation(t *testing.T) {
 				cfg.EnableLeaderElection = false
 				cfg.LeaderId = ""
 			},
-		},
-		"missing annotation should fail": {
-			mutate:        func(cfg *EasyAuthConfig) { cfg.Annotation = "" },
-			expectedError: `field "Annotation" is required but not set`,
-		},
-		"missing allowedIdentitiesAnnotation should fail": {
-			mutate:        func(cfg *EasyAuthConfig) { cfg.AllowedIdentitiesAnnotation = "" },
-			expectedError: `field "AllowedIdentitiesAnnotation" is required but not set`,
-		},
-		"allowedIdentitiesAnnotation same as annotation should fail": {
-			mutate:        func(cfg *EasyAuthConfig) { cfg.AllowedIdentitiesAnnotation = cfg.Annotation },
-			expectedError: `field "AllowedIdentitiesAnnotation" did not pass validation expression`,
 		},
 		"no oauth2 allowedGroups should pass": {
 			mutate: func(cfg *EasyAuthConfig) { cfg.OAuth2.AllowedGroups = nil },
