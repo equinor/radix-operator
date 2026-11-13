@@ -123,10 +123,23 @@ func webRD() *radixv1.RadixDeployment {
 	return activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
 }
 
+func envNamespace(app, env string) *corev1.Namespace {
+	return &corev1.Namespace{Name: utils.GetEnvironmentNamespace(app, env), Labels: map[string]string{kube.RadixAppLabel: app, kube.RadixEnvLabel: env}}
+}
+
+// newClientBuilder returns a fake client builder with objs and the environment namespaces used by the tests
+func newClientBuilder(objs ...client.Object) *fake.ClientBuilder {
+	return fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).WithObjects(
+		envNamespace(appName, "dev"),
+		envNamespace(appName, "prod"),
+		envNamespace(appName, "other"),
+		envNamespace(appName, "orphaned"),
+		envNamespace("other-app", "dev"),
+	)
+}
+
 func newReconciler(fakeDex *dextest.FakeDex, objs ...client.Object) *RadixApplicationReconciler {
-	s := scheme.NewScheme()
-	c := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).Build()
-	return newReconcilerWithClient(c, fakeDex)
+	return newReconcilerWithClient(newClientBuilder(objs...).Build(), fakeDex)
 }
 
 func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixApplicationReconciler {
@@ -237,7 +250,7 @@ func TestReconcile_CreatesDexClientWithRedirectURIs(t *testing.T) {
 func TestReconcile_RedirectURIsUseProxyPrefix(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	template := oauth.NewTemplate(radixv1.OAuth2{ProxyPrefix: "auth/", AllowedGroups: []string{defaultGroup}}, issuerURL)
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webRD()).Build()
+	c := newClientBuilder(newRA(true), newRR(), webRD()).Build()
 	r := NewRadixApplicationReconciler(c, dex.NewClientManager(fakeDex),
 		template, clusterName, dnsZone, appAliasBaseURL, rotationInterval, 1)
 
@@ -318,7 +331,7 @@ func TestReconcile_CompletesSyncWhenCancelled(t *testing.T) {
 	// Fails like the API server client does when the context is done
 	failIfDone := func(ctx context.Context) error { return ctx.Err() }
 	c := interceptor.NewClient(
-		fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webSecret,
+		newClientBuilder(newRA(true), newRR(), webSecret,
 			activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).Build(),
 		interceptor.Funcs{
 			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
@@ -366,8 +379,7 @@ func TestReconcile_DexUnavailable(t *testing.T) {
 func TestReconcile_PatchesRadixDeploymentsBeforeDex(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	dexCallsAtPatch := -1
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
-		WithObjects(newRA(true), newRR(), activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).
+	c := newClientBuilder(newRA(true), newRR(), activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 				if _, ok := obj.(*radixv1.RadixDeployment); ok {
@@ -386,8 +398,7 @@ func TestReconcile_PatchesRadixDeploymentsBeforeDex(t *testing.T) {
 func TestReconcile_SyncsDexWhenRadixDeploymentPatchFails(t *testing.T) {
 	fakeDex := dextest.NewFakeDex()
 	webSecret := oauthProxySecret(devNs, "web", nil)
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
-		WithObjects(newRA(true), newRR(), webSecret, activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).
+	c := newClientBuilder(newRA(true), newRR(), webSecret, activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 				if _, ok := obj.(*radixv1.RadixDeployment); ok {
@@ -437,6 +448,35 @@ func TestReconcile_SetsOAuth2ConfigOnActiveRadixDeployments(t *testing.T) {
 	assert.Nil(t, getRD(t, r, devNs, "dev-inactive").Spec.Components[0].Authentication, "inactive RadixDeployments must not be changed")
 	assert.Equal(t, expected, getRD(t, r, prodNs, "prod-active").Spec.Components[0].Authentication.OAuth2)
 	assert.Nil(t, getRD(t, r, "other-app-dev", "other-app").Spec.Components[0].Authentication, "RadixDeployments of other apps must not be changed")
+}
+
+func TestReconcile_IgnoresRadixDeploymentsInNamespacesOfOtherApps(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	// An app administrator of other-app has changed the radix-app label of its RadixDeployment
+	otherAppRD := activeRD(newRD("other-app-dev", "other-app", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
+	otherAppSecret := oauthProxySecret("other-app-dev", "web", nil)
+	r := newReconciler(fakeDex, newRA(true), newRR(), webRD(), otherAppRD, otherAppSecret)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"https://web-my-app-dev.cluster.example.com/oauth2/callback",
+		"https://web-my-app-dev.example.com/oauth2/callback",
+	}, fakeDex.Client(clientID).RedirectUris)
+	assert.NotContains(t, getSecret(t, r, "other-app-dev", otherAppSecret.Name).Data, ClientSecretKey)
+	assert.Nil(t, getRD(t, r, "other-app-dev", "other-app").Spec.Components[0].Authentication)
+}
+
+func TestReconcile_FailsWhenEnvironmentLabelDoesNotMatchNamespace(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	rd := webRD()
+	rd.Labels[kube.RadixEnvLabel] = "prod"
+	r := newReconciler(fakeDex, newRA(true), newRR(), rd)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.ErrorContains(t, err, `environment label "prod"`)
+	assert.Zero(t, fakeDex.Calls("GetClient"))
 }
 
 func TestReconcile_AddsEasyAuthAnnotationToActiveRadixDeployments(t *testing.T) {
@@ -491,8 +531,7 @@ func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
 	rd := activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
 	conflicts := 2
 	patches := 0
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
-		WithObjects(newRA(true), newRR(), rd).
+	c := newClientBuilder(newRA(true), newRR(), rd).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 				if _, ok := obj.(*radixv1.RadixDeployment); ok {
@@ -516,8 +555,7 @@ func TestReconcile_RetriesRadixDeploymentPatchOnConflict(t *testing.T) {
 func TestReconcile_FailsWhenRadixDeploymentPatchConflictsPersist(t *testing.T) {
 	rd := activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"}))
 	patches := 0
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).
-		WithObjects(newRA(true), newRR(), rd).
+	c := newClientBuilder(newRA(true), newRR(), rd).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 				if _, ok := obj.(*radixv1.RadixDeployment); ok {
@@ -628,9 +666,7 @@ func TestReconcile_RetriesPendingRestart(t *testing.T) {
 func TestReconcile_KeepsPendingRestartWhenRestartFails(t *testing.T) {
 	dexSecret := newDexSecret()
 	webSecret := oauthProxySecret(devNs, "web", map[string][]byte{ClientSecretKey: []byte("old-secret")})
-	s := scheme.NewScheme()
-	c := fake.NewClientBuilder().WithScheme(s).
-		WithObjects(newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web")).
+	c := newClientBuilder(newRA(true), newRR(), webSecret, webRD(), oauthProxyDeployment(devNs, "web")).
 		WithInterceptorFuncs(interceptor.Funcs{
 			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 				if _, ok := obj.(*appsv1.Deployment); ok {
@@ -755,7 +791,7 @@ func TestReconcile_WithoutAllowedGroupsKeepsRadixDeploymentsAndSyncsDex(t *testi
 	fakeDex := dextest.NewFakeDex()
 	existing := oauth.ForApp(oauth2Template, clientID, []string{"old-group"})
 	webSecret := oauthProxySecret(devNs, "web", nil)
-	c := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(newRA(true), newRR(), webSecret,
+	c := newClientBuilder(newRA(true), newRR(), webSecret,
 		activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{
 			Name: "web", PublicPort: "http", Authentication: &radixv1.Authentication{OAuth2: existing},
 		})),

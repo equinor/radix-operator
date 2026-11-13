@@ -133,16 +133,21 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	deployments, err := r.activeRadixDeployments(ctx, ra)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get active RadixDeployments: %w", err)
+	}
+
 	// RadixDeployments are synced first, since they only need the client ID. A public component without the EasyAuth
 	// OAuth2 config is exposed without authentication, so this must not wait for Dex. With the OAuth2 config, but
 	// before the client secret is synced, the OAuth2 proxy can't start and the component is unreachable instead.
 	// A failure doesn't stop the Dex sync, and is returned with its errors.
 	var rdErr error
-	if err := r.syncRadixDeployments(ctx, ra, clientID); err != nil {
+	if err := r.syncRadixDeployments(ctx, ra, clientID, deployments); err != nil {
 		rdErr = fmt.Errorf("failed to sync OAuth2 config to RadixDeployments: %w", err)
 	}
 
-	rotateAt, err := r.syncDexClient(ctx, ra, clientID)
+	rotateAt, err := r.syncDexClient(ctx, ra, clientID, deployments)
 	if err := errors.Join(rdErr, err); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -153,12 +158,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // syncDexClient ensures the Dex client of the application, and syncs its secret to the OAuth2 proxy of each public
 // component. It returns when the client secret must be rotated.
-func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radixv1.RadixApplication, clientID string) (time.Time, error) {
-	deployments, err := r.activeRadixDeployments(ctx, ra)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to get active RadixDeployments: %w", err)
-	}
-
+func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radixv1.RadixApplication, clientID string, deployments []*radixv1.RadixDeployment) (time.Time, error) {
 	desired := dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: r.redirectURIs(ra, deployments)}
 	clientSecret, rotateAt, err := r.dexClients.EnsureClient(ctx, desired, r.secretRotationInterval)
 	if err != nil {
@@ -171,48 +171,57 @@ func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radi
 	return rotateAt, nil
 }
 
-// environmentDeployment is the active RadixDeployment of an environment
-type environmentDeployment struct {
-	env string
-	rd  *radixv1.RadixDeployment
-}
-
 // activeRadixDeployments returns the active RadixDeployments of the application, including orphaned environments
-func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) ([]environmentDeployment, error) {
-	rdList := &radixv1.RadixDeploymentList{}
-	if err := r.List(ctx, rdList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
-		return nil, err
+func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) ([]*radixv1.RadixDeployment, error) {
+	// Found by the namespace label, since app administrators can change the radix-app label of a RadixDeployment
+	nsList := &corev1.NamespaceList{}
+	if err := r.List(ctx, nsList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
+		return nil, fmt.Errorf("failed to list namespaces for app %s: %w", ra.Name, err)
 	}
-	var deployments []environmentDeployment
-	for i := range rdList.Items {
-		rd := &rdList.Items[i]
-		if !rd.IsActive() {
-			continue
+
+	var deployments []*radixv1.RadixDeployment
+	for _, ns := range nsList.Items {
+
+		nsEnv, ok := ns.Labels[kube.RadixEnvLabel]
+		if !ok || nsEnv == "" || utils.GetEnvironmentNamespace(ra.Name, nsEnv) != ns.Name {
+			return nil, fmt.Errorf("namespace %s is missing or wrong for app %s", ns.Name, ra.Name)
 		}
 
-		env, ok := rd.Labels[kube.RadixEnvLabel]
-		if !ok || env == "" {
-			return nil, fmt.Errorf("RadixDeployment %s/%s is missing environment label for app %s", rd.Namespace, rd.Name, ra.Name)
+		rdList := &radixv1.RadixDeploymentList{}
+		if err := r.List(ctx, rdList, client.InNamespace(ns.Name)); err != nil {
+			return nil, fmt.Errorf("failed to list radix deployments in namespace %s: %w", ns.Name, err)
 		}
 
-		deployments = append(deployments, environmentDeployment{env: env, rd: rd})
+		for i := range rdList.Items {
+			rd := &rdList.Items[i]
+			if !rd.IsActive() {
+				continue
+			}
+
+			if env := rd.Labels[kube.RadixEnvLabel]; env != nsEnv {
+				return nil, fmt.Errorf("RadixDeployment %s/%s has environment label %q, which doesn't match the namespace label %q", rd.Namespace, rd.Name, env, nsEnv)
+			}
+
+			deployments = append(deployments, rd)
+		}
 	}
 	return deployments, nil
 }
 
 // redirectURIs returns callback URLs for public hosts in active RadixDeployments and aliases from the latest
 // RadixApplication. The callback path is built from the proxy prefix of the EasyAuth OAuth2 config.
-func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, deployments []environmentDeployment) []string {
+func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, deployments []*radixv1.RadixDeployment) []string {
 	var uris []string
-	for _, d := range deployments {
-		for _, component := range d.rd.Spec.Components {
+	for _, rd := range deployments {
+		env := rd.Labels[kube.RadixEnvLabel]
+		for _, component := range rd.Spec.Components {
 			if !component.IsPublic() {
 				continue
 			}
 			var hosts []string
-			hosts = append(hosts, radixdeployment.GetComponentFQDNs(&component, *d.rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
+			hosts = append(hosts, radixdeployment.GetComponentFQDNs(&component, *rd, r.clusterName, r.dnsZone, r.appAliasBaseURL)...)
 			for _, alias := range ra.Spec.DNSAlias {
-				if alias.Environment == d.env && alias.Component == component.Name {
+				if alias.Environment == env && alias.Component == component.Name {
 					hosts = append(hosts, dnsalias.GetHostName(alias.Alias, r.dnsZone))
 				}
 			}
@@ -229,15 +238,15 @@ func (r *RadixApplicationReconciler) redirectURIs(ra *radixv1.RadixApplication, 
 // RadixDeployment in each environment. These are the components that run an OAuth2 proxy with the EasyAuth config,
 // which may differ from the latest RadixApplication until it is deployed.
 // The OAuth2 proxy Secret is created by radix-operator when a component is deployed, and is skipped until it exists.
-func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, deployments []environmentDeployment, clientSecret []byte) error {
+func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, deployments []*radixv1.RadixDeployment, clientSecret []byte) error {
 	var errs []error
-	for _, d := range deployments {
-		for _, component := range d.rd.Spec.Components {
+	for _, rd := range deployments {
+		for _, component := range rd.Spec.Components {
 			if !component.IsPublic() {
 				continue
 			}
-			if err := r.syncComponentSecret(ctx, d.rd.Namespace, component.Name, clientSecret); err != nil {
-				errs = append(errs, fmt.Errorf("component %s in environment %s: %w", component.Name, d.env, err))
+			if err := r.syncComponentSecret(ctx, rd.Namespace, component.Name, clientSecret); err != nil {
+				errs = append(errs, fmt.Errorf("component %s in namespace %s: %w", component.Name, rd.Namespace, err))
 			}
 		}
 	}
@@ -313,25 +322,16 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 // Inactive RadixDeployments are skipped. A promoted RadixDeployment is synced when it becomes active.
 // RadixDeployments are not changed when the RadixApplication has no allowed groups, for example when the default
 // allowed identities are removed from the EasyAuth config.
-func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string) error {
+func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication, clientID string, deployments []*radixv1.RadixDeployment) error {
 	desired := oauth.ForApp(r.oauth2Template, clientID, oauth.SplitIdentities(ra.GetAnnotations()[annotations.AllowedIdentities]))
 	if len(desired.AllowedGroups) == 0 {
 		return fmt.Errorf("annotation %q must be set, since no default allowed identities are configured", annotations.AllowedIdentities)
 	}
 
-	rdList := &radixv1.RadixDeploymentList{}
-	if err := r.List(ctx, rdList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
-		return fmt.Errorf("failed to list radix deployments for app %s: %w", ra.Name, err)
-	}
-
 	var errs []error
-	for _, item := range rdList.Items {
-		if item.Status.Condition != radixv1.DeploymentActive {
-			continue
-		}
-
-		if err := r.syncRadixDeployment(ctx, &item, desired); err != nil {
-			errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", item.Namespace, item.Name, err))
+	for _, rd := range deployments {
+		if err := r.syncRadixDeployment(ctx, rd, desired); err != nil {
+			errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", rd.Namespace, rd.Name, err))
 		}
 	}
 
