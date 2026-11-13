@@ -67,6 +67,7 @@ func (s *syncer) syncStatus(ctx context.Context, reconcileErr error) error {
 	if err != nil {
 		return err
 	}
+	clear(s.restartedJobs)
 
 	if status := reconcileStatus(nil); errors.As(reconcileErr, &status) {
 		// Do not return an error if reconcileError indicates
