@@ -523,7 +523,8 @@ func (s *syncerTestSuite) Test_BatchRetainsPodStatusesWhenRunningPodDeleted() {
 	s.Require().NoError(err)
 
 	// Save the observed running pod status as a previous reconcile would.
-	status := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	status, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	batch.Status.JobStatuses = []radixv1.RadixBatchJobStatus{status}
 	expectedPodStatuses := status.RadixBatchJobPodStatuses
 	s.Require().Len(expectedPodStatuses, 1)
@@ -531,7 +532,8 @@ func (s *syncerTestSuite) Test_BatchRetainsPodStatusesWhenRunningPodDeleted() {
 
 	// Deleting the pod, without deleting the Job, should not erase the previously recorded pod status.
 	s.Require().NoError(s.kubeClient.CoreV1().Pods(batch.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{}))
-	updatedStatus := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	updatedStatus, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	s.Require().Len(updatedStatus.RadixBatchJobPodStatuses, 1,
 		"deleting a running pod must not erase its previously recorded status")
 	s.Equal(expectedPodStatuses, updatedStatus.RadixBatchJobPodStatuses,
@@ -562,7 +564,8 @@ func (s *syncerTestSuite) Test_FailedBatchJobDoesNotReportDeletedPodAsRunning() 
 	s.Require().NoError(err)
 
 	// Save the running pod status before its final state becomes unavailable.
-	status := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	status, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	batch.Status.JobStatuses = []radixv1.RadixBatchJobStatus{status}
 	s.Require().Len(status.RadixBatchJobPodStatuses, 1)
 	s.Require().Equal(radixv1.PodRunning, status.RadixBatchJobPodStatuses[0].Phase)
@@ -577,7 +580,8 @@ func (s *syncerTestSuite) Test_FailedBatchJobDoesNotReportDeletedPodAsRunning() 
 			LastTransitionTime: metav1.Now(),
 		}},
 	}
-	updatedStatus := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	updatedStatus, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	s.Equal(radixv1.BatchJobPhaseFailed, updatedStatus.Phase)
 	s.Equal("BackoffLimitExceeded", updatedStatus.Reason)
 	s.Require().Len(updatedStatus.RadixBatchJobPodStatuses, 1)
@@ -599,7 +603,7 @@ func (s *syncerTestSuite) Test_SucceededBatchJobMarksMissingAttemptsFailed() {
 		},
 	}
 
-	markMissingPodStatusesForTerminalJob(jobStatus, []corev1.Pod{{Name: "successful-retry"}})
+	markMissingPodStatusesForTerminalJob(jobStatus, []corev1.Pod{{Name: "successful-retry"}}, 1)
 
 	s.Equal([]radixv1.RadixBatchJobPodPhase{
 		radixv1.PodFailed,
@@ -612,6 +616,88 @@ func (s *syncerTestSuite) Test_SucceededBatchJobMarksMissingAttemptsFailed() {
 		jobStatus.RadixBatchJobPodStatuses[2].Phase,
 		jobStatus.RadixBatchJobPodStatuses[3].Phase,
 	})
+}
+
+func (s *syncerTestSuite) Test_SucceededBatchJobMarksMissingSuccessfulAttemptSucceeded() {
+	jobStatus := &radixv1.RadixBatchJobStatus{
+		Phase: radixv1.BatchJobPhaseSucceeded,
+		RadixBatchJobPodStatuses: []radixv1.RadixBatchJobPodStatus{
+			{Name: "failed-attempt", Phase: radixv1.PodFailed},
+			{Name: "deleted-successful-retry", Phase: radixv1.PodRunning},
+		},
+	}
+
+	markMissingPodStatusesForTerminalJob(jobStatus, nil, 1)
+
+	s.Equal(radixv1.PodFailed, jobStatus.RadixBatchJobPodStatuses[0].Phase)
+	s.Equal(radixv1.PodSucceeded, jobStatus.RadixBatchJobPodStatuses[1].Phase)
+}
+
+func (s *syncerTestSuite) Test_SucceededBatchJobMarksNewestMissingAttemptSucceeded() {
+	oldest := metav1.NewTime(time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC))
+	newest := metav1.NewTime(time.Date(2026, 11, 13, 10, 1, 0, 0, time.UTC))
+	jobStatus := &radixv1.RadixBatchJobStatus{
+		Phase: radixv1.BatchJobPhaseSucceeded,
+		RadixBatchJobPodStatuses: []radixv1.RadixBatchJobPodStatus{
+			// Deliberately reverse chronological order to model an arbitrary list order.
+			{Name: "newer-attempt", Phase: radixv1.PodRunning, CreationTime: &newest},
+			{Name: "older-attempt", Phase: radixv1.PodRunning, CreationTime: &oldest},
+		},
+	}
+
+	markMissingPodStatusesForTerminalJob(jobStatus, nil, 1)
+
+	s.Equal(radixv1.PodSucceeded, jobStatus.RadixBatchJobPodStatuses[0].Phase)
+	s.Equal(radixv1.PodFailed, jobStatus.RadixBatchJobPodStatuses[1].Phase)
+}
+
+func (s *syncerTestSuite) Test_SyncStatusDoesNotSaveTerminalStatusWhenPodListFails() {
+	ctx := s.T().Context()
+	batch := &radixv1.RadixBatch{
+		Name: "any-batch", Namespace: "any-ns",
+		Labels: map[string]string{kube.RadixAppLabel: "any-app", kube.RadixComponentLabel: "compute"},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{Job: "compute"},
+			Jobs:                  []radixv1.RadixBatchJob{{Name: "job1"}},
+		},
+		Status: radixv1.RadixBatchStatus{JobStatuses: []radixv1.RadixBatchJobStatus{{
+			Name: "job1", Phase: radixv1.BatchJobPhaseRunning,
+			RadixBatchJobPodStatuses: []radixv1.RadixBatchJobPodStatus{{Name: "deleted-pod", Phase: radixv1.PodRunning}},
+		}}},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(batch.Namespace).Create(ctx, batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch, config.Config{}).(*syncer)
+	jobLabels := sut.batchJobIdentifierLabel("job1", "any-app")
+	_, err = s.kubeClient.BatchV1().Jobs(batch.Namespace).Create(ctx, &batchv1.Job{
+		Name: getKubeJobName(batch.Name, "job1"), Labels: jobLabels,
+		Status: batchv1.JobStatus{Conditions: []batchv1.JobCondition{{
+			Type: batchv1.JobComplete, Status: corev1.ConditionTrue,
+		}}},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	listError := true
+	s.kubeClient.PrependReactor("list", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if listError {
+			return true, nil, errors.New("pod list unavailable")
+		}
+		return false, nil, nil
+	})
+	s.Require().ErrorContains(sut.syncStatus(ctx, nil), "pod list unavailable")
+	savedBatch, err := s.radixClient.RadixV1().RadixBatches(batch.Namespace).Get(ctx, batch.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(savedBatch.Status.JobStatuses, 1)
+	s.Equal(radixv1.BatchJobPhaseRunning, savedBatch.Status.JobStatuses[0].Phase)
+	s.Equal(radixv1.PodRunning, savedBatch.Status.JobStatuses[0].RadixBatchJobPodStatuses[0].Phase,
+		"a failed pod listing must not persist a guessed terminal pod phase")
+
+	listError = false
+	s.Require().NoError(sut.syncStatus(ctx, nil))
+	savedBatch, err = s.radixClient.RadixV1().RadixBatches(batch.Namespace).Get(ctx, batch.Name, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Equal(radixv1.BatchJobPhaseSucceeded, savedBatch.Status.JobStatuses[0].Phase)
+	s.Equal(radixv1.PodFailed, savedBatch.Status.JobStatuses[0].RadixBatchJobPodStatuses[0].Phase)
 }
 
 // When a stop request is reconciled after the pod has disappeared,
@@ -634,7 +720,8 @@ func (s *syncerTestSuite) Test_StoppedBatchJobMarksMissingActivePodsStopped() {
 			pod := &corev1.Pod{Name: "any-pod", Labels: jobLabels, Status: corev1.PodStatus{Phase: podPhase}}
 			_, err := s.kubeClient.CoreV1().Pods(batch.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 			s.Require().NoError(err)
-			status := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+			status, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+			s.Require().NoError(err)
 			batch.Status.JobStatuses = []radixv1.RadixBatchJobStatus{status}
 			s.Require().Len(status.RadixBatchJobPodStatuses, 1)
 			s.Require().Equal(radixv1.RadixBatchJobPodPhase(podPhase), status.RadixBatchJobPodStatuses[0].Phase)
@@ -642,7 +729,8 @@ func (s *syncerTestSuite) Test_StoppedBatchJobMarksMissingActivePodsStopped() {
 			// A stop must normalize retained active entries even after the pod has disappeared.
 			s.Require().NoError(s.kubeClient.CoreV1().Pods(batch.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{}))
 			batchJob.Stop = new(true)
-			updatedStatus := sut.buildBatchJobStatus(ctx, batchJob, nil)
+			updatedStatus, err := sut.buildBatchJobStatus(ctx, batchJob, nil)
+			s.Require().NoError(err)
 			s.Equal(radixv1.BatchJobPhaseStopped, updatedStatus.Phase)
 			s.Require().Len(updatedStatus.RadixBatchJobPodStatuses, 1)
 			s.Equal(pod.Name, updatedStatus.RadixBatchJobPodStatuses[0].Name)
@@ -679,13 +767,15 @@ func (s *syncerTestSuite) Test_BatchRetainsDeletedRetryPodStatusWhenFailedAttemp
 		_, err := s.kubeClient.CoreV1().Pods(batch.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 		s.Require().NoError(err)
 	}
-	status := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	status, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	batch.Status.JobStatuses = []radixv1.RadixBatchJobStatus{status}
 	s.Require().Len(status.RadixBatchJobPodStatuses, 2)
 
 	// The failed attempt remains listable, but must not cause the deleted retry's history to be discarded.
 	s.Require().NoError(s.kubeClient.CoreV1().Pods(batch.Namespace).Delete(ctx, "running-retry", metav1.DeleteOptions{}))
-	updatedStatus := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	updatedStatus, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	s.Equal(radixv1.BatchJobPhaseActive, updatedStatus.Phase)
 	s.Require().Len(updatedStatus.RadixBatchJobPodStatuses, 2,
 		"both attempts must be retained while the same Kubernetes Job exists")
@@ -719,7 +809,7 @@ func (s *syncerTestSuite) Test_BatchRefreshesObservedRetryWithoutChangingHistory
 		}}},
 	}, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	sut.updateJobAndPodStatuses(ctx, jobStatus.Name, jobStatus)
+	s.Require().NoError(sut.updateJobAndPodStatuses(ctx, jobStatus.Name, jobStatus, 0))
 	s.Require().Len(jobStatus.RadixBatchJobPodStatuses, 3)
 	s.Require().Equal("ContainerCreating", jobStatus.RadixBatchJobPodStatuses[2].Reason)
 
@@ -727,7 +817,7 @@ func (s *syncerTestSuite) Test_BatchRefreshesObservedRetryWithoutChangingHistory
 	newRetry.Status = corev1.PodStatus{Phase: corev1.PodRunning}
 	_, err = s.kubeClient.CoreV1().Pods(batch.Namespace).UpdateStatus(ctx, newRetry, metav1.UpdateOptions{})
 	s.Require().NoError(err)
-	sut.updateJobAndPodStatuses(ctx, jobStatus.Name, jobStatus)
+	s.Require().NoError(sut.updateJobAndPodStatuses(ctx, jobStatus.Name, jobStatus, 0))
 	s.Require().Len(jobStatus.RadixBatchJobPodStatuses, 3)
 	s.Equal(expectedHistory, jobStatus.RadixBatchJobPodStatuses[:2])
 	s.Equal("new-retry", jobStatus.RadixBatchJobPodStatuses[2].Name)
@@ -829,7 +919,8 @@ func (s *syncerTestSuite) Test_BatchRecreatesDeletedKubernetesJob() {
 	s.Require().NoError(err)
 
 	// Save the observed running pod status as a previous reconcile would.
-	status := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	status, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	batch.Status.JobStatuses = []radixv1.RadixBatchJobStatus{status}
 	expectedPodStatuses := status.RadixBatchJobPodStatuses
 	s.Require().Len(expectedPodStatuses, 1)
@@ -848,7 +939,8 @@ func (s *syncerTestSuite) Test_BatchRecreatesDeletedKubernetesJob() {
 	pod.Name, pod.Labels = "replacement-pod", jobs[0].Spec.Template.Labels
 	_, err = s.kubeClient.CoreV1().Pods(batch.Namespace).Create(ctx, pod, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	updatedStatus := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	updatedStatus, err := sut.buildBatchJobStatus(ctx, batchJob, jobs)
+	s.Require().NoError(err)
 	s.Require().Len(updatedStatus.RadixBatchJobPodStatuses, 1)
 	s.Equal(pod.Name, updatedStatus.RadixBatchJobPodStatuses[0].Name)
 	s.NotEqual(expectedPodStatuses[0].Name, updatedStatus.RadixBatchJobPodStatuses[0].Name)

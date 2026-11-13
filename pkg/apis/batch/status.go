@@ -104,14 +104,17 @@ func (s *syncer) buildJobStatuses(ctx context.Context) ([]radixv1.RadixBatchJobS
 	}
 
 	for _, batchJob := range s.radixBatch.Spec.Jobs {
-		jobStatus := s.buildBatchJobStatus(ctx, &batchJob, jobs)
+		jobStatus, err := s.buildBatchJobStatus(ctx, &batchJob, jobs)
+		if err != nil {
+			return nil, err
+		}
 		jobStatuses = append(jobStatuses, jobStatus)
 	}
 
 	return jobStatuses, nil
 }
 
-func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
+func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) (radixv1.RadixBatchJobStatus, error) {
 	restartedJob, isRestartedJob := s.restartedJobs[batchJob.Name]
 
 	currentStatus, hasCurrentStatus := slice.FindFirst(s.radixBatch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
@@ -119,7 +122,7 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	})
 
 	if !isRestartedJob && hasCurrentStatus && isJobStatusDone(currentStatus) {
-		return currentStatus
+		return currentStatus, nil
 	}
 
 	status := radixv1.RadixBatchJobStatus{
@@ -145,13 +148,15 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 			status.StartTime = currentStatus.StartTime
 			status.Failed = currentStatus.Failed
 		}
-		s.updateJobAndPodStatuses(ctx, batchJob.Name, &status)
-		return status
+		if err := s.updateJobAndPodStatuses(ctx, batchJob.Name, &status, 0); err != nil {
+			return status, err
+		}
+		return status, nil
 	}
 
 	job, jobFound := slice.FindFirst(allJobs, isKubeJobForBatchJob(batchJob))
 	if !jobFound {
-		return status
+		return status, nil
 	}
 
 	status.CreationTime = &job.CreationTimestamp
@@ -175,12 +180,17 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 		}
 	}
 
-	s.updateJobAndPodStatuses(ctx, batchJob.Name, &status)
-	return status
+	if err := s.updateJobAndPodStatuses(ctx, batchJob.Name, &status, job.Status.Succeeded); err != nil {
+		return status, err
+	}
+	return status, nil
 }
 
-func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
-	pods := s.getJobPods(ctx, batchJobName)
+func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus, succeededPods int32) error {
+	pods, err := s.getJobPods(ctx, batchJobName)
+	if err != nil {
+		return err
+	}
 	jobStatus.RadixBatchJobPodStatuses = slices.Grow(jobStatus.RadixBatchJobPodStatuses, len(pods))
 	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
 	podStatusMap := getPodStatusMap(jobStatus)
@@ -192,14 +202,21 @@ func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName strin
 		}
 		setPodStatusByPodCondition(&pod, podStatus, jobStatus)
 	}
-	markMissingPodStatusesForTerminalJob(jobStatus, pods)
+	markMissingPodStatusesForTerminalJob(jobStatus, pods, succeededPods)
+	return nil
 }
 
 // Retained active entries must be terminal when their pods are gone and their Job has completed.
-func markMissingPodStatusesForTerminalJob(jobStatus *radixv1.RadixBatchJobStatus, observedPods []corev1.Pod) {
+func markMissingPodStatusesForTerminalJob(jobStatus *radixv1.RadixBatchJobStatus, observedPods []corev1.Pod, succeededPods int32) {
 	if jobStatus.Phase != radixv1.BatchJobPhaseFailed && jobStatus.Phase != radixv1.BatchJobPhaseSucceeded && jobStatus.Phase != radixv1.BatchJobPhaseStopped {
 		return
 	}
+	for _, podStatus := range jobStatus.RadixBatchJobPodStatuses {
+		if podStatus.Phase == radixv1.PodSucceeded && succeededPods > 0 {
+			succeededPods--
+		}
+	}
+	var missingActivePodStatusIndices []int
 	for index := range jobStatus.RadixBatchJobPodStatuses {
 		podStatus := &jobStatus.RadixBatchJobPodStatuses[index]
 		if slice.Any(observedPods, func(pod corev1.Pod) bool { return pod.Name == podStatus.Name }) {
@@ -207,11 +224,45 @@ func markMissingPodStatusesForTerminalJob(jobStatus *radixv1.RadixBatchJobStatus
 		}
 		if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
 			podStatus.Phase = radixv1.PodStopped
-		} else if (jobStatus.Phase == radixv1.BatchJobPhaseFailed || jobStatus.Phase == radixv1.BatchJobPhaseSucceeded) &&
-			(podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning) {
+		} else if podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning {
+			missingActivePodStatusIndices = append(missingActivePodStatusIndices, index)
+		}
+	}
+
+	sort.Slice(missingActivePodStatusIndices, func(i, j int) bool {
+		leftIndex, rightIndex := missingActivePodStatusIndices[i], missingActivePodStatusIndices[j]
+		return isNewerPodStatus(
+			jobStatus.RadixBatchJobPodStatuses[leftIndex],
+			jobStatus.RadixBatchJobPodStatuses[rightIndex],
+			leftIndex,
+			rightIndex,
+		)
+	})
+	for _, index := range missingActivePodStatusIndices {
+		podStatus := &jobStatus.RadixBatchJobPodStatuses[index]
+		if jobStatus.Phase == radixv1.BatchJobPhaseSucceeded && succeededPods > 0 {
+			podStatus.Phase = radixv1.PodSucceeded
+			succeededPods--
+		} else if jobStatus.Phase == radixv1.BatchJobPhaseFailed || jobStatus.Phase == radixv1.BatchJobPhaseSucceeded {
 			podStatus.Phase = radixv1.PodFailed
 		}
 	}
+}
+
+func isNewerPodStatus(left, right radixv1.RadixBatchJobPodStatus, leftIndex, rightIndex int) bool {
+	if left.CreationTime != nil && right.CreationTime != nil && !left.CreationTime.Equal(right.CreationTime) {
+		return left.CreationTime.After(right.CreationTime.Time)
+	}
+	if left.CreationTime != nil && right.CreationTime == nil {
+		return true
+	}
+	if left.CreationTime == nil && right.CreationTime != nil {
+		return false
+	}
+	if left.PodIndex != right.PodIndex {
+		return left.PodIndex > right.PodIndex
+	}
+	return leftIndex > rightIndex
 }
 
 func getImageInPodSpec(containerName string, pod *corev1.Pod) string {
@@ -251,13 +302,16 @@ func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJo
 	return podStatus
 }
 
-func (s *syncer) getJobPods(ctx context.Context, batchJobName string) []corev1.Pod {
+func (s *syncer) getJobPods(ctx context.Context, batchJobName string) ([]corev1.Pod, error) {
 	jobPods, err := s.kubeUtil.KubeClient().CoreV1().Pods(s.radixBatch.GetNamespace()).List(ctx, metav1.ListOptions{
 		LabelSelector: s.batchJobIdentifierLabel(batchJobName, s.radixBatch.GetLabels()[kube.RadixAppLabel]).String()})
-	if err != nil || len(jobPods.Items) == 0 {
-		return nil
+	if err != nil {
+		return nil, err
 	}
-	return jobPods.Items
+	if len(jobPods.Items) == 0 {
+		return nil, nil
+	}
+	return jobPods.Items, nil
 }
 
 func setPodStatusByPodLastContainerStatus(containerStatus *corev1.ContainerStatus, podStatus *radixv1.RadixBatchJobPodStatus, jobStatus *radixv1.RadixBatchJobStatus) {
