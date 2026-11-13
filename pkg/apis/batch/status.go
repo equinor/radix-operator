@@ -132,6 +132,7 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 	if hasCurrentStatus && !isRestartedJob {
 		status.Phase = currentStatus.Phase
 		status.Restart = currentStatus.Restart
+		status.RadixBatchJobPodStatuses = currentStatus.DeepCopy().RadixBatchJobPodStatuses
 	}
 
 	if isBatchJobStopRequested(batchJob) {
@@ -177,15 +178,35 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 }
 
 func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
+	pods := s.getJobPods(ctx, batchJobName)
+	if len(pods) == 0 {
+		markMissingPodsFailedWhenJobFailed(jobStatus)
+		return
+	}
+	jobStatus.RadixBatchJobPodStatuses = nil
 	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
 	podStatusMap := getPodStatusMap(jobStatus)
-	for _, pod := range s.getJobPods(ctx, batchJobName) {
+	for _, pod := range pods {
 		podStatus := getOrCreatePodStatusForPod(&pod, jobStatus, podStatusMap, jobComponentName)
 		if podContainerStatus, ok := s.getJobComponentContainerStatus(jobComponentName, pod); ok {
 			setPodStatusByPodLastContainerStatus(podContainerStatus, podStatus, jobStatus)
 			continue
 		}
 		setPodStatusByPodCondition(&pod, podStatus, jobStatus)
+	}
+}
+
+// As pod status is retained when a pod is deleted, we need to mark
+// missing pods as failed when the job has failed
+func markMissingPodsFailedWhenJobFailed(jobStatus *radixv1.RadixBatchJobStatus) {
+	if jobStatus.Phase != radixv1.BatchJobPhaseFailed {
+		return
+	}
+	for index := range jobStatus.RadixBatchJobPodStatuses {
+		podStatus := &jobStatus.RadixBatchJobPodStatuses[index]
+		if podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning {
+			podStatus.Phase = radixv1.PodFailed
+		}
 	}
 }
 
