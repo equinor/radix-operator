@@ -195,9 +195,9 @@ func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName strin
 	markMissingPodStatusesForTerminalJob(jobStatus, pods)
 }
 
-// Retained active entries must reflect a terminal Job when their pods are no longer available.
+// Retained active entries must be terminal when their pods are gone and their Job has completed.
 func markMissingPodStatusesForTerminalJob(jobStatus *radixv1.RadixBatchJobStatus, observedPods []corev1.Pod) {
-	if jobStatus.Phase != radixv1.BatchJobPhaseFailed && jobStatus.Phase != radixv1.BatchJobPhaseStopped {
+	if jobStatus.Phase != radixv1.BatchJobPhaseFailed && jobStatus.Phase != radixv1.BatchJobPhaseSucceeded && jobStatus.Phase != radixv1.BatchJobPhaseStopped {
 		return
 	}
 	for index := range jobStatus.RadixBatchJobPodStatuses {
@@ -207,7 +207,8 @@ func markMissingPodStatusesForTerminalJob(jobStatus *radixv1.RadixBatchJobStatus
 		}
 		if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
 			podStatus.Phase = radixv1.PodStopped
-		} else if jobStatus.Phase == radixv1.BatchJobPhaseFailed && (podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning) {
+		} else if (jobStatus.Phase == radixv1.BatchJobPhaseFailed || jobStatus.Phase == radixv1.BatchJobPhaseSucceeded) &&
+			(podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning) {
 			podStatus.Phase = radixv1.PodFailed
 		}
 	}

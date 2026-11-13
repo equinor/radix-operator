@@ -587,6 +587,33 @@ func (s *syncerTestSuite) Test_FailedBatchJobDoesNotReportDeletedPodAsRunning() 
 	s.Equal(radixv1.PodRunning, status.RadixBatchJobPodStatuses[0].Phase, "the previous status must not be mutated")
 }
 
+// A successful retry must not leave missing attempts active or mark all attempts successful.
+func (s *syncerTestSuite) Test_SucceededBatchJobMarksMissingAttemptsFailed() {
+	jobStatus := &radixv1.RadixBatchJobStatus{
+		Phase: radixv1.BatchJobPhaseSucceeded,
+		RadixBatchJobPodStatuses: []radixv1.RadixBatchJobPodStatus{
+			{Name: "deleted-running-attempt", Phase: radixv1.PodRunning},
+			{Name: "deleted-pending-attempt", Phase: radixv1.PodPending},
+			{Name: "failed-attempt", Phase: radixv1.PodFailed},
+			{Name: "successful-retry", Phase: radixv1.PodSucceeded},
+		},
+	}
+
+	markMissingPodStatusesForTerminalJob(jobStatus, []corev1.Pod{{Name: "successful-retry"}})
+
+	s.Equal([]radixv1.RadixBatchJobPodPhase{
+		radixv1.PodFailed,
+		radixv1.PodFailed,
+		radixv1.PodFailed,
+		radixv1.PodSucceeded,
+	}, []radixv1.RadixBatchJobPodPhase{
+		jobStatus.RadixBatchJobPodStatuses[0].Phase,
+		jobStatus.RadixBatchJobPodStatuses[1].Phase,
+		jobStatus.RadixBatchJobPodStatuses[2].Phase,
+		jobStatus.RadixBatchJobPodStatuses[3].Phase,
+	})
+}
+
 // When a stop request is reconciled after the pod has disappeared,
 // retained Pending or Running pod statuses should become Stopped.
 func (s *syncerTestSuite) Test_StoppedBatchJobMarksMissingActivePodsStopped() {
