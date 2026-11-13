@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 
@@ -179,11 +180,7 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 
 func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus) {
 	pods := s.getJobPods(ctx, batchJobName)
-	if len(pods) == 0 {
-		markMissingPodsFailedWhenJobFailed(jobStatus)
-		return
-	}
-	jobStatus.RadixBatchJobPodStatuses = nil
+	jobStatus.RadixBatchJobPodStatuses = slices.Grow(jobStatus.RadixBatchJobPodStatuses, len(pods))
 	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
 	podStatusMap := getPodStatusMap(jobStatus)
 	for _, pod := range pods {
@@ -194,17 +191,22 @@ func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName strin
 		}
 		setPodStatusByPodCondition(&pod, podStatus, jobStatus)
 	}
+	markMissingPodStatusesForTerminalJob(jobStatus, pods)
 }
 
-// As pod status is retained when a pod is deleted, we need to mark
-// missing pods as failed when the job has failed
-func markMissingPodsFailedWhenJobFailed(jobStatus *radixv1.RadixBatchJobStatus) {
-	if jobStatus.Phase != radixv1.BatchJobPhaseFailed {
+// Retained active entries must reflect a terminal Job when their pods are no longer available.
+func markMissingPodStatusesForTerminalJob(jobStatus *radixv1.RadixBatchJobStatus, observedPods []corev1.Pod) {
+	if jobStatus.Phase != radixv1.BatchJobPhaseFailed && jobStatus.Phase != radixv1.BatchJobPhaseStopped {
 		return
 	}
 	for index := range jobStatus.RadixBatchJobPodStatuses {
 		podStatus := &jobStatus.RadixBatchJobPodStatuses[index]
-		if podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning {
+		if slice.Any(observedPods, func(pod corev1.Pod) bool { return pod.Name == podStatus.Name }) {
+			continue
+		}
+		if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
+			podStatus.Phase = radixv1.PodStopped
+		} else if jobStatus.Phase == radixv1.BatchJobPhaseFailed && (podStatus.Phase == radixv1.PodPending || podStatus.Phase == radixv1.PodRunning) {
 			podStatus.Phase = radixv1.PodFailed
 		}
 	}
@@ -230,12 +232,15 @@ func getOrCreatePodStatusForPod(pod *corev1.Pod, jobStatus *radixv1.RadixBatchJo
 	podStatus, ok := podStatusMap[pod.GetName()]
 	if !ok {
 		jobStatus.RadixBatchJobPodStatuses = append(jobStatus.RadixBatchJobPodStatuses, radixv1.RadixBatchJobPodStatus{
-			Name:         pod.GetName(),
-			Phase:        radixv1.RadixBatchJobPodPhase(pod.Status.Phase),
-			CreationTime: new(pod.GetCreationTimestamp()),
-			PodIndex:     len(jobStatus.RadixBatchJobPodStatuses),
+			PodIndex: len(jobStatus.RadixBatchJobPodStatuses),
 		})
 		podStatus = &jobStatus.RadixBatchJobPodStatuses[len(jobStatus.RadixBatchJobPodStatuses)-1]
+	}
+	*podStatus = radixv1.RadixBatchJobPodStatus{
+		Name:         pod.GetName(),
+		Phase:        radixv1.RadixBatchJobPodPhase(pod.Status.Phase),
+		CreationTime: new(pod.GetCreationTimestamp()),
+		PodIndex:     podStatus.PodIndex,
 	}
 	if podStatePhaseShouldBeStopped(jobStatus, podStatus) {
 		podStatus.Phase = radixv1.PodStopped
