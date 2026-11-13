@@ -5,14 +5,14 @@ import (
 )
 
 type RuntimeConfig struct {
-	// Architectures is validated before DefaultArchitecture so an empty map is reported on this field.
-	// Architectures       map[string]ArchitectureSpec `json:"architectures" required:"true" validate:"size(self) > 0"`
-	// DefaultArchitecture string                      `json:"defaultArchitecture" required:"true" validate:"self in config.runtime.architectures && config.runtime.architectures[self].enabled"`
-	// SpecialNodeTypes    map[string]NodeTypeConfig   `json:"specialNodeTypes"`
+	Architectures       map[string]ArchitectureSpec `json:"architectures"`
+	DefaultArchitecture string                      `json:"defaultArchitecture" required:"true" validate:"self in config.runtime.architectures && !config.runtime.architectures[self].disabled"`
+	NodeTypes           map[string]NodeTypeConfig   `json:"nodeTypes"`
 
 	// JobSchedulerTemplate       corev1.PodTemplateSpec      `json:"jobSchedulerTemplate"`
 	// JobSchedulerAuxTemplate    corev1.PodTemplateSpec      `json:"jobSchedulerAuxTemplate"`
 	PipelineRunnerTemplate     RuntimeBaseOverlayPodConfig `json:"pipelineRunnerTemplate"`
+	PipelineBuilderTemplate    RuntimeBaseOverlayPodConfig `json:"pipelineBuilderTemplate"`
 	Oauth2ProxyTemplate        RuntimeBaseOverlayPodConfig `json:"oauth2ProxyTemplate"`
 	Oauth2SessionStoreTemplate RuntimeBaseOverlayPodConfig `json:"oauth2SessionStoreTemplate"`
 }
@@ -23,15 +23,17 @@ type RuntimeBaseOverlayPodConfig struct {
 }
 
 type NodeTypeConfig struct {
+	Disabled        bool                   `json:"disabled"`
 	Description     string                 `json:"description"`
 	Architecture    string                 `json:"architecture" required:"true"`
-	Template        corev1.PodTemplateSpec `json:"template"`
 	BuilderTemplate corev1.PodTemplateSpec `json:"builderTemplate"`
+	// JobTemplate       corev1.PodTemplateSpec `json:"jobTemplate"`
+	// ComponentTemplate corev1.PodTemplateSpec `json:"componentTemplate"`
 }
 
 type ArchitectureSpec struct {
-	Enabled           bool                   `json:"enabled"`
-	BuilderTemplate   corev1.PodTemplateSpec `json:"builderTemplate"`
-	JobTemplate       corev1.PodTemplateSpec `json:"jobTemplate"`
-	ComponentTemplate corev1.PodTemplateSpec `json:"componentTemplate"`
+	Disabled        bool                   `json:"disabled"`
+	BuilderTemplate corev1.PodTemplateSpec `json:"builderTemplate"`
+	// JobTemplate       corev1.PodTemplateSpec `json:"jobTemplate"`
+	// ComponentTemplate corev1.PodTemplateSpec `json:"componentTemplate"`
 }

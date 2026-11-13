@@ -80,12 +80,6 @@ func getCommonPodVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: git.CloneRepoHomeVolumeName,
-			EmptyDir: &corev1.EmptyDirVolumeSource{
-				SizeLimit: resource.NewScaledQuantity(5, resource.Mega),
-			},
-		},
-		{
 			Name: getTmpVolumeNameForContainer(),
 			EmptyDir: &corev1.EmptyDirVolumeSource{
 				SizeLimit: resource.NewScaledQuantity(100, resource.Giga),

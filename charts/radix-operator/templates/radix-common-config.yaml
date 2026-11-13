@@ -27,11 +27,6 @@ metadata:
 data:
   configYaml: |
     {{- $chartValues := dict
-      "pipelineRunner" (dict
-        "builder" (dict
-          "seccompProfileLocalhostProfile" (.Values.config.pipelineRunner.builder.seccompProfileLocalhostProfile | default .Values.seccompProfile.fileNameOnNode)
-        )
-      )
       "operator" (dict
         "metricsPort" (include "radix-operator.metricsPort" . | int)
         "jobSchedulerImage" (dict
@@ -60,6 +55,9 @@ data:
         )
         "pipelineRunnerTemplate" (dict
           "base" (.Values.config.runtime.pipelineRunnerTemplate.base | default (tpl (.Files.Get "files/pipeline-runner-base.yaml") . | fromYaml))
+        )
+        "pipelineBuilderTemplate" (dict
+          "base" (.Values.config.runtime.pipelineBuilderTemplate.base | default (tpl (.Files.Get "files/pipeline-builder-base.yaml") . | fromYaml))
         )
       )
     -}}
