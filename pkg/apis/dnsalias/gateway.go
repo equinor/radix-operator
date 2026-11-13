@@ -61,7 +61,7 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 		}
 
 		route.Spec = gatewayapiv1.HTTPRouteSpec{
-			Hostnames: []gatewayapiv1.Hostname{gatewayapiv1.Hostname(s.getHostName())},
+			Hostnames: []gatewayapiv1.Hostname{gatewayapiv1.Hostname(GetHostName(s.radixDNSAlias.Name, s.config.Common.DNSZone))},
 			Rules: []gatewayapiv1.HTTPRouteRule{
 				{
 					BackendRefs: []gatewayapiv1.HTTPBackendRef{backendRef},
@@ -96,6 +96,7 @@ func (s *syncer) reconcileHTTPRoute(ctx context.Context) error {
 	return nil
 }
 
-func (s *syncer) getHostName() string {
-	return fmt.Sprintf("%s.%s", s.radixDNSAlias.Name, s.config.Common.DNSZone)
+// GetHostName returns the hostname of a DNS alias
+func GetHostName(alias, dnsZone string) string {
+	return fmt.Sprintf("%s.%s", alias, dnsZone)
 }

@@ -651,6 +651,15 @@ func Test_invalid_ra(t *testing.T) {
 		{"oauth SkipAuthRoutes failed because has comma", radixapplication.ErrOAuthSkipAuthRoutesInvalid, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SkipAuthRoutes = []string{"POST=^/api/public,entity/?$", "GET=^/skip/auth/routes/get", "!=^/api"}
 		}},
+		{"oauth AllowedGroups are correct", nil, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.AllowedGroups = []string{"group-a", "00000000-0000-0000-0000-000000000000"}
+		}},
+		{"oauth AllowedGroups failed because has comma", radixapplication.ErrOAuthAllowedGroupsInvalid, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.AllowedGroups = []string{"group-a,group-b"}
+		}},
+		{"oauth AllowedGroups failed because has empty group", radixapplication.ErrOAuthAllowedGroupsInvalid, func(rr *radixv1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.AllowedGroups = []string{"group-a", " "}
+		}},
 		{"invalid healthchecks are invalid", radixapplication.ErrInvalidHealthCheckProbe, func(rr *radixv1.RadixApplication) {
 			rr.Spec.Components[0].HealthChecks = &radixv1.RadixHealthChecks{
 				LivenessProbe: &radixv1.RadixProbe{

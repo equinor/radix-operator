@@ -1,0 +1,19 @@
+# The radixconfig before EasyAuth is activated. TestRadixEasyAuthPromoteOldDeployment deploys this first, and then
+# points the RadixRegistration to radixconfig.yaml, which activates EasyAuth.
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: easyauth-promote-test
+spec:
+  environments:
+    - name: dev
+    - name: prod
+  components:
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http

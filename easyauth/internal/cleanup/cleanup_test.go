@@ -1,0 +1,206 @@
+package cleanup
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	api "github.com/dexidp/dex/api/v2"
+	"github.com/oklog/ulid/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/equinor/radix-operator/easyauth/internal/dex/dextest"
+	"github.com/equinor/radix-operator/easyauth/internal/oauth"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/scheme"
+)
+
+const annotation = "easyauth.radix.equinor.com"
+
+type app struct {
+	name                     string
+	appID                    ulid.ULID
+	annotated                bool
+	noRA                     bool
+	missingNamespaceAppLabel bool
+	rds                      []rd
+}
+
+type rd struct {
+	name      string
+	condition radixv1.RadixDeployCondition
+	annotated bool
+}
+
+func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
+	var objs []client.Object
+	for _, a := range apps {
+		objs = append(objs, &radixv1.RadixRegistration{Name: a.name, Spec: radixv1.RadixRegistrationSpec{AppID: radixv1.ULID{ULID: a.appID}}})
+		namespaceLabels := map[string]string{}
+		if !a.missingNamespaceAppLabel {
+			namespaceLabels[kube.RadixAppLabel] = a.name
+		}
+		objs = append(objs, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: a.name + "-dev", Labels: namespaceLabels}})
+		for _, d := range a.rds {
+			rd := &radixv1.RadixDeployment{
+				Name:      d.name,
+				Namespace: a.name + "-dev",
+				Status:    radixv1.RadixDeployStatus{Condition: d.condition},
+			}
+			if d.annotated {
+				rd.Annotations = map[string]string{annotation: ""}
+			}
+			objs = append(objs, rd)
+		}
+		if a.noRA {
+			continue
+		}
+		ra := &radixv1.RadixApplication{Name: a.name, Namespace: a.name + "-app"}
+		if a.annotated {
+			ra.Annotations = map[string]string{annotation: ""}
+		}
+		objs = append(objs, ra)
+	}
+	reader := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objs...).Build()
+	return NewDexClientCleaner(reader, fakeDex, time.Hour)
+}
+
+func dexClient(id string) *api.Client {
+	return &api.Client{Id: id, Name: "name", Secret: "secret"}
+}
+
+func TestCleanup_DeletesOrphanedEasyAuthClients(t *testing.T) {
+	inUse, notAnnotated, noRA, recreatedOld, recreatedNew := ulid.Make(), ulid.Make(), ulid.Make(), ulid.Make(), ulid.Make()
+	fakeDex := dextest.NewFakeDex(
+		dexClient(oauth.ClientID(inUse.String())),
+		dexClient(oauth.ClientID(notAnnotated.String())),
+		dexClient(oauth.ClientID(noRA.String())),
+		// Client of a deleted application whose name was reused by a new application
+		dexClient(oauth.ClientID(recreatedOld.String())),
+		dexClient(oauth.ClientID(recreatedNew.String())),
+		// Client of a deleted RadixRegistration
+		dexClient(oauth.ClientID(ulid.Make().String())),
+		// Not owned by EasyAuth
+		dexClient("radix-web-console"),
+	)
+	c := newCleaner(fakeDex,
+		app{name: "in-use", appID: inUse, annotated: true},
+		app{name: "not-annotated", appID: notAnnotated},
+		app{name: "no-ra", appID: noRA, noRA: true},
+		app{name: "recreated", appID: recreatedNew, annotated: true},
+	)
+
+	require.NoError(t, c.Cleanup(context.Background()))
+
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(inUse.String())))
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(recreatedNew.String())))
+	assert.NotNil(t, fakeDex.Client("radix-web-console"), "clients without the EasyAuth prefix must not be deleted")
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(notAnnotated.String())))
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(noRA.String())))
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(recreatedOld.String())))
+	assert.Equal(t, 4, fakeDex.Calls("DeleteClient"))
+}
+
+func TestCleanup_KeepsClientsUsedByActiveRadixDeployments(t *testing.T) {
+	activeAnnotated, inactiveAnnotated, activeNotAnnotated := ulid.Make(), ulid.Make(), ulid.Make()
+	fakeDex := dextest.NewFakeDex(
+		dexClient(oauth.ClientID(activeAnnotated.String())),
+		dexClient(oauth.ClientID(inactiveAnnotated.String())),
+		dexClient(oauth.ClientID(activeNotAnnotated.String())),
+	)
+	// The RadixApplications don't have the annotation, for example after it was removed
+	c := newCleaner(fakeDex,
+		app{name: "active-annotated", appID: activeAnnotated, rds: []rd{
+			{name: "old", condition: radixv1.DeploymentInactive},
+			{name: "current", condition: radixv1.DeploymentActive, annotated: true},
+		}},
+		app{name: "inactive-annotated", appID: inactiveAnnotated, rds: []rd{
+			{name: "old", condition: radixv1.DeploymentInactive, annotated: true},
+			{name: "current", condition: radixv1.DeploymentActive},
+		}},
+		app{name: "active-not-annotated", appID: activeNotAnnotated, rds: []rd{
+			{name: "current", condition: radixv1.DeploymentActive},
+		}},
+	)
+
+	require.NoError(t, c.Cleanup(context.Background()))
+
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(activeAnnotated.String())), "an active RadixDeployment with the annotation must keep the client")
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(inactiveAnnotated.String())), "inactive RadixDeployments must not keep the client")
+	assert.Nil(t, fakeDex.Client(oauth.ClientID(activeNotAnnotated.String())))
+}
+
+func TestCleanup_FailsWhenActiveDeploymentNamespaceHasNoAppLabel(t *testing.T) {
+	appID := ulid.Make()
+	fakeDex := dextest.NewFakeDex(dexClient(oauth.ClientID(appID.String())))
+	c := newCleaner(fakeDex, app{
+		name:                     "active-app",
+		appID:                    appID,
+		missingNamespaceAppLabel: true,
+		rds:                      []rd{{name: "current", condition: radixv1.DeploymentActive, annotated: true}},
+	})
+
+	err := c.Cleanup(context.Background())
+	assert.ErrorContains(t, err, kube.RadixAppLabel)
+	assert.NotNil(t, fakeDex.Client(oauth.ClientID(appID.String())))
+	assert.Zero(t, fakeDex.Calls("DeleteClient"))
+}
+
+func TestCleanup_DeletesNothingWhenDexFails(t *testing.T) {
+	fakeDex := dextest.NewFakeDex(dexClient(oauth.ClientID(ulid.Make().String())))
+	fakeDex.SetError(status.Error(codes.Unavailable, "connection refused"))
+	c := newCleaner(fakeDex)
+
+	assert.Error(t, c.Cleanup(context.Background()))
+	assert.Zero(t, fakeDex.Calls("DeleteClient"))
+}
+
+func TestCleanup_DeletesNothingWhenKubernetesFails(t *testing.T) {
+	fakeDex := dextest.NewFakeDex(dexClient(oauth.ClientID(ulid.Make().String())))
+	c := newCleaner(fakeDex)
+	// The scheme doesn't know the Radix types, so listing RadixApplications fails
+	c.reader = fake.NewClientBuilder().Build()
+
+	assert.Error(t, c.Cleanup(context.Background()))
+	assert.Zero(t, fakeDex.Calls("DeleteClient"))
+}
+
+func TestStart_RunsCleanupUntilCancelled(t *testing.T) {
+	orphan := oauth.ClientID(ulid.Make().String())
+	fakeDex := dextest.NewFakeDex(dexClient(orphan))
+	c := newCleaner(fakeDex)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error)
+	go func() { done <- c.Start(ctx) }()
+
+	require.Eventually(t, func() bool { return fakeDex.Client(orphan) == nil }, 5*time.Second, 10*time.Millisecond)
+	cancel()
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Start did not return after the context was cancelled")
+	}
+}
+
+func TestStart_FailsWhenCacheDoesNotSync(t *testing.T) {
+	fakeDex := dextest.NewFakeDex()
+	c := newCleaner(fakeDex)
+	c.waitForCacheSync = func(context.Context) bool { return false }
+
+	assert.Error(t, c.Start(context.Background()))
+	assert.Zero(t, fakeDex.Calls("ListClients"))
+}
+
+func TestNeedLeaderElection(t *testing.T) {
+	assert.True(t, (&DexClientCleaner{}).NeedLeaderElection())
+}
