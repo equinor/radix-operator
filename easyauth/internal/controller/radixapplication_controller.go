@@ -119,7 +119,11 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	ra := &radixv1.RadixApplication{}
 	if err := r.Get(ctx, req.NamespacedName, ra); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		err = client.IgnoreNotFound(err)
+		if err != nil {
+			observeReconcile(kindRadixApplication, err)
+		}
+		return ctrl.Result{}, err
 	}
 	if !ra.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
@@ -128,6 +132,13 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
+	result, err := r.reconcile(ctx, ra)
+	observeReconcile(kindRadixApplication, err)
+	return result, err
+}
+
+// reconcile syncs the OAuth2 config and the Dex client of a RadixApplication with the EasyAuth annotation
+func (r *RadixApplicationReconciler) reconcile(ctx context.Context, ra *radixv1.RadixApplication) (ctrl.Result, error) {
 	clientID, err := oauth.ClientIDForApp(ctx, r.Client, ra.Name)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -152,7 +163,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	logger.Debug().Str("clientId", clientID).Msg("Reconciled RadixApplication")
+	log.Ctx(ctx).Debug().Str("clientId", clientID).Msg("Reconciled RadixApplication")
 	return ctrl.Result{RequeueAfter: r.requeueAfter(rotateAt)}, nil
 }
 
@@ -161,6 +172,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radixv1.RadixApplication, clientID string, deployments []*radixv1.RadixDeployment) (time.Time, error) {
 	desired := dex.Client{ID: clientID, Name: ra.Name, RedirectURIs: r.redirectURIs(ra, deployments)}
 	clientSecret, rotateAt, err := r.dexClients.EnsureClient(ctx, desired, r.secretRotationInterval)
+	observeReconcile(kindDexClient, err)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -260,8 +272,20 @@ func (r *RadixApplicationReconciler) syncComponentSecret(ctx context.Context, na
 	name := utils.GetAuxiliaryComponentSecretName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, secret); err != nil {
-		return client.IgnoreNotFound(err)
+		err = client.IgnoreNotFound(err)
+		if err != nil {
+			observeReconcile(kindSecret, err)
+		}
+		return err
 	}
+
+	err := r.syncExistingComponentSecret(ctx, secret, componentName, clientSecret)
+	observeReconcile(kindSecret, err)
+	return err
+}
+
+func (r *RadixApplicationReconciler) syncExistingComponentSecret(ctx context.Context, secret *corev1.Secret, componentName string, clientSecret []byte) error {
+	namespace, name := secret.Namespace, secret.Name
 
 	if !bytes.Equal(secret.Data[ClientSecretKey], clientSecret) {
 		original := secret.DeepCopy()
@@ -330,7 +354,9 @@ func (r *RadixApplicationReconciler) syncRadixDeployments(ctx context.Context, r
 
 	var errs []error
 	for _, rd := range deployments {
-		if err := r.syncRadixDeployment(ctx, rd, desired); err != nil {
+		err := r.syncRadixDeployment(ctx, rd, desired)
+		observeReconcile(kindRadixDeployment, err)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("RadixDeployment %s/%s: %w", rd.Namespace, rd.Name, err))
 		}
 	}

@@ -28,7 +28,7 @@ config:
   # When true, applying a RadixApplication without the easyauth.radix.equinor.com annotation is rejected by the
   # validating webhook
   enforced: false
-  # Required. The Dex issuer, set on all public components by the mutating webhook. Overrides dex.config.issuer.
+  # Required. The Dex issuer, set on all public components by the mutating webhook. Overrides dex.config.issuer and config.oauth2.oidc.issuerUrl
   issuerUrl: "" # for example https://easyauth.dev.radix.equinor.com
   # OAuth2 configuration set on all public components, see authentication.oauth2 in the radixconfig.yaml
   # documentation for all settings. clientId, credentials and oidc.issuerUrl are set by EasyAuth and must not be set.
@@ -70,6 +70,16 @@ config:
   # sharing the Dex database. Use a short interval, for example 24h, in dev to exercise rotation often.
   secretRotationInterval: 2160h # 90 days
   maxConcurrentReconciles: 1
+
+# Prometheus Operator ServiceMonitor that scrapes the metrics port (config.metricsPort) of the EasyAuth pods.
+# The metrics port is always exposed on the webhook Service, for other collectors.
+# Requires the monitoring.coreos.com/v1 ServiceMonitor CRD.
+serviceMonitor:
+  enabled: false
+  # Scrape interval, defaults to the Prometheus global scrape interval when empty
+  interval: ""
+  # Additional labels on the ServiceMonitor, for example to match the serviceMonitorSelector of Prometheus
+  labels: {}
 
 webhook:
   failurePolicy: Fail

@@ -10,6 +10,7 @@ import (
 
 	api "github.com/dexidp/dex/api/v2"
 	"github.com/oklog/ulid/v2"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -806,4 +807,65 @@ func TestReconcile_WithoutAllowedGroupsKeepsRadixDeploymentsAndSyncsDex(t *testi
 	assert.Equal(t, existing, getRD(t, r, devNs, "dev-1").Spec.Components[0].Authentication.OAuth2)
 	assert.NotNil(t, fakeDex.Client(clientID), "the Dex client must still be synced")
 	assert.NotEmpty(t, getSecret(t, r, devNs, webSecret.Name).Data[ClientSecretKey])
+}
+
+// metricDeltas returns a function that returns how much the reconciled and error counters of kind have increased
+func metricDeltas(kind string) func() (reconciled, errs float64) {
+	startReconciled := testutil.ToFloat64(objectsReconciled.WithLabelValues(kind))
+	startErrs := testutil.ToFloat64(reconcileErrors.WithLabelValues(kind))
+	return func() (float64, float64) {
+		return testutil.ToFloat64(objectsReconciled.WithLabelValues(kind)) - startReconciled,
+			testutil.ToFloat64(reconcileErrors.WithLabelValues(kind)) - startErrs
+	}
+}
+
+func TestReconcile_CountsReconciledObjects(t *testing.T) {
+	raDeltas, rdDeltas, dexDeltas, secretDeltas := metricDeltas(kindRadixApplication), metricDeltas(kindRadixDeployment), metricDeltas(kindDexClient), metricDeltas(kindSecret)
+	r := newReconciler(dextest.NewFakeDex(), newRA(true), newRR(),
+		oauthProxySecret(devNs, "web", nil),
+		activeRD(newRD(devNs, "dev-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+		// The OAuth2 proxy Secret is missing, and is not counted
+		activeRD(newRD(prodNs, "prod-1", radixv1.RadixDeployComponent{Name: "web", PublicPort: "http"})),
+	)
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	for kind, deltas := range map[string]func() (float64, float64){
+		kindRadixApplication: raDeltas, kindRadixDeployment: rdDeltas, kindDexClient: dexDeltas, kindSecret: secretDeltas,
+	} {
+		reconciled, errs := deltas()
+		expected := map[string]float64{kindRadixApplication: 1, kindRadixDeployment: 2, kindDexClient: 1, kindSecret: 1}[kind]
+		assert.Equal(t, expected, reconciled, "reconciled %s", kind)
+		assert.Zero(t, errs, "errors %s", kind)
+	}
+}
+
+func TestReconcile_CountsReconcileErrors(t *testing.T) {
+	raDeltas, dexDeltas := metricDeltas(kindRadixApplication), metricDeltas(kindDexClient)
+	fakeDex := dextest.NewFakeDex()
+	fakeDex.SetError(status.Error(codes.Unavailable, "connection refused"))
+	r := newReconciler(fakeDex, newRA(true), newRR())
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.Error(t, err)
+
+	reconciled, errs := raDeltas()
+	assert.Zero(t, reconciled)
+	assert.Equal(t, 1.0, errs)
+	reconciled, errs = dexDeltas()
+	assert.Zero(t, reconciled)
+	assert.Equal(t, 1.0, errs)
+}
+
+func TestReconcile_SkippedRadixApplicationIsNotCounted(t *testing.T) {
+	raDeltas := metricDeltas(kindRadixApplication)
+	r := newReconciler(dextest.NewFakeDex(), newRA(false), newRR())
+
+	_, err := r.Reconcile(context.Background(), appRequest)
+	require.NoError(t, err)
+
+	reconciled, errs := raDeltas()
+	assert.Zero(t, reconciled)
+	assert.Zero(t, errs)
 }
