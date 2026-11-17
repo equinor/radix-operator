@@ -233,6 +233,7 @@ func Test_RadixBatchWatcher(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			history := batch.NewMockHistory(ctrl)
 			batchWatcher, err := NewRadixBatchWatcher(context.Background(), radixClient, namespace, history, tt.args.getNotifier(ctrl))
+			watchStarted := notifyOnWatchStarted(radixClient)
 			defer batchWatcher.Stop()
 			if err != nil {
 				assert.Fail(t, err.Error())
