@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	dynclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -60,7 +61,7 @@ var _ DexClientManager = (*dex.ClientManager)(nil)
 
 // RadixApplicationReconciler reconciles a RadixApplication object
 type RadixApplicationReconciler struct {
-	client.Client
+	client     dynclient.Client
 	dexClients DexClientManager
 	// OAuth2 configuration of public components, without the client ID (see oauth.NewTemplate)
 	oauth2Template *radixv1.OAuth2
@@ -70,8 +71,8 @@ type RadixApplicationReconciler struct {
 	appAliasBaseURL string
 	// How often each RadixApplication is reconciled to correct drift
 	resyncInterval time.Duration
-	// MaxConcurrentReconciles is the maximum number of concurrent reconciles for this controller
-	MaxConcurrentReconciles int
+	// maxConcurrentReconciles is the maximum number of concurrent reconciles for this controller
+	maxConcurrentReconciles int
 	// How old a client secret can be before it is rotated. Must be the same in all clusters sharing the Dex database.
 	secretRotationInterval time.Duration
 }
@@ -80,7 +81,7 @@ type RadixApplicationReconciler struct {
 // the OAuth2 clients of applications in Dex with dexClients. secretRotationInterval defaults to
 // DefaultSecretRotationInterval when not set.
 func NewRadixApplicationReconciler(
-	c client.Client,
+	c dynclient.Client,
 	dexClients DexClientManager,
 	oauth2Template *radixv1.OAuth2,
 	clusterName, dnsZone, appAliasBaseURL string,
@@ -91,7 +92,7 @@ func NewRadixApplicationReconciler(
 		secretRotationInterval = DefaultSecretRotationInterval
 	}
 	return &RadixApplicationReconciler{
-		Client:                  c,
+		client:                  c,
 		dexClients:              dexClients,
 		oauth2Template:          oauth2Template,
 		clusterName:             clusterName,
@@ -99,7 +100,7 @@ func NewRadixApplicationReconciler(
 		appAliasBaseURL:         appAliasBaseURL,
 		resyncInterval:          DefaultResyncInterval,
 		secretRotationInterval:  secretRotationInterval,
-		MaxConcurrentReconciles: maxConcurrentReconciles,
+		maxConcurrentReconciles: maxConcurrentReconciles,
 	}
 }
 
@@ -118,7 +119,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	ctx = logger.WithContext(ctx)
 
 	ra := &radixv1.RadixApplication{}
-	if err := r.Get(ctx, req.NamespacedName, ra); err != nil {
+	if err := r.client.Get(ctx, req.NamespacedName, ra); err != nil {
 		err = client.IgnoreNotFound(err)
 		if err != nil {
 			observeReconcile(kindRadixApplication, err)
@@ -139,7 +140,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // reconcile syncs the OAuth2 config and the Dex client of a RadixApplication with the EasyAuth annotation
 func (r *RadixApplicationReconciler) reconcile(ctx context.Context, ra *radixv1.RadixApplication) (ctrl.Result, error) {
-	clientID, err := oauth.ClientIDForApp(ctx, r.Client, ra.Name)
+	clientID, err := oauth.ClientIDForApp(ctx, r.client, ra.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -187,7 +188,7 @@ func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radi
 func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) ([]*radixv1.RadixDeployment, error) {
 	// Found by the namespace label, since app administrators can change the radix-app label of a RadixDeployment
 	nsList := &corev1.NamespaceList{}
-	if err := r.List(ctx, nsList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
+	if err := r.client.List(ctx, nsList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
 		return nil, fmt.Errorf("failed to list namespaces for app %s: %w", ra.Name, err)
 	}
 
@@ -200,7 +201,7 @@ func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context,
 		}
 
 		rdList := &radixv1.RadixDeploymentList{}
-		if err := r.List(ctx, rdList, client.InNamespace(ns.Name)); err != nil {
+		if err := r.client.List(ctx, rdList, client.InNamespace(ns.Name)); err != nil {
 			return nil, fmt.Errorf("failed to list radix deployments in namespace %s: %w", ns.Name, err)
 		}
 
@@ -271,7 +272,7 @@ func (r *RadixApplicationReconciler) syncComponentSecrets(ctx context.Context, d
 func (r *RadixApplicationReconciler) syncComponentSecret(ctx context.Context, namespace, componentName string, clientSecret []byte) error {
 	name := utils.GetAuxiliaryComponentSecretName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	secret := &corev1.Secret{}
-	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, secret); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, secret); err != nil {
 		err = client.IgnoreNotFound(err)
 		if err != nil {
 			observeReconcile(kindSecret, err)
@@ -300,7 +301,7 @@ func (r *RadixApplicationReconciler) syncExistingComponentSecret(ctx context.Con
 			secret.Data = map[string][]byte{}
 		}
 		secret.Data[ClientSecretKey] = clientSecret
-		if err := r.Patch(ctx, secret, client.MergeFrom(original)); err != nil {
+		if err := r.client.Patch(ctx, secret, client.MergeFrom(original)); err != nil {
 			return err
 		}
 		log.Ctx(ctx).Info().Str("namespace", namespace).Str("secret", name).Msg("Synced client secret")
@@ -314,7 +315,7 @@ func (r *RadixApplicationReconciler) syncExistingComponentSecret(ctx context.Con
 	}
 	original := secret.DeepCopy()
 	delete(secret.Annotations, annotations.RestartPending)
-	return r.Patch(ctx, secret, client.MergeFrom(original))
+	return r.client.Patch(ctx, secret, client.MergeFrom(original))
 }
 
 // restartOAuthProxy triggers a rollout of the OAuth2 proxy Deployment of a component, the same way as kubectl rollout restart.
@@ -334,7 +335,7 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 	}
 	// Patched without reading it first, so Deployments are not cached. A missing Deployment is created by
 	// radix-operator with the new client secret, and doesn't need a restart.
-	if err := r.Patch(ctx, deployment, client.RawPatch(types.MergePatchType, patch)); err != nil {
+	if err := r.client.Patch(ctx, deployment, client.RawPatch(types.MergePatchType, patch)); err != nil {
 		return client.IgnoreNotFound(err)
 	}
 	log.Ctx(ctx).Info().Str("namespace", namespace).Str("deployment", deployment.Name).Msg("Restarted OAuth2 proxy")
@@ -370,7 +371,7 @@ func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd
 	firstAttempt := true
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if !firstAttempt {
-			if err := r.Get(ctx, client.ObjectKeyFromObject(rd), rd); err != nil {
+			if err := r.client.Get(ctx, client.ObjectKeyFromObject(rd), rd); err != nil {
 				return client.IgnoreNotFound(err)
 			}
 		}
@@ -410,7 +411,7 @@ func (r *RadixApplicationReconciler) patchRadixDeployment(ctx context.Context, r
 	}
 
 	// Components is a list, so a merge patch replaces all components. The optimistic lock prevents overwriting concurrent changes.
-	if err := r.Patch(ctx, rd, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
+	if err := r.client.Patch(ctx, rd, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 		return err
 	}
 	log.Ctx(ctx).Info().Str("namespace", rd.Namespace).Str("radixDeployment", rd.Name).Msg("Updated OAuth2 config")
@@ -452,7 +453,7 @@ func isOAuthProxySecret(obj client.Object) bool {
 func (r *RadixApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&radixv1.RadixApplication{}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: r.MaxConcurrentReconciles}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: r.maxConcurrentReconciles}).
 		// The public hosts, and therefore the redirect URIs in Dex, come from the active RadixDeployment
 		Watches(&radixv1.RadixDeployment{},
 			handler.EnqueueRequestsFromMapFunc(mapToRadixApplication),

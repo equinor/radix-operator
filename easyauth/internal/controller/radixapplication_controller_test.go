@@ -151,14 +151,14 @@ func newReconcilerWithClient(c client.Client, fakeDex *dextest.FakeDex) *RadixAp
 func getSecret(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *corev1.Secret {
 	t.Helper()
 	secret := &corev1.Secret{}
-	require.NoError(t, r.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, secret))
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, secret))
 	return secret
 }
 
 func getRD(t *testing.T, r *RadixApplicationReconciler, namespace, name string) *radixv1.RadixDeployment {
 	t.Helper()
 	rd := &radixv1.RadixDeployment{}
-	require.NoError(t, r.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, rd))
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: name}, rd))
 	return rd
 }
 
@@ -614,7 +614,7 @@ func oauthProxyDeployment(namespace, componentName string) *appsv1.Deployment {
 func getDeployment(t *testing.T, r *RadixApplicationReconciler, namespace, componentName string) *appsv1.Deployment {
 	t.Helper()
 	deployment := &appsv1.Deployment{}
-	require.NoError(t, r.Get(context.Background(), client.ObjectKeyFromObject(oauthProxyDeployment(namespace, componentName)), deployment))
+	require.NoError(t, r.client.Get(context.Background(), client.ObjectKeyFromObject(oauthProxyDeployment(namespace, componentName)), deployment))
 	return deployment
 }
 
