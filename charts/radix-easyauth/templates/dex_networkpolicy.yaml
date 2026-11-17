@@ -1,0 +1,27 @@
+{{- if .Values.dex.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "radix-easyauth.dex.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Login flows through the gateway, and metrics
+    - ports:
+        - port: http
+        - port: telemetry
+    # The gRPC API manages clients and is only available to EasyAuth
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "radix-easyauth.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: grpc
+{{- end }}

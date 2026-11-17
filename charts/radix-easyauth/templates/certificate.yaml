@@ -1,0 +1,79 @@
+# Self-signed bootstrap issuer, used only to sign the CA below
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "radix-easyauth.selfSignedIssuerName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+# Self-signed CA certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "radix-easyauth.caCertificateName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+spec:
+  isCA: true
+  commonName: {{ .Values.certificate.ca.commonName }}
+  subject:
+    organizations:
+      - {{ .Values.certificate.ca.organization | quote }}
+  secretName: {{ include "radix-easyauth.caCertificateName" . }}
+  duration: {{ .Values.certificate.ca.duration }}
+  renewBefore: {{ .Values.certificate.ca.renewBefore }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: {{ include "radix-easyauth.selfSignedIssuerName" . }}
+    kind: Issuer
+    group: cert-manager.io
+---
+# Namespaced webhook issuer, signs serving certificates with the CA above
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "radix-easyauth.webhookIssuerName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "radix-easyauth.caCertificateName" . }}
+---
+# Webhook serving certificate
+{{- $svc := include "radix-easyauth.serviceName" . }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "radix-easyauth.servingCertificateName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "radix-easyauth.servingCertificateSecretName" . }}
+  duration: {{ .Values.certificate.duration }}
+  renewBefore: {{ .Values.certificate.renewBefore }}
+  dnsNames:
+    - {{ $svc }}
+    - {{ $svc }}.{{ .Release.Namespace }}
+    - {{ $svc }}.{{ .Release.Namespace }}.svc
+    - {{ $svc }}.{{ .Release.Namespace }}.svc.cluster.local
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: {{ include "radix-easyauth.webhookIssuerName" . }}
+    kind: Issuer
+    group: cert-manager.io

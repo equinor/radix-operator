@@ -1,0 +1,16 @@
+apiVersion: v2
+name: radix-easyauth
+version: 1.133.0 # x-patch-semver
+appVersion: 1.133.0 # x-patch-semver
+kubeVersion: ">=1.35.0"
+description: Radix EasyAuth mutating admission webhook
+icon: https://radix.equinor.com/images/logos/logo.svg
+keywords:
+  - radix
+home: radix.equinor.com
+sources:
+  - https://github.com/equinor/radix-operator
+maintainers:
+  - name: Radix Development Team
+    email: Radix@StatoilSRM.onmicrosoft.com
+deprecated: false
