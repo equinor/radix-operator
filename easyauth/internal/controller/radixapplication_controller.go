@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	dynclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -120,7 +119,7 @@ func (r *RadixApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	ra := &radixv1.RadixApplication{}
 	if err := r.client.Get(ctx, req.NamespacedName, ra); err != nil {
-		err = client.IgnoreNotFound(err)
+		err = dynclient.IgnoreNotFound(err)
 		if err != nil {
 			observeReconcile(kindRadixApplication, err)
 		}
@@ -188,7 +187,7 @@ func (r *RadixApplicationReconciler) syncDexClient(ctx context.Context, ra *radi
 func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context, ra *radixv1.RadixApplication) ([]*radixv1.RadixDeployment, error) {
 	// Found by the namespace label, since app administrators can change the radix-app label of a RadixDeployment
 	nsList := &corev1.NamespaceList{}
-	if err := r.client.List(ctx, nsList, client.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
+	if err := r.client.List(ctx, nsList, dynclient.MatchingLabels{kube.RadixAppLabel: ra.Name}); err != nil {
 		return nil, fmt.Errorf("failed to list namespaces for app %s: %w", ra.Name, err)
 	}
 
@@ -201,7 +200,7 @@ func (r *RadixApplicationReconciler) activeRadixDeployments(ctx context.Context,
 		}
 
 		rdList := &radixv1.RadixDeploymentList{}
-		if err := r.client.List(ctx, rdList, client.InNamespace(ns.Name)); err != nil {
+		if err := r.client.List(ctx, rdList, dynclient.InNamespace(ns.Name)); err != nil {
 			return nil, fmt.Errorf("failed to list radix deployments in namespace %s: %w", ns.Name, err)
 		}
 
@@ -273,7 +272,7 @@ func (r *RadixApplicationReconciler) syncComponentSecret(ctx context.Context, na
 	name := utils.GetAuxiliaryComponentSecretName(componentName, radixv1.OAuthProxyAuxiliaryComponentSuffix)
 	secret := &corev1.Secret{}
 	if err := r.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, secret); err != nil {
-		err = client.IgnoreNotFound(err)
+		err = dynclient.IgnoreNotFound(err)
 		if err != nil {
 			observeReconcile(kindSecret, err)
 		}
@@ -301,7 +300,7 @@ func (r *RadixApplicationReconciler) syncExistingComponentSecret(ctx context.Con
 			secret.Data = map[string][]byte{}
 		}
 		secret.Data[ClientSecretKey] = clientSecret
-		if err := r.client.Patch(ctx, secret, client.MergeFrom(original)); err != nil {
+		if err := r.client.Patch(ctx, secret, dynclient.MergeFrom(original)); err != nil {
 			return err
 		}
 		log.Ctx(ctx).Info().Str("namespace", namespace).Str("secret", name).Msg("Synced client secret")
@@ -315,7 +314,7 @@ func (r *RadixApplicationReconciler) syncExistingComponentSecret(ctx context.Con
 	}
 	original := secret.DeepCopy()
 	delete(secret.Annotations, annotations.RestartPending)
-	return r.client.Patch(ctx, secret, client.MergeFrom(original))
+	return r.client.Patch(ctx, secret, dynclient.MergeFrom(original))
 }
 
 // restartOAuthProxy triggers a rollout of the OAuth2 proxy Deployment of a component, the same way as kubectl rollout restart.
@@ -335,8 +334,8 @@ func (r *RadixApplicationReconciler) restartOAuthProxy(ctx context.Context, name
 	}
 	// Patched without reading it first, so Deployments are not cached. A missing Deployment is created by
 	// radix-operator with the new client secret, and doesn't need a restart.
-	if err := r.client.Patch(ctx, deployment, client.RawPatch(types.MergePatchType, patch)); err != nil {
-		return client.IgnoreNotFound(err)
+	if err := r.client.Patch(ctx, deployment, dynclient.RawPatch(types.MergePatchType, patch)); err != nil {
+		return dynclient.IgnoreNotFound(err)
 	}
 	log.Ctx(ctx).Info().Str("namespace", namespace).Str("deployment", deployment.Name).Msg("Restarted OAuth2 proxy")
 	return nil
@@ -371,8 +370,8 @@ func (r *RadixApplicationReconciler) syncRadixDeployment(ctx context.Context, rd
 	firstAttempt := true
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if !firstAttempt {
-			if err := r.client.Get(ctx, client.ObjectKeyFromObject(rd), rd); err != nil {
-				return client.IgnoreNotFound(err)
+			if err := r.client.Get(ctx, dynclient.ObjectKeyFromObject(rd), rd); err != nil {
+				return dynclient.IgnoreNotFound(err)
 			}
 		}
 		firstAttempt = false
@@ -411,7 +410,7 @@ func (r *RadixApplicationReconciler) patchRadixDeployment(ctx context.Context, r
 	}
 
 	// Components is a list, so a merge patch replaces all components. The optimistic lock prevents overwriting concurrent changes.
-	if err := r.client.Patch(ctx, rd, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
+	if err := r.client.Patch(ctx, rd, dynclient.MergeFromWithOptions(original, dynclient.MergeFromWithOptimisticLock{})); err != nil {
 		return err
 	}
 	log.Ctx(ctx).Info().Str("namespace", rd.Namespace).Str("radixDeployment", rd.Name).Msg("Updated OAuth2 config")
@@ -427,7 +426,7 @@ func (r *RadixApplicationReconciler) requeueAfter(rotateAt time.Time) time.Durat
 }
 
 // mapToRadixApplication maps objects with the radix-app label to the RadixApplication of the app
-func mapToRadixApplication(_ context.Context, obj client.Object) []reconcile.Request {
+func mapToRadixApplication(_ context.Context, obj dynclient.Object) []reconcile.Request {
 	appName := obj.GetLabels()[kube.RadixAppLabel]
 	if appName == "" {
 		return nil
@@ -445,7 +444,7 @@ var conditionChangedPredicate = predicate.Funcs{
 	},
 }
 
-func isOAuthProxySecret(obj client.Object) bool {
+func isOAuthProxySecret(obj dynclient.Object) bool {
 	return obj.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel] == radixv1.OAuthProxyAuxiliaryComponentType
 }
 
