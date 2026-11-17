@@ -310,3 +310,22 @@ func (m *radixBatchJobStatusesMatcher) Matches(x any) bool {
 func (m *radixBatchJobStatusesMatcher) String() string {
 	return "radixBatchJobStatuses matcher"
 }
+
+// notifyOnWatchStarted returns a channel that is closed when the first watch is registered with the fake client's tracker
+func notifyOnWatchStarted(client *radixclientfake.Clientset) <-chan struct{} {
+	started := make(chan struct{})
+	var once sync.Once
+	client.PrependWatchReactor("*", func(action k8stesting.Action) (bool, watch.Interface, error) {
+		var opts metav1.ListOptions
+		if watchAction, ok := action.(k8stesting.WatchActionImpl); ok {
+			opts = watchAction.ListOptions
+		}
+		w, err := client.Tracker().Watch(action.GetResource(), action.GetNamespace(), opts)
+		if err != nil {
+			return false, nil, err
+		}
+		once.Do(func() { close(started) })
+		return true, w, nil
+	})
+	return started
+}
