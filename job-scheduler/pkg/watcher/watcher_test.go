@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 func TestWatcherStop(t *testing.T) {
@@ -232,15 +235,15 @@ func Test_RadixBatchWatcher(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 			history := batch.NewMockHistory(ctrl)
-			batchWatcher, err := NewRadixBatchWatcher(context.Background(), radixClient, namespace, history, tt.args.getNotifier(ctrl))
 			watchStarted := notifyOnWatchStarted(radixClient)
-			defer batchWatcher.Stop()
+			batchWatcher, err := NewRadixBatchWatcher(context.Background(), radixClient, namespace, history, tt.args.getNotifier(ctrl))
 			if err != nil {
 				assert.Fail(t, err.Error())
 				return
 			}
+			defer batchWatcher.Stop()
 			assert.NotNil(t, batchWatcher)
-// WaitForCacheSync only guarantees the initial List; changes made before the
+			// WaitForCacheSync only guarantees the initial List; changes made before the
 			// informer's Watch is registered are not delivered as events (e.g. Delete).
 			select {
 			case <-watchStarted:
