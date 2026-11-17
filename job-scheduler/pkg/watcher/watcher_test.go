@@ -240,7 +240,13 @@ func Test_RadixBatchWatcher(t *testing.T) {
 				return
 			}
 			assert.NotNil(t, batchWatcher)
-
+// WaitForCacheSync only guarantees the initial List; changes made before the
+			// informer's Watch is registered are not delivered as events (e.g. Delete).
+			select {
+			case <-watchStarted:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout waiting for informer watch to start")
+			}
 			if tt.fields.newRadixBatch != nil && tt.fields.event == events.Create {
 				history.EXPECT().Cleanup(gomock.Any(), make(map[string]struct{})).Times(1)
 				// when radix batch exists and during test it will be updated
