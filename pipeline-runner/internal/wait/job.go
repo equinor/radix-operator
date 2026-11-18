@@ -17,8 +17,7 @@ import (
 
 const jobNameLabel = "job-name"
 
-var imageErrors = map[string]bool{"ImagePullBackOff": true, "ImageInspectError": true, "ErrImagePull": true,
-	"ErrImageNeverPull": true, "RegistryUnavailable": true, "InvalidImageName": true}
+var imageErrors = map[string]bool{"ImagePullBackOff": true, "ImageInspectError": true, "ErrImageNeverPull": true, "RegistryUnavailable": true, "InvalidImageName": true}
 
 type JobCompletionWaiter interface {
 	Wait(job *batchv1.Job) error
@@ -77,7 +76,7 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 			if success && job.GetNamespace() == pod.GetNamespace() &&
 				pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() &&
 				len(pod.Status.ContainerStatuses) > 0 {
-				err := checkPodIsTerminatedOrFailed(&pod.Status.ContainerStatuses)
+				err := checkPodIsTerminatedOrFailed(pod.Status.ContainerStatuses)
 				if err != nil {
 					errChan <- err
 				}
@@ -123,8 +122,8 @@ func getJobDescription(job *batchv1.Job) string {
 	return strings.Join(lines, " ")
 }
 
-func checkPodIsTerminatedOrFailed(containerStatuses *[]corev1.ContainerStatus) error {
-	for _, containerStatus := range *containerStatuses {
+func checkPodIsTerminatedOrFailed(containerStatuses []corev1.ContainerStatus) error {
+	for _, containerStatus := range containerStatuses {
 		if containerStatus.State.Terminated != nil {
 			terminated := containerStatus.State.Terminated
 			if terminated.Reason == "Failed" {
