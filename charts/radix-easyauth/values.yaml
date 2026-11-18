@@ -179,29 +179,29 @@ dex:
   #       key: clientSecret
 
   # Additional volumes for the Dex pod, for example a shared emptyDir written by a sidecar
-  extraVolumes: # []
-  - name: pgpass
-    emptyDir:
-      medium: Memory
+  extraVolumes: []
+  # - name: pgpass
+  #   emptyDir:
+  #     medium: Memory
 
   # Additional volume mounts for the Dex container
-  extraVolumeMounts: # []
-  - name: pgpass
-    mountPath: /var/run/pgpass
-    readOnly: true
+  extraVolumeMounts: []
+  # - name: pgpass
+  #   mountPath: /var/run/pgpass
+  #   readOnly: true
 
   # Init containers for the Dex pod. Use restartPolicy: Always for a native sidecar that starts before Dex and keeps
   # running, for example to refresh a database token in a file read by Dex. Templated with tpl.
-  initContainers: #[]
-  - name: pgpass
-    image: example.com/pgpass-refresher:1.0.0
-    restartPolicy: Always
-    volumeMounts:
-      - name: pgpass
-        mountPath: /var/run/pgpass
-    startupProbe:
-      exec:
-        command: [test, -s, /var/run/pgpass/pgpass]
+  initContainers: []
+  # - name: pgpass
+  #   image: example.com/pgpass-refresher:1.0.0
+  #   restartPolicy: Always
+  #   volumeMounts:
+  #     - name: pgpass
+  #       mountPath: /var/run/pgpass
+  #   startupProbe:
+  #     exec:
+  #       command: [test, -s, /var/run/pgpass/pgpass]
 
   # Additional containers in the Dex pod. Templated with tpl.
   extraContainers: []
