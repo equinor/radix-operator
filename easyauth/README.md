@@ -455,19 +455,19 @@ Configured with the `config` section in the Helm chart [values](../charts/radix-
 rendered into a ConfigMap and parsed into [EasyAuthConfig](config.go). The annotations used by EasyAuth are constants
 in [annotations.go](internal/annotations/annotations.go) and can't be configured.
 
-| Value                         | Description                                                                                                           |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `oauth2.allowedGroups`        | Default groups when the [allowed identities](#allowed-identities) annotation is missing or empty. A non-empty annotation replaces this list |
-| `oauth2.groupClaim`           | ID token claim containing the user's groups. Defaults to `groups` in oauth2-proxy                                     |
-| `enforced`                    | Reject `RadixApplications` without the annotation                                                                     |
-| `issuerUrl`                   | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                |
-| `oauth2`                      | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required         |
-| `clusterName`                 | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                  |
-| `dnsZone`                     | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                 |
-| `appAliasBaseURL`             | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                               |
-| `cleanupEnabled`              | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `true`, set to `false` in all but one cluster      |
-| `cleanupInterval`             | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled                               |
-| `secretRotationInterval`      | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h` |
+| Value                    | Description                                                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oauth2.allowedGroups`   | Default groups when the [allowed identities](#allowed-identities) annotation is missing or empty. A non-empty annotation replaces this list |
+| `oauth2.groupClaim`      | ID token claim containing the user's groups. Defaults to `groups` in oauth2-proxy                                                           |
+| `enforced`               | Reject `RadixApplications` without the annotation                                                                                           |
+| `issuerUrl`              | OIDC issuer URL of Dex, set on all public components and as the Dex `issuer`. Required                                                      |
+| `oauth2`                 | [OAuth2 configuration](#mutating-webhook) of public components (scope, headers, session store, ...). Required                               |
+| `clusterName`            | Name of the cluster, same as `config.common.clusterName` of radix-operator. Required                                                        |
+| `dnsZone`                | DNS zone, same as `config.common.dnsZone` of radix-operator. Required                                                                       |
+| `appAliasBaseURL`        | App alias base URL, same as `config.common.appAliasBaseURL` of radix-operator. Required                                                     |
+| `cleanupEnabled`         | Run the [cleanup loop](#cleanup-loop) in this cluster. Defaults to `true`, set to `false` in all but one cluster                            |
+| `cleanupInterval`        | How often the [cleanup loop](#cleanup-loop) runs. At least `1m` when cleanup is enabled                                                     |
+| `secretRotationInterval` | How old a client secret can be before it is [rotated](#secret-rotation). Defaults to `2160h` (90 days), at least `1h`                       |
 
 `dex.grpcAddress` and `dex.certsDir` are added to the config by the chart, and are required.
 
@@ -486,12 +486,21 @@ configurations.
 
 Dex is configured with the `dex` section:
 
-| Value                       | Description                                                     |
-| --------------------------- | --------------------------------------------------------------- |
-| `dex.config`                | Dex configuration, including the required `storage`             |
-| `dex.extraEnv`              | Additional environment variables, for example storage passwords |
-| `dex.httpRoute.parentRefs`  | Gateways and/or ListenerSets the Dex HTTPRoute is attached to   |
-| `dex.networkPolicy.enabled` | Limit the gRPC port to EasyAuth pods. Defaults to `true`        |
+| Value                       | Description                                                                                                    |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `dex.config`                | Dex configuration, including the required `storage`                                                            |
+| `dex.extraEnv`              | Additional environment variables, for example storage passwords                                                |
+| `dex.extraVolumes`          | Additional volumes in the Dex pod                                                                              |
+| `dex.extraVolumeMounts`     | Additional volume mounts in the Dex container                                                                  |
+| `dex.initContainers`        | Init containers in the Dex pod. With `restartPolicy: Always` they run as native sidecars. Templated with `tpl` |
+| `dex.extraContainers`       | Additional containers in the Dex pod. Templated with `tpl`                                                     |
+| `dex.httpRoute.parentRefs`  | Gateways and/or ListenerSets the Dex HTTPRoute is attached to                                                  |
+| `dex.networkPolicy.enabled` | Limit the gRPC port to EasyAuth pods. Defaults to `true`                                                       |
+
+A native sidecar (an init container with `restartPolicy: Always`) can, for example, keep an Entra token for Azure
+Database for PostgreSQL in a pgpass file on a shared `emptyDir`. Dex's Postgres driver reads `PGPASSFILE` for every
+new connection when `password` is empty, so Dex can use workload identity instead of a static password. A
+`startupProbe` on the sidecar delays Dex until the file exists.
 
 ## Testing
 
