@@ -56,6 +56,13 @@ spec:
           secret:
             # Populated by cert-manager
             secretName: {{ include "radix-easyauth.dex.grpcServerCertificateSecretName" . }}
+        {{- with .Values.dex.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.dex.initContainers }}
+      initContainers:
+        {{- tpl (toYaml .) $ | nindent 8 }}
+      {{- end }}
       containers:
         - name: dex
           image: {{ .Values.dex.image.repository }}:{{ .Values.dex.image.tag }}
@@ -103,3 +110,9 @@ spec:
             - name: grpc-tls
               mountPath: /etc/dex/grpc
               readOnly: true
+            {{- with .Values.dex.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- with .Values.dex.extraContainers }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
+        {{- end }}
