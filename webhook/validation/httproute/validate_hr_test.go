@@ -251,6 +251,15 @@ func Test_Webhook_HttpRoute_ValidationFails_WhenHostnameLabelLength_Is64(t *test
 	assert.ErrorIs(t, err, httproute.ErrHostnameLabelTooLong)
 }
 
+func Test_Webhook_HttpRoute_ValidationFails_WhenNamespaceDoesNotExist(t *testing.T) {
+	httpRoute := test.Load[*gatewayapiv1.HTTPRoute]("./testdata/httproute.yaml")
+	client := test.CreateClient()
+
+	validator := httproute.CreateOnlineValidator(client)
+	_, err := validator.Validate(context.Background(), httpRoute)
+	assert.Error(t, err)
+}
+
 // radixNamespace creates a Namespace with the kube.RadixAppLabel set, which is
 // required for the HTTPRoute validator to consider the namespace as managed by Radix.
 func radixNamespace(name string) *corev1.Namespace {

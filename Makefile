@@ -2,6 +2,7 @@ ENVIRONMENT ?= dev
 VERSION 	?= dev
 CRD_TEMP_DIR := ./.temp-resources/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
+EASYAUTH_CHART_DIR := ./charts/radix-easyauth/templates/
 JSON_SCHEMA_DIR := ./json-schema/
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
@@ -95,11 +96,9 @@ build-operator:
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile . --no-cache
 
 .PHONY: deploy-operator
-deploy-operator: build-operator
+deploy-operator:
 	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
-	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
-	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
-	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) --platform linux/arm64,linux/amd64 -f operator.Dockerfile --push . --no-cache
 
 .PHONY: build-webhook
 build-webhook:
@@ -109,6 +108,11 @@ build-webhook:
 deploy-webhook:
 	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
 	docker buildx build -t $(DOCKER_REGISTRY)/radix-webhook:$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-webhook:$(TAG) --platform linux/arm64,linux/amd64 -f webhook.Dockerfile --push .
+
+.PHONY: deploy-easyauth
+deploy-easyauth:
+	az acr login --name $(CONTAINER_REPO) --subscription S941-Radix-Development
+	docker buildx build -t $(DOCKER_REGISTRY)/radix-easyauth:$(VERSION) -t $(DOCKER_REGISTRY)/radix-easyauth:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-easyauth:$(TAG) --platform linux/arm64,linux/amd64 -f easyauth.Dockerfile --push .
 
 .PHONY: build-api-server
 build-api-server:
@@ -145,7 +149,7 @@ code-gen: bootstrap
 	./hack/update-codegen.sh
 
 .PHONY: helmresources
-helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixjob-crd radixwebhook delete-temp-resources
+helmresources: temp-resources radixregistration-crd radixapplication-crd radixbatch-crd radixdnsalias-crd radixdeployment-crd radixalert-crd radixenvironment-crd radixjob-crd delete-temp-resources
 
 .PHONY: radixregistration-crd
 radixregistration-crd: temp-resources
@@ -180,15 +184,9 @@ radixenvironment-crd: temp-resources
 radixjob-crd: temp-resources
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixjobs.yaml $(CRD_CHART_DIR)radixjob.yaml
 
-.PHONY: radixwebhook
-radixwebhook: temp-resources
-	cp $(CRD_TEMP_DIR)radix-webhook-configuration.yaml $(CRD_CHART_DIR)radix-webhook-configuration.yaml
-
 .PHONY: temp-resources
 temp-resources: bootstrap
 	controller-gen +crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
-	controller-gen +webhook paths=./webhook/validation/ output:stdout > $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
-	./hack/helmify-admission-webhook.sh $(CRD_TEMP_DIR)radix-webhook-configuration.yaml
 
 .PHONY: delete-temp-resources
 delete-temp-resources:
@@ -222,11 +220,44 @@ HELM-ARGS:= \
 	--set config.apiServer.authenticators.azure.issuer=https://sts.windows.net/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/ \
 	--set config.apiServer.authenticators.azure.audience=6dae42f8-4368-4678-94ff-3960e28e3630
 
-lint-helm: bootstrap
+EASYAUTH-HELM-ARGS:= \
+	--set config.clusterName=mycluster \
+	--set config.dnsZone=radix.example.com \
+	--set config.issuerUrl=https://simpleauth.radix.equinor.com \
+	--set config.appAliasBaseURL=app.radix.example.com \
+	--set dex.config.storage.type=postgres \
+	--set dex.config.storage.config.host=postgres.example.com \
+	--set dex.httpRoute.parentRefs[0].name=gateway
+
+# Renders the RBAC for Dex Kubernetes storage
+EASYAUTH-K8S-STORAGE-HELM-ARGS:= \
+	--set config.clusterName=mycluster \
+	--set config.dnsZone=radix.example.com \
+	--set config.issuerUrl=https://simpleauth.radix.equinor.com \
+	--set config.appAliasBaseURL=app.radix.example.com \
+	--set dex.config.storage.type=kubernetes \
+	--set dex.config.storage.config.inCluster=true \
+	--set dex.httpRoute.parentRefs[0].name=gateway
+
+.PHONY: lint-helm
+lint-helm: lint-helm-operator lint-helm-easyauth
+
+.PHONY: lint-helm-operator
+lint-helm-operator: bootstrap
 	helm lint ./charts/radix-operator $(HELM-ARGS)
-		
+
+.PHONY: lint-helm-easyauth
+lint-helm-easyauth: bootstrap
+	helm lint ./charts/radix-easyauth $(EASYAUTH-HELM-ARGS)
+	helm lint ./charts/radix-easyauth $(EASYAUTH-K8S-STORAGE-HELM-ARGS)
+
+.PHONY: helm-render
 helm-render:
 	helm template ./charts/radix-operator $(HELM-ARGS)
+
+.PHONY: helm-render-easyauth
+helm-render-easyauth:
+	helm template ./charts/radix-easyauth $(EASYAUTH-HELM-ARGS)
 
 .PHONY: generate
 generate: bootstrap bootstrap-e2e code-gen helmresources mocks swagger
@@ -260,14 +291,14 @@ ifndef HAS_SWAGGER
 endif
 
 E2E_ASSETS_DIR             := ./e2e/internal/manifests
-E2E_CERT_MANAGER_VERSION   := v1.15.4
+E2E_CERT_MANAGER_VERSION   := v1.21.2
 E2E_KEDA_VERSION           := 2.20.1
 E2E_PROMETHEUS_OP_VERSION  := v0.82.0
 E2E_GATEWAY_API_VERSION    := v1.5.1
 
 .PHONY: bootstrap-e2e
 bootstrap-e2e:
-	curl -fsSL -o $(E2E_ASSETS_DIR)/cert-manager-crds.yaml https://github.com/cert-manager/cert-manager/releases/download/$(E2E_CERT_MANAGER_VERSION)/cert-manager.crds.yaml
+	curl -fsSL -o $(E2E_ASSETS_DIR)/cert-manager.yaml https://github.com/cert-manager/cert-manager/releases/download/$(E2E_CERT_MANAGER_VERSION)/cert-manager.yaml
 	curl -fsSL -o $(E2E_ASSETS_DIR)/keda-crds.yaml https://github.com/kedacore/keda/releases/download/v$(E2E_KEDA_VERSION)/keda-$(E2E_KEDA_VERSION)-crds.yaml
 	curl -fsSL -o $(E2E_ASSETS_DIR)/prometheus-operator-stripped-down-crds.yaml https://github.com/prometheus-operator/prometheus-operator/releases/download/$(E2E_PROMETHEUS_OP_VERSION)/stripped-down-crds.yaml
 	curl -fsSL -o $(E2E_ASSETS_DIR)/gateway-api-standard-install.yaml https://github.com/kubernetes-sigs/gateway-api/releases/download/$(E2E_GATEWAY_API_VERSION)/standard-install.yaml

@@ -24,10 +24,10 @@ type Validator struct {
 
 var _ genericvalidator.Validator[*gatewayapiv1.HTTPRoute] = &Validator{}
 
-func CreateOnlineValidator(client client.Client) *Validator {
+func CreateOnlineValidator(reader client.Reader) *Validator {
 	return &Validator{
 		validators: []validatorFunc{
-			createHttpRouteUsableValidator(client),
+			createHttpRouteUsableValidator(reader),
 		},
 	}
 }
@@ -48,7 +48,7 @@ func (validator *Validator) Validate(ctx context.Context, hr *gatewayapiv1.HTTPR
 	return wrns, errors.Join(errs...)
 }
 
-func createHttpRouteUsableValidator(kubeClient client.Client) validatorFunc {
+func createHttpRouteUsableValidator(kubeClient client.Reader) validatorFunc {
 	return func(ctx context.Context, route *gatewayapiv1.HTTPRoute) ([]string, []error) {
 		// Only validate HTTPRoute if it is in a namespace managed by radix, otherwise skip validation to avoid blocking non-radix HTTPRoutes
 		ns := corev1.Namespace{Name: route.Namespace}

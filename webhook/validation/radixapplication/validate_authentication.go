@@ -171,7 +171,23 @@ func validateOAuth(oauth *radixv1.OAuth2, defaultOAuth2Config radixv1.OAuth2, co
 	if err = validateSkipAuthRoutes(oauthWithDefaults.SkipAuthRoutes); err != nil {
 		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, fmt.Errorf("%w: %w", ErrOAuthSkipAuthRoutesInvalid, err)))
 	}
+	if err = validateAllowedGroups(oauthWithDefaults.AllowedGroups); err != nil {
+		errors = append(errors, fmt.Errorf("component %s in environment %s: %w", componentName, environmentName, fmt.Errorf("%w: %w", ErrOAuthAllowedGroupsInvalid, err)))
+	}
 	return
+}
+
+// validateAllowedGroups validates groups passed to the OAuth2 proxy as a comma separated list
+func validateAllowedGroups(allowedGroups []string) error {
+	for _, group := range allowedGroups {
+		if strings.TrimSpace(group) == "" {
+			return fmt.Errorf("group cannot be empty")
+		}
+		if strings.Contains(group, ",") {
+			return fmt.Errorf("comma is not allowed in group: %s", group)
+		}
+	}
+	return nil
 }
 
 func validateSkipAuthRoutes(skipAuthRoutes []string) error {
