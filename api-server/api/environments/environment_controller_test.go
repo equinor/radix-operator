@@ -13,7 +13,6 @@ import (
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	eventModels "github.com/equinor/radix-operator/api-server/api/events/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets"
-	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
@@ -1186,13 +1185,4 @@ func markEnvironmentOrphaned(t *testing.T, radixClient radixclient.Interface, by
 	}
 	_, err = radixClient.RadixV1().RadixEnvironments().UpdateStatus(context.Background(), re, metav1.UpdateOptions{})
 	require.NoError(t, err)
-}
-
-func contains(secrets []secretModels.Secret, name string) bool {
-	for _, secret := range secrets {
-		if secret.Name == name {
-			return true
-		}
-	}
-	return false
 }
