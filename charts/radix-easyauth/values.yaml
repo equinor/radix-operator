@@ -225,6 +225,16 @@ dex:
   networkPolicy:
     enabled: true
 
+  # Prometheus Operator ServiceMonitor that scrapes the telemetry port (5558) of the Dex pods.
+  # The telemetry port is always exposed on the Dex Service, for other collectors.
+  # Requires the monitoring.coreos.com/v1 ServiceMonitor CRD.
+  serviceMonitor:
+    enabled: false
+    # Scrape interval, defaults to the Prometheus global scrape interval when empty
+    interval: ""
+    # Additional labels on the ServiceMonitor, for example to match the serviceMonitorSelector of Prometheus
+    labels: {}
+
   # Mounts the service account token in the Dex pods. Always true with Kubernetes storage.
   # Not required by Azure Workload Identity, which projects its own token.
   automountServiceAccountToken: false
