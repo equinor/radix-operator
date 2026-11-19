@@ -78,6 +78,9 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(ctx, job, metav1.CreateOptions{})
+		if err == nil {
+			s.restartedJobs[batchJob.Name] = *batchJob
+		}
 		return err
 	})
 }
