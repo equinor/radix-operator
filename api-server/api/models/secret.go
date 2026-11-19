@@ -391,7 +391,7 @@ func getCredentialSecretsForSecretRefsAzureKeyVault(ctx context.Context, secretL
 		ID:          secretModels.SecretIdClientId,
 		Component:   componentName,
 		Status:      clientIdStatus,
-		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientIdSuffix),
+		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientIdPart),
 	})
 	secrets = append(secrets, secretModels.Secret{
 		Name:        secretName + defaults.CsiAzureKeyVaultCredsClientSecretSuffix,
@@ -401,7 +401,7 @@ func getCredentialSecretsForSecretRefsAzureKeyVault(ctx context.Context, secretL
 		ID:          secretModels.SecretIdClientSecret,
 		Component:   componentName,
 		Status:      clientSecretStatus,
-		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientSecretSuffix),
+		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientSecretPart),
 	})
 
 	return secrets
