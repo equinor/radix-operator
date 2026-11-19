@@ -62,6 +62,11 @@ func ApplyDeploymentWithSync(client kubernetes.Interface, radixclient radixclien
 
 	kubeUtils, _ := kube.New(client, radixclient, kedaClient, secretproviderclient)
 	rd, _ := commonTestUtils.ApplyDeployment(context.Background(), deploymentBuilder)
-	deploymentSyncer := deployment.NewDeploymentSyncer(client, kubeUtils, radixclient, dynamicClient, certClient, registrationBuilder.BuildRR(), rd, []deployment.AuxiliaryResourceManager{}, config.Config{})
+	rr := registrationBuilder.BuildRR()
+	auxResourceManagers := []deployment.AuxiliaryResourceManager{
+		deployment.NewOAuthProxyResourceManager(rd, rr, kubeUtils, config.Config{}),
+		deployment.NewOAuthRedisResourceManager(rd, rr, kubeUtils, config.Config{}),
+	}
+	deploymentSyncer := deployment.NewDeploymentSyncer(client, kubeUtils, radixclient, dynamicClient, certClient, rr, rd, auxResourceManagers, config.Config{})
 	return deploymentSyncer.OnSync(context.Background())
 }
