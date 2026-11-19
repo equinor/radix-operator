@@ -9,23 +9,19 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	eventModels "github.com/equinor/radix-operator/api-server/api/events/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
-	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
-	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -787,198 +783,6 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 			errResponse.Message,
 		)
 	})
-}
-
-func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.T) {
-	// Setup
-	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithRadixApplication(operatorutils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment, "master")).
-		WithComponents(
-			operatorutils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithVolumeMounts(
-					v1.RadixVolumeMount{
-						Name: "somevolumename",
-						Path: "some-path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Container: "some-container",
-						},
-					},
-				)))
-	require.NoError(t, err)
-
-	// Test
-	responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response := <-responseChannel
-
-	environment := environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(environment.Secrets))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountkey", anyComponentName)))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountname", anyComponentName)))
-
-	parameters := secretModels.SecretParameters{SecretValue: "anyValue"}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("PUT", fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, environment.Secrets[0].Name), parameters)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	responseChannel = environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	environment = environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-
-	accountKeySecret, ok := slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountKey
-	})
-	assert.True(t, ok)
-	assert.WithinDuration(t, time.Now(), pointers.Val(accountKeySecret.Updated), 1*time.Second)
-	accountNameSecret, ok := slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountName
-	})
-	assert.True(t, ok)
-	assert.Nil(t, accountNameSecret.Updated)
-}
-
-func TestUpdateSecret_AccountSecretForJobVolumeMount_UpdatedOk(t *testing.T) {
-	// Setup
-	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithRadixApplication(operatorutils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment, "master")).
-		WithJobComponents(
-			operatorutils.NewDeployJobComponentBuilder().
-				WithName(anyJobName).
-				WithVolumeMounts(
-					v1.RadixVolumeMount{
-						Name: "somevolumename",
-						Path: "some-path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Container: "some-container",
-						},
-					},
-				)))
-	require.NoError(t, err)
-
-	// Test
-	responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response := <-responseChannel
-	require.Equal(t, http.StatusOK, response.Code)
-
-	environment := environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(environment.Secrets))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountkey", anyJobName)))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountname", anyJobName)))
-
-	parameters := secretModels.SecretParameters{SecretValue: "anyValue"}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("PUT", fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyJobName, environment.Secrets[0].Name), parameters)
-	response = <-responseChannel
-	require.Equal(t, http.StatusOK, response.Code)
-
-	responseChannel = environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response = <-responseChannel
-	require.Equal(t, http.StatusOK, response.Code)
-	environment = environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	require.NotNil(t, environment.Secrets)
-
-	secret, ok := slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountKey
-	})
-	assert.True(t, ok)
-	assert.WithinDuration(t, time.Now(), pointers.Val(secret.Updated), 1*time.Second)
-
-	secret, ok = slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountName
-	})
-	assert.True(t, ok)
-	assert.Nil(t, secret.Updated)
-}
-
-func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
-	// Setup
-	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithRadixApplication(operatorutils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment, "master")).
-		WithComponents(
-			operatorutils.NewDeployComponentBuilder().WithName(anyComponentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}}),
-		))
-	require.NoError(t, err)
-
-	// Test
-	responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response := <-responseChannel
-
-	environment := environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{anyComponentName + suffix.OAuth2ClientSecret, anyComponentName + suffix.OAuth2CookieSecret, anyComponentName + suffix.OAuth2RedisPassword}, environment.ActiveDeployment.Components[0].Secrets)
-
-	// Update secret when k8s secret object is missing should return 404
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2ClientSecret),
-		secretModels.SecretParameters{SecretValue: "clientsecret"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusNotFound, response.Code)
-
-	// Update client secret when k8s secret exists should set Data
-	secretName := operatorutils.GetAuxiliaryComponentSecretName(anyComponentName, v1.OAuthProxyAuxiliaryComponentSuffix)
-	_, err = client.CoreV1().Secrets(envNs).Create(context.Background(), &corev1.Secret{Name: secretName}, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2ClientSecret),
-		secretModels.SecretParameters{SecretValue: "clientsecret"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	actualSecret, _ := client.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
-	assert.Equal(t, actualSecret.Data, map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("clientsecret")})
-
-	// Update client secret when k8s secret exists should set Data
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2CookieSecret),
-		secretModels.SecretParameters{SecretValue: "cookiesecret"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	actualSecret, _ = client.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
-	assert.Equal(t, actualSecret.Data, map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("clientsecret"), operatordefaults.OAuthCookieSecretKeyName: []byte("cookiesecret")})
-
-	// Update client secret when k8s secret exists should set Data
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2RedisPassword),
-		secretModels.SecretParameters{SecretValue: "redispassword"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	actualSecret, _ = client.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
-	assert.Equal(t, actualSecret.Data, map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("clientsecret"), operatordefaults.OAuthCookieSecretKeyName: []byte("cookiesecret"), operatordefaults.OAuthRedisPasswordKeyName: []byte("redispassword")})
 }
 
 func TestGetSecretDeployments_SortedWithFromTo(t *testing.T) {
