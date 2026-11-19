@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.133.3](https://github.com/equinor/radix-operator/compare/v1.133.2..v1.133.3) - 2026-11-10
+## [1.134.0](https://github.com/equinor/radix-operator/compare/v1.133.3..v1.134.0) - 2026-11-19
+
+### 🚀 Features
+
+- *(easy-auth)* Support sidecars and extra volume mounts in helm chart - ([d7d2631](https://github.com/equinor/radix-operator/commit/d7d26315ca3cbae87918e79a459443849e5216b3)) by @Richard87 in [#2070](https://github.com/equinor/radix-operator/pull/2070)
+
+- Radix EasyAuth (#2045) - ([5b08aeb](https://github.com/equinor/radix-operator/commit/5b08aeb3a11d2c351bbdb68d471147156a87d09e)) by @Richard87 in [#2045](https://github.com/equinor/radix-operator/pull/2045)
+
+
+### 🐛 Bug Fixes
+
+- *(easyauth)* Add dex servicemonitor (#2073) - ([eae35f3](https://github.com/equinor/radix-operator/commit/eae35f3bc8817f09c3a84655076c63ffd9c173b1)) by @Richard87 in [#2073](https://github.com/equinor/radix-operator/pull/2073)
+
+- Enforce application administrator access for environment creation (#2047) - ([5706865](https://github.com/equinor/radix-operator/commit/57068655f1d39aa1c789f5dd88d7ea4a9a6007ce)) by @ingeknudsen in [#2047](https://github.com/equinor/radix-operator/pull/2047)
+
+
+## [1.133.3](https://github.com/equinor/radix-operator/compare/v1.133.2..v1.133.3) - 2026-11-11
 
 ### 🐛 Bug Fixes
 
