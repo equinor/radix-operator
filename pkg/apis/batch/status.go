@@ -140,6 +140,8 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 		status.RadixBatchJobPodStatuses = currentStatus.DeepCopy().RadixBatchJobPodStatuses
 	}
 
+	job, jobFound := slice.FindFirst(allJobs, isKubeJobForBatchJob(batchJob))
+
 	if isBatchJobStopRequested(batchJob) {
 		status.Phase = radixv1.BatchJobPhaseStopped
 		status.EndTime = &metav1.Time{Time: s.clock.Now()}
@@ -148,13 +150,15 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 			status.StartTime = currentStatus.StartTime
 			status.Failed = currentStatus.Failed
 		}
-		if err := s.updateJobAndPodStatuses(ctx, batchJob.Name, &status, 0); err != nil {
+		if !jobFound {
+			job = nil
+		}
+		if err := s.updateJobAndPodStatuses(ctx, batchJob.Name, &status, 0, job); err != nil {
 			return status, err
 		}
 		return status, nil
 	}
 
-	job, jobFound := slice.FindFirst(allJobs, isKubeJobForBatchJob(batchJob))
 	if !jobFound {
 		return status, nil
 	}
@@ -180,16 +184,21 @@ func (s *syncer) buildBatchJobStatus(ctx context.Context, batchJob *radixv1.Radi
 		}
 	}
 
-	if err := s.updateJobAndPodStatuses(ctx, batchJob.Name, &status, job.Status.Succeeded); err != nil {
+	if err := s.updateJobAndPodStatuses(ctx, batchJob.Name, &status, job.Status.Succeeded, job); err != nil {
 		return status, err
 	}
 	return status, nil
 }
 
-func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus, succeededPods int32) error {
+func (s *syncer) updateJobAndPodStatuses(ctx context.Context, batchJobName string, jobStatus *radixv1.RadixBatchJobStatus, succeededPods int32, job *batchv1.Job) error {
 	pods, err := s.getJobPods(ctx, batchJobName)
 	if err != nil {
 		return err
+	}
+	if job != nil && job.UID != "" {
+		pods = slices.DeleteFunc(pods, func(pod corev1.Pod) bool {
+			return !metav1.IsControlledBy(&pod, job)
+		})
 	}
 	jobStatus.RadixBatchJobPodStatuses = slices.Grow(jobStatus.RadixBatchJobPodStatuses, len(pods))
 	jobComponentName := s.radixBatch.GetLabels()[kube.RadixComponentLabel]
