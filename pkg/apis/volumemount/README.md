@@ -138,3 +138,220 @@ Before this change, storage was handled by `GetVolumes`, `CreateOrUpdatePVCVolum
 - **The hash depends on how specs are encoded.** Changes to Kubernetes API types, default mount options or labels change the hash. This is not disruptive, because matching uses the spec, not the name. But a semantic change to the generated spec (for example a new default mount option) still causes a new PV/PVC and a Pod restart for every affected volume mount, as before.
 - **Possible error loops.** A conflicting object at the hash name, for example one that is terminating or bound elsewhere, makes ensuring storage fail until it is gone. This is intentional, but the sync keeps failing during that time.
 - **`GarbageCollectVolumes` in the deployment syncer uses `time.Now()` directly** (the batch syncer uses an injected clock), which makes the grace-period behaviour harder to test from that caller.
+
+## Appendix: where volume logic runs in the reconciliation loops
+
+Volume logic is triggered from two controllers: the RadixDeployment syncer (`pkg/apis/deployment`) and the RadixBatch syncer (`pkg/apis/batch`). The operator runs with `resyncPeriod = 0`, so both only run when their resource, or a resource they watch, changes. The environment controller only handles PVs of deleted namespaces (see [section 3](#3-deleted-environments-deletepersistentvolumesfordeletednamespace)).
+
+### Summary
+
+| Step                              | Before                                                                                                              | Now                                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Build Pod volumes                 | `GetVolumes`: reuse the claim name of the current workload's volume with the same name, else generate a random name | `EnsureComponentVolumes`: claim chosen by matching the spec of existing PV/PVC pairs                |
+| Build container mounts            | Separately, with `GetRadixDeployComponentVolumeMounts` (deployment and batch)                                       | Returned together with the volumes by `EnsureComponentVolumes`                                      |
+| Create PV/PVC                     | `CreateOrUpdatePVCVolumeResourcesForDeployComponent`, a second pass that could rename claims                        | Inside `EnsureComponentVolumes`, names derived from the spec hash                                   |
+| GC in RadixDeployment sync        | `GarbageCollectCsiAzureVolumeResourcesForDeployComponent` at the end of **every** component's sync                  | `GarbageCollectVolumes` **once**, at the end of `syncDeployment`, only if everything else succeeded |
+| GC in RadixBatch sync             | None                                                                                                                | `GarbageCollectVolumes` once, when the batch changes to done (errors are only logged)               |
+| GC when an environment is deleted | None                                                                                                                | `DeletePersistentVolumesForDeletedNamespace` from the environment controller                        |
+
+In the diagrams below, steps that touch volume storage are highlighted.
+
+### RadixDeployment sync: before
+
+```mermaid
+flowchart TD
+    A["OnSync"] --> B{"Inactive, or not<br/>the latest RD?"}
+    B -->|yes| Z(["return"])
+    B -->|no| D["syncDeployment"]
+    D --> E["GC removed components and<br/>auxiliary resources, RBAC"]
+    E --> F["syncSecrets<br/>(volume mount credential secrets)"]
+    F --> G["Network policies, gateway"]
+    G --> L{{"For each component and job scheduler"}}
+
+    subgraph comp ["syncDeploymentForRadixComponent (one component)"]
+        direction TB
+        C1["ConfigMaps, ServiceAccount"]
+        C2["setDesiredDeploymentProperties"]
+        C3["GetVolumes<br/>claimName = current Deployment's claim with the same volume name,<br/>else pvc-&lt;volume&gt;-&lt;random5&gt;"]:::vol
+        C4["GetRadixDeployComponentVolumeMounts"]:::vol
+        C5["CreateOrUpdatePVCVolumeResourcesForDeployComponent<br/>find PV by claimRef name, compare;<br/>on mismatch: new random PVC + pv-&lt;uuid&gt;, rename claim"]:::vol
+        C6["handleJobAuxDeployment<br/>(job scheduler: volumes moved to aux Deployment)"]
+        C7["ApplyDeployment"]
+        C8["Scaler, Service, PDB, HTTPRoute, ServiceMonitor"]
+        C9["GarbageCollectCsiAzureVolumeResourcesForDeployComponent<br/>delete every PVC in the namespace not referenced by a<br/>Deployment/Job template, their PVs, and Released/Failed<br/>Blob PVs cluster-wide"]:::danger
+        C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7 --> C8 --> C9
+    end
+
+    L --> C1
+    C9 -->|next component| L
+    L -->|done| M{"Any component failed?"}
+    M -->|yes| ERR["syncStatus: Failed"]
+    M -->|no| N["External DNS, auxiliary resources"] --> S["syncStatus"]
+
+    classDef vol fill:#dbeafe,stroke:#1d4ed8
+    classDef danger fill:#fee2e2,stroke:#b91c1c
+```
+
+Problems in this loop:
+
+- **GC ran N times per sync** (once per component), in the middle of the loop. Later components had not yet created their new PVCs or applied their Deployments.
+- **The claim was chosen in two places.** `GetVolumes` picked a name, then `CreateOrUpdatePVCVolumeResourcesForDeployComponent` could replace it with a new random name.
+- **GC only knew about Deployments and Jobs that already existed.** It ignored RadixBatches, Pods and specs, so a PVC that was just created for a batch could be deleted.
+
+### RadixDeployment sync: now
+
+```mermaid
+flowchart TD
+    A["OnSync"] --> B{"Inactive, or not<br/>the latest RD?"}
+    B -->|yes| Z(["return"])
+    B -->|no| D["syncDeployment"]
+    D --> E["GC removed components and<br/>auxiliary resources, RBAC"]
+    E --> F["syncSecrets<br/>(volume mount credential secrets)"]
+    F --> G["Network policies, gateway"]
+    G --> L{{"For each component and job scheduler"}}
+
+    subgraph comp ["syncDeploymentForRadixComponent (one component)"]
+        direction TB
+        C1["ConfigMaps, ServiceAccount"]
+        C2["setDesiredDeploymentProperties"]
+        C3["getDeployComponentCurrentVolumes<br/>(current Deployment, or aux Deployment for a job scheduler)"]:::vol
+        C4["EnsureComponentVolumes<br/>reuse a PV/PVC matching the spec (prefer current claim),<br/>or create the hash-named pair;<br/>returns volumes + mounts"]:::vol
+        C6["handleJobAuxDeployment<br/>(job scheduler: volumes moved to aux Deployment)"]
+        C7["ApplyDeployment"]
+        C8["Scaler, Service, PDB, HTTPRoute, ServiceMonitor"]
+        C1 --> C2 --> C3 --> C4 --> C6 --> C7 --> C8
+    end
+
+    L --> C1
+    C8 -->|next component| L
+    L -->|done| M{"Any component failed?"}
+    M -->|yes| ERR["syncStatus: Failed<br/>(no volume GC)"]
+    M -->|no| N["External DNS, auxiliary resources"]
+    N -->|error| ERR
+    N --> GC["GarbageCollectVolumes(active RD)<br/>keep K0–K4, delete the rest<br/>with uid/resourceVersion preconditions"]:::gc
+    GC --> S["syncStatus"]
+
+    classDef vol fill:#dbeafe,stroke:#1d4ed8
+    classDef gc fill:#dcfce7,stroke:#15803d
+```
+
+What changed:
+
+- **The per-component loop only creates.** `EnsureComponentVolumes` never deletes, so components can't interfere with each other within a sync.
+- **GC runs once, after every Deployment has been applied**, and is skipped if anything failed. A failed workload keeps its current claims. These are also protected by K3, because its Deployment template still references them.
+- **Volumes and mounts come from one call**, so they can't get out of sync.
+
+### RadixBatch sync: before
+
+```mermaid
+flowchart TD
+    A["OnSync"] --> B{"Done and no<br/>restart requested?"}
+    B -->|yes| Z(["return"])
+    B -->|no| R["reconcile"]
+    R --> R1["Get the referenced RD and job component"]
+    R1 --> R2["List batch Jobs and Services"]
+    R2 --> R3["Prepare lazy actualVolumesGetter<br/>(sync.OnceValues)"]:::vol
+    R3 --> L{{"For each batch job"}}
+
+    subgraph job ["reconcileKubeJob (one batch job)"]
+        direction TB
+        J0{"Stop requested?"}
+        J1{"Done, or Kubernetes Job exists,<br/>and no restart?"}
+        J2["Delete old Jobs on restart,<br/>validate payload secret"]
+        J3["actualVolumesGetter() — first call only:<br/>GetExistingJobAuxComponentVolumes<br/>→ GetVolumes (aux claim or random name)<br/>→ CreateOrUpdatePVCVolumeResourcesForDeployComponent"]:::vol
+        J4["buildJob<br/>mounts from GetRadixDeployComponentVolumeMounts + payload"]:::vol
+        J5["Create Kubernetes Job"]
+        J0 -->|yes| JD["Delete Jobs"]
+        J0 -->|no| J1
+        J1 -->|yes| JS(["skip, no volume work"])
+        J1 -->|no| J2 --> J3 --> J4 --> J5
+    end
+
+    L --> J0
+    L -->|done| S["syncStatus"]
+    S --> E(["return — no volume GC"])
+
+    classDef vol fill:#dbeafe,stroke:#1d4ed8
+```
+
+### RadixBatch sync: now
+
+```mermaid
+flowchart TD
+    A["OnSync"] --> B{"Done and no<br/>restart requested?"}
+    B -->|yes| Z(["return"])
+    B -->|no| W["wasCompleted := isBatchDone()"]
+    W --> R["reconcile"]
+    R --> R1["Get the referenced RD (may be older/inactive)<br/>and job component"]
+    R1 --> R2["List batch Jobs and Services"]
+    R2 --> R3["Prepare lazy jobVolumesGetter<br/>(sync.OnceValues)"]:::vol
+    R3 --> L{{"For each batch job"}}
+
+    subgraph job ["reconcileKubeJob (one batch job)"]
+        direction TB
+        J0{"Stop requested?"}
+        J1{"Done, or Kubernetes Job exists,<br/>and no restart?"}
+        J2["Delete old Jobs on restart,<br/>validate payload secret"]
+        J3["jobVolumesGetter() — first call only:<br/>GetExistingJobAuxComponentVolumes (hint)<br/>→ EnsureComponentVolumes(batch RD, job)<br/>returns volumes + mounts"]:::vol
+        J4["buildJob<br/>returned mounts + payload mount"]:::vol
+        J5["Create Kubernetes Job"]
+        J0 -->|yes| JD["Delete Jobs"]
+        J0 -->|no| J1
+        J1 -->|yes| JS(["skip, no volume work"])
+        J1 -->|no| J2 --> J3 --> J4 --> J5
+    end
+
+    L --> J0
+    L -->|done| S["syncStatus"]
+    S --> T{"Changed from<br/>not done to done?"}
+    T -->|no| E(["return"])
+    T -->|yes| GC["garbageCollectVolumes<br/>find the active RD (skip if none)<br/>→ GarbageCollectVolumes; errors only logged"]:::gc
+    GC --> E
+
+    classDef vol fill:#dbeafe,stroke:#1d4ed8
+    classDef gc fill:#dcfce7,stroke:#15803d
+```
+
+What changed:
+
+- **Storage is ensured from the batch's own RD**, which can be an older, inactive one, using the same matching and hash naming as the RadixDeployment syncer. Both controllers therefore reuse or create the same PV/PVC.
+- **Job mounts come from `EnsureComponentVolumes`**, not from a separate call.
+- **The batch triggers GC once, when it finishes**, so storage used only by that batch is released without waiting for the next RadixDeployment sync. While the batch is unfinished, its storage is protected by K2.
+
+### How the two controllers interact
+
+Before: the controllers created pairs with random names on their own, and the RadixDeployment GC could delete a pair the batch syncer had just created.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as RadixBatch syncer
+    participant K as Kubernetes API
+    participant D as RadixDeployment syncer
+
+    B->>K: Create PV pv-UUID1 + PVC pvc-x-abcde
+    D->>K: Create PV pv-UUID2 + PVC pvc-x-fghij (same spec, duplicate)
+    D->>K: GC: list Deployments/Jobs — pvc-x-abcde is not referenced yet
+    D->>K: Delete pvc-x-abcde and pv-UUID1
+    B->>K: Create Job with claimName pvc-x-abcde
+    Note over B,K: The Pod stays Pending — its PVC is gone
+```
+
+Now: both controllers compute the same names from the spec, and GC keeps anything new, desired or in use.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as RadixBatch syncer
+    participant K as Kubernetes API
+    participant D as RadixDeployment syncer
+
+    B->>K: EnsureComponentVolumes: no match → create pv-radixvolumemount-HASH + pvc-x-HASH
+    D->>K: EnsureComponentVolumes: same spec → same names
+    K-->>D: AlreadyExists → existing objects validated and reused
+    B->>K: Create Job with claimName pvc-x-HASH
+    D->>K: GarbageCollectVolumes
+    Note over D,K: pvc-x-HASH kept: K0 (new), K1/K2 (matches spec), K3 (Job template)
+    B->>K: Batch done → GarbageCollectVolumes
+    Note over B,K: Kept while the Job exists (K3), deleted on a later run if nothing else needs it
+```
