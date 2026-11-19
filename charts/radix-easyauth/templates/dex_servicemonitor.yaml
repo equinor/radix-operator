@@ -1,0 +1,26 @@
+{{- if .Values.dex.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "radix-easyauth.dex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "radix-easyauth.dex.labels" . | nindent 4 }}
+    {{- with .Values.dex.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  endpoints:
+    - port: telemetry
+      honorLabels: true
+      path: /metrics
+      {{- with .Values.dex.serviceMonitor.interval }}
+      interval: {{ . }}
+      {{- end }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "radix-easyauth.dex.selectorLabels" . | nindent 6 }}
+{{- end }}
