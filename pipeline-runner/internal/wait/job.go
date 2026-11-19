@@ -5,19 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
-
-const jobNameLabel = "job-name"
-
-var imageErrors = map[string]bool{"ImagePullBackOff": true, "ImageInspectError": true, "ErrImageNeverPull": true, "RegistryUnavailable": true, "InvalidImageName": true}
 
 type JobCompletionWaiter interface {
 	Wait(job *batchv1.Job) error
@@ -47,8 +45,12 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 
 	_, _ = jobsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur any) {
-			currJob, success := cur.(*batchv1.Job)
-			if success && currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
+			currJob, converted := cur.(*batchv1.Job)
+			if !converted {
+				log.Ctx(ctx).Error().Msg("Job object cast failed during update event.")
+				return
+			}
+			if currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
 				switch {
 				case currJob.Status.Succeeded == 1:
 					errChan <- nil
@@ -60,7 +62,7 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 		DeleteFunc: func(old any) {
 			currJob, converted := old.(*batchv1.Job)
 			if !converted {
-				log.Ctx(ctx).Error().Msg("Job object cast failed during deleted event received.")
+				log.Ctx(ctx).Error().Msg("Job object cast failed during deleted event.")
 				return
 			}
 			if currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
@@ -72,12 +74,14 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
 	_, _ = podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur any) {
-			pod, success := cur.(*corev1.Pod)
-			if success && job.GetNamespace() == pod.GetNamespace() &&
-				pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() &&
-				len(pod.Status.ContainerStatuses) > 0 {
-				err := checkPodIsTerminatedOrFailed(pod.Status.ContainerStatuses)
-				if err != nil {
+			pod, converted := cur.(*corev1.Pod)
+			if !converted {
+				log.Ctx(ctx).Error().Msg("Pod object cast failed during update event.")
+				return
+			}
+
+			if metav1.IsControlledBy(pod, job) {
+				if err := checkPodErrors(pod); err != nil {
 					errChan <- err
 				}
 			}
@@ -85,10 +89,10 @@ func waitForCompletionOfJob(ctx context.Context, kubeClient kubernetes.Interface
 		DeleteFunc: func(old any) {
 			pod, converted := old.(*corev1.Pod)
 			if !converted {
-				log.Ctx(ctx).Error().Msg("Pod object cast failed during deleted event received.")
+				log.Ctx(ctx).Error().Msg("Pod object cast failed during deleted event.")
 				return
 			}
-			if job.GetNamespace() == pod.GetNamespace() && pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() {
+			if metav1.IsControlledBy(pod, job) {
 				errChan <- fmt.Errorf("job's pod deleted")
 			}
 		},
@@ -122,25 +126,38 @@ func getJobDescription(job *batchv1.Job) string {
 	return strings.Join(lines, " ")
 }
 
-func checkPodIsTerminatedOrFailed(containerStatuses []corev1.ContainerStatus) error {
-	for _, containerStatus := range containerStatuses {
-		if containerStatus.State.Terminated != nil {
-			terminated := containerStatus.State.Terminated
-			if terminated.Reason == "Failed" {
-				return fmt.Errorf("job's pod failed: %s", terminated.Message)
-			} else {
-				return nil
-			}
+var waitingReasonPermanentError = map[string]bool{"ImageInspectError": true, "ErrImageNeverPull": true, "InvalidImageName": true}
+var waitingReasonTransientError = map[string]bool{"ImagePullBackOff": true, "ErrImagePull": true, "RegistryUnavailable": true}
+var transientErrorTimeout = time.Duration(1) * time.Minute
+
+func checkPodErrors(pod *corev1.Pod) error {
+	if err := checkPodContainerStatusWaitingReasonErrors(pod.Status.InitContainerStatuses, waitingReasonPermanentError); err != nil {
+		return err
+	}
+	if err := checkPodContainerStatusWaitingReasonErrors(pod.Status.ContainerStatuses, waitingReasonPermanentError); err != nil {
+		return err
+	}
+
+	if time.Since(pod.CreationTimestamp.Time) > transientErrorTimeout {
+		if err := checkPodContainerStatusWaitingReasonErrors(pod.Status.InitContainerStatuses, waitingReasonTransientError); err != nil {
+			return err
 		}
-		if containerStatus.State.Waiting != nil {
-			if _, ok := imageErrors[containerStatus.State.Waiting.Reason]; ok {
-				return fmt.Errorf("job's pod failed: %s", containerStatus.State.Waiting.Message)
-			}
-		}
-		if containerStatus.LastTerminationState.Terminated != nil {
-			return fmt.Errorf("job's pod failed: %s",
-				containerStatus.LastTerminationState.Terminated.Message)
+		if err := checkPodContainerStatusWaitingReasonErrors(pod.Status.ContainerStatuses, waitingReasonTransientError); err != nil {
+			return err
 		}
 	}
+
+	return nil
+}
+
+func checkPodContainerStatusWaitingReasonErrors(containerStatuses []corev1.ContainerStatus, reasons map[string]bool) error {
+	for _, containerStatus := range containerStatuses {
+		if containerStatus.State.Waiting != nil {
+			if _, ok := reasons[containerStatus.State.Waiting.Reason]; ok {
+				return fmt.Errorf("container %s failed with reason %q, message %q", containerStatus.Name, containerStatus.State.Waiting.Reason, containerStatus.State.Waiting.Message)
+			}
+		}
+	}
+
 	return nil
 }
