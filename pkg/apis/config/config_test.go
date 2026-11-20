@@ -90,29 +90,72 @@ func TestParse_HappyPath(t *testing.T) {
 			},
 		},
 		Runtime: config.RuntimeConfig{
-			// DefaultArchitecture: "amd64",
-			// SpecialNodeTypes: map[string]config.NodeTypeConfig{
-			// 	"gpu-nvidia-v1": {
-			// 		Description:     "Nvidia GPU node",
-			// 		Architecture:    "amd64",
-			// 		Template:        podTemplateWithNodeSelector(map[string]string{"kubernetes.io/os": "linux", "nodetype": "gpu-nvidia-v1"}),
-			// 		BuilderTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/os": "linux", "nodetype": "gpu-nvidia-v1"}),
-			// 	},
-			// },
-			// Architectures: map[string]config.ArchitectureSpec{
-			// 	"amd64": {
-			// 		Enabled:           true,
-			// 		BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
-			// 		JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
-			// 		ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "amd64", "kubernetes.io/os": "linux"}),
-			// 	},
-			// 	"arm64": {
-			// 		Enabled:           false,
-			// 		BuilderTemplate:   podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
-			// 		JobTemplate:       podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
-			// 		ComponentTemplate: podTemplateWithNodeSelector(map[string]string{"kubernetes.io/arch": "arm64", "kubernetes.io/os": "linux"}),
-			// 	},
-			// },
+			DefaultArchitecture: "amd64",
+			Architectures: map[string]config.ArchitectureSpec{
+				"amd64": {
+					Disabled: false,
+					BuilderTemplate: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/arch": "amd64",
+								"kubernetes.io/os":   "linux",
+							},
+						},
+					},
+				},
+				"arm64": {
+					Disabled: true,
+					BuilderTemplate: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/arch": "arm64",
+								"kubernetes.io/os":   "linux",
+							},
+						},
+					},
+				},
+			},
+			NodeTypes: map[string]config.NodeTypeConfig{
+				"gpu-nvidia-v1": {
+					Disabled:     false,
+					Description:  "Nvidia GPU node 1",
+					Architecture: "amd64",
+					BuilderTemplate: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/arch": "amd64",
+								"kubernetes.io/os":   "linux",
+							},
+						},
+					},
+				},
+				"gpu-nvidia-v0": {
+					Disabled:     true,
+					Description:  "Nvidia GPU node 0",
+					Architecture: "arm64",
+					BuilderTemplate: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/arch": "arm64",
+								"kubernetes.io/os":   "linux",
+							},
+						},
+					},
+				},
+				"memory-v1": {
+					Disabled:     true,
+					Description:  "Memory node 1",
+					Architecture: "armv7",
+					BuilderTemplate: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/arch": "armv7",
+								"kubernetes.io/os":   "linux",
+							},
+						},
+					},
+				},
+			},
 			Oauth2SessionStoreTemplate: config.RuntimeBaseOverlayPodConfig{
 				Base: corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -191,31 +234,36 @@ func TestParse_HappyPath(t *testing.T) {
 					},
 				},
 			},
+			PipelineBuilderTemplate: config.RuntimeBaseOverlayPodConfig{
+				Base: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "build",
+								Image: "ghcr.io/equinor/radix/builder:1.0.0",
+							},
+						},
+					},
+				},
+				Overlay: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						AutomountServiceAccountToken: new(false),
+						SecurityContext: &corev1.PodSecurityContext{
+							RunAsUser: new(int64(1000)),
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "build",
+								Image: "ghcr.io/equinor/radix/builder:1.2.0",
+							},
+						},
+					},
+				},
+			},
 		},
 		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry:      "any.registry.com",
 			CacheContainerRegistry: "app.registry.com",
-			Builder: config.BuilderConfig{
-				Resources: config.Resources{
-					Limits: config.ResourceRequirements{
-						Memory: resource.MustParse("500M"),
-						CPU:    resource.MustParse("2000m"),
-					},
-					Requests: config.ResourceRequirements{
-						Memory: resource.MustParse("500M"),
-						CPU:    resource.MustParse("200m"),
-					},
-				},
-				Image: config.ContainerImage{
-					Repository: "ghcr.io/equinor/radix/buildkit-builder",
-					Tag:        "v3.4.5",
-				},
-				SeccompProfileLocalhostProfile: "anyseccomp.json",
-			},
-			GitCloneImage: config.ContainerImage{
-				Repository: "ghcr.io/equinor/radix-git-clone",
-				Tag:        "v1.0.0",
-			},
 		},
 		Operator: config.OperatorConfig{
 			MetricsPort:                       9000,
@@ -727,49 +775,6 @@ func TestParse_FieldValidator(t *testing.T) {
 			require.Error(t, err)
 			assert.Empty(t, cfg)
 			assert.ErrorContains(t, err, test.expectedError)
-		})
-	}
-}
-
-func TestParse_BuilderResourceLimits(t *testing.T) {
-	tests := map[string]struct {
-		modifyConfig MutateConfigFunc
-		errorPath    string
-	}{
-		"equivalent CPU quantities are valid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("1")
-				cfg.PipelineRunner.Builder.Resources.Requests.CPU = resource.MustParse("1000m")
-			},
-		},
-		"CPU limit below request is invalid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.CPU = resource.MustParse("100m")
-			},
-			errorPath: "PipelineRunner.Builder.Resources",
-		},
-		"memory limit below request is invalid": {
-			modifyConfig: func(cfg *config.Config) {
-				cfg.PipelineRunner.Builder.Resources.Limits.Memory = resource.MustParse("499M")
-			},
-			errorPath: "PipelineRunner.Builder.Resources",
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			configYaml := []byte(mutateConfig(t, test.modifyConfig))
-
-			var cfg config.Config
-			err := configcodec.Decode(configYaml, &cfg)
-			if test.errorPath == "" {
-				require.NoError(t, err)
-				return
-			}
-
-			require.Error(t, err)
-			assert.Empty(t, cfg)
-			assert.ErrorContains(t, err, test.errorPath)
 		})
 	}
 }

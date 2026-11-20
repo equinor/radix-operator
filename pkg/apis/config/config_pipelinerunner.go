@@ -5,16 +5,8 @@ import (
 )
 
 type PipelineRunnerConfig struct {
-	ContainerRegistry      string         `json:"containerRegistry" required:"true"`
-	CacheContainerRegistry string         `json:"cacheContainerRegistry" required:"true"`
-	Builder                BuilderConfig  `json:"builder" required:"true"`
-	GitCloneImage          ContainerImage `json:"gitCloneImage" required:"true"`
-}
-
-type BuilderConfig struct {
-	Image                          ContainerImage `json:"image" required:"true"`
-	SeccompProfileLocalhostProfile string         `json:"seccompProfileLocalhostProfile" required:"true"`
-	Resources                      Resources      `json:"resources" required:"true" validate:"compareQuantity(self.limits.memory, self.requests.memory) >= 0 && compareQuantity(self.limits.cpu, self.requests.cpu) >= 0"`
+	ContainerRegistry      string `json:"containerRegistry" required:"true"`
+	CacheContainerRegistry string `json:"cacheContainerRegistry" required:"true"`
 }
 
 type Resources struct {
