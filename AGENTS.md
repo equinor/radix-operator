@@ -9,6 +9,7 @@ Guidelines for AI coding agents working in this repository.
   ```bash
   make test > "$TMPDIR/unit.log" 2>&1; echo "exit=$?"; grep -E "^(FAIL|panic)|--- FAIL" "$TMPDIR/unit.log"
   ```
+- If a failing test is unrelated to your change, verify it also fails on the unmodified base branch, report it explicitly as pre-existing, and do not modify or skip it to make the suite pass.
 - When fixing a bug, add a test that fails without the fix and passes with it. Verify both, not just the passing state.
 - When a change intentionally alters behaviour, update all tests that assert the old behaviour. Search for every assertion of the changed value instead of relying on a partial test run.
 
@@ -19,12 +20,13 @@ Guidelines for AI coding agents working in this repository.
   ```bash
   cd e2e && go test -v -timeout 40m -run TestName .
   ```
+- Run the relevant e2e tests when your change touches CRD schemas, defaulting, validation, webhooks, or pipeline behaviour. If the Kind cluster cannot be created or reached in your environment, do not skip silently: state which e2e tests were not run and why.
 - Use e2e tests for behaviour that depends on the Kubernetes API server, such as CRD defaulting, validation rules and webhooks. Unit tests with fake clients do not apply CRD defaults.
 - Pipeline-driven tests read `radixconfig.yaml` from [e2e/testdata/gitserver/repos/equinor/](e2e/testdata/gitserver/repos/equinor/)`<app-name>.git/`. Add a new directory there per test application, and reuse `deployToEnvironmentThroughPipeline` to deploy it.
 
 ## Generated code
 
-- After changing types in [pkg/apis/radix/v1/](pkg/apis/radix/v1/), regenerate CRDs and the JSON schema with `make helmresources`, and deepcopy/clients with `make generate` when needed. Never edit generated files by hand.
+- Run `make generate` after any change to types or kubebuilder markers in [pkg/apis/radix/v1/](pkg/apis/radix/v1/). It regenerates deepcopy, clientsets, CRDs, the JSON schema, mocks and swagger. Never edit generated files by hand.
 - Review the generated diff. It should only contain changes you intended.
 
 ## RadixApplication types and environment overrides
