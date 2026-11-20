@@ -542,6 +542,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 			ClientID:               "client-id",
 			SetXAuthRequestHeaders: new(true),
 			SetUserHeaders:         new(false),
+			Credentials:            v1.Secret,
 		},
 	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)

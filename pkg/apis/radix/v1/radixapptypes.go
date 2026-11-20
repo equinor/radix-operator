@@ -1715,7 +1715,6 @@ type OAuth2 struct {
 
 	// Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.
 	// +kubebuilder:validation:Enum=secret;azureWorkloadIdentity;""
-	// +kubebuilder:default:=secret
 	// +optional
 	Credentials CredentialsType `json:"credentials,omitempty"`
 
