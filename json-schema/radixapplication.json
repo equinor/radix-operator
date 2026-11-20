@@ -148,7 +148,6 @@
                         "type": "object"
                       },
                       "credentials": {
-                        "default": "secret",
                         "description": "Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.",
                         "enum": [
                           "secret",
@@ -336,7 +335,6 @@
                               "type": "object"
                             },
                             "credentials": {
-                              "default": "secret",
                               "description": "Credentials defines credentials type for authenticating. Default is a Secret, which represents a client secret.",
                               "enum": [
                                 "secret",
@@ -928,8 +926,7 @@
                           "type": "integer"
                         },
                         "minReplicas": {
-                          "default": 1,
-                          "description": "Defines the minimum number of replicas.",
+                          "description": "Defines the minimum number of replicas. Defaults to 1.",
                           "format": "int32",
                           "minimum": 0,
                           "type": "integer"
@@ -2229,8 +2226,7 @@
                     "type": "integer"
                   },
                   "minReplicas": {
-                    "default": 1,
-                    "description": "Defines the minimum number of replicas.",
+                    "description": "Defines the minimum number of replicas. Defaults to 1.",
                     "format": "int32",
                     "minimum": 0,
                     "type": "integer"

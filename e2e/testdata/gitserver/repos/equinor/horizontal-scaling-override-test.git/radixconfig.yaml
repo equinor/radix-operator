@@ -1,0 +1,22 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: horizontal-scaling-override-test
+spec:
+  environments:
+    - name: dev
+  components:
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      horizontalScaling:
+        minReplicas: 2
+        maxReplicas: 4
+      environmentConfig:
+        - environment: dev
+          horizontalScaling:
+            maxReplicas: 6
