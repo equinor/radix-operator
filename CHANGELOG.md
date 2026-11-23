@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.134.1](https://github.com/equinor/radix-operator/compare/v1.134.0..v1.134.1) - 2026-11-23
+
+### 🐛 Bug Fixes
+
+- Default credentials handling in OAuth2 (#2078) - ([796aad9](https://github.com/equinor/radix-operator/commit/796aad96a5273f3eb3c8536e04e279da21444e8b)) by @Richard87 in [#2078](https://github.com/equinor/radix-operator/pull/2078)
+
+- Get last updated time for azure key vault secrets (#2075) - ([3c38d08](https://github.com/equinor/radix-operator/commit/3c38d084c85481ff297cab232478d24d84f35bc3)) by @nilsgstrabo in [#2075](https://github.com/equinor/radix-operator/pull/2075)
+
+
 ## [1.134.0](https://github.com/equinor/radix-operator/compare/v1.133.3..v1.134.0) - 2026-11-19
 
 ### 🚀 Features
