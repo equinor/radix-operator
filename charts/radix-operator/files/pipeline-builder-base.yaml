@@ -97,13 +97,17 @@ spec:
       mountPath: /home/clone
   volumes:
   - name: clone-home
-    emptyDir: {}
+    emptyDir:
+      sizeLimit: 5M
   - name: build-home
-    emptyDir: {}
+    emptyDir:
+      sizeLimit: 5M
   - name: build-tmp
-    emptyDir: {}
+    emptyDir:
+      sizeLimit: 100G
   - name: build-var
-    emptyDir: {}
+    emptyDir:
+      sizeLimit: 100G
   - name: build-run
     emptyDir:
       sizeLimit: 100G
