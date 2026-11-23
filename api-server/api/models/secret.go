@@ -143,7 +143,7 @@ func getAzureVolumeMountSecrets(ctx context.Context, secretList []corev1.Secret,
 	}
 	keySecretStatus := secretModels.Consistent.String()
 	nameSecretStatus := secretModels.Consistent.String()
-	var metadata *kubequery.SecretMetadata
+	var metadata kubequery.SecretMetadata
 
 	if secretValue, ok := slice.FindFirst(secretList, isSecretWithName(secretName)); ok {
 		metadata = kubequery.GetSecretMetadata(ctx, &secretValue)
@@ -214,7 +214,7 @@ func getSecretsForComponentAuthenticationOAuth2(ctx context.Context, secretList 
 		clientSecretStatus := secretModels.Consistent.String()
 		cookieSecretStatus := secretModels.Consistent.String()
 		redisPasswordStatus := secretModels.Consistent.String()
-		var metadata *kubequery.SecretMetadata
+		var metadata kubequery.SecretMetadata
 
 		secretName := operatorutils.GetAuxiliaryComponentSecretName(component.GetName(), radixv1.OAuthProxyAuxiliaryComponentSuffix)
 		if secr, ok := slice.FindFirst(secretList, isSecretWithName(secretName)); ok {
@@ -365,7 +365,7 @@ func getCredentialSecretsForSecretRefsAzureKeyVault(ctx context.Context, secretL
 	secretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azureKeyVaultName)
 	clientIdStatus := secretModels.Consistent.String()
 	clientSecretStatus := secretModels.Consistent.String()
-	var metadata *kubequery.SecretMetadata
+	var metadata kubequery.SecretMetadata
 
 	if secretValue, ok := slice.FindFirst(secretList, isSecretWithName(secretName)); ok {
 		metadata = kubequery.GetSecretMetadata(ctx, &secretValue)
@@ -391,7 +391,7 @@ func getCredentialSecretsForSecretRefsAzureKeyVault(ctx context.Context, secretL
 		ID:          secretModels.SecretIdClientId,
 		Component:   componentName,
 		Status:      clientIdStatus,
-		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientIdSuffix),
+		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientIdPart),
 	})
 	secrets = append(secrets, secretModels.Secret{
 		Name:        secretName + defaults.CsiAzureKeyVaultCredsClientSecretSuffix,
@@ -401,7 +401,7 @@ func getCredentialSecretsForSecretRefsAzureKeyVault(ctx context.Context, secretL
 		ID:          secretModels.SecretIdClientSecret,
 		Component:   componentName,
 		Status:      clientSecretStatus,
-		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientSecretSuffix),
+		Updated:     metadata.GetUpdated(defaults.CsiAzureKeyVaultCredsClientSecretPart),
 	})
 
 	return secrets

@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,7 +16,112 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
+	k8stesting "k8s.io/client-go/testing"
 )
+
+func TestWatcherStop(t *testing.T) {
+	w := &watcher{stop: make(chan struct{})}
+	ctx := wait.ContextForChannel(w.stop)
+	stopped := make(chan struct{})
+	go func() {
+		w.Stop()
+		w.Stop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("Stop must not block, even when called repeatedly")
+	}
+
+	for range 2 {
+		select {
+		case _, open := <-ctx.Done():
+			assert.False(t, open, "Stop must close the channel, not send a value")
+		default:
+			t.Fatal("all receivers must observe cancellation")
+		}
+	}
+	assert.ErrorIs(t, ctx.Err(), context.Canceled)
+}
+
+func TestRadixBatchWatcherDeleteAfterWatchRegistration(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	// Seed a batch so its deletion must be observed by the watch.
+	radixClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+	namespace := "app-qa"
+	radixBatch := &radixv1.RadixBatch{Name: "batch1"}
+	_, err := radixClient.RadixV1().RadixBatches(namespace).Create(ctx, radixBatch, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Pause the watch request before the tracker registers it.
+	watchStarted := notifyOnWatchStarted(radixClient)
+	watchEntered := make(chan struct{})
+	releaseWatch := make(chan struct{})
+	var gateOnce sync.Once
+	radixClient.PrependWatchReactor("radixbatches", func(action k8stesting.Action) (bool, watch.Interface, error) {
+		gateOnce.Do(func() {
+			close(watchEntered)
+			select {
+			case <-releaseWatch:
+			case <-ctx.Done():
+			}
+		})
+		return false, nil, nil
+	})
+
+	// Record the expected delete notification without relying on a sleep.
+	ctrl := gomock.NewController(t)
+	history := batch.NewMockHistory(ctrl)
+	notifier := notifications.NewMockNotifier(ctrl)
+	notified := make(chan struct{})
+	notifier.EXPECT().Notify(events.Delete, newRadixBatchMatcher(func(batch *radixv1.RadixBatch) bool {
+		return batch.Name == radixBatch.Name
+	}), []radixv1.RadixBatchJobStatus{}).DoAndReturn(func(events.Event, *radixv1.RadixBatch, []radixv1.RadixBatchJobStatus) error {
+		close(notified)
+		return nil
+	}).Times(1)
+
+	// Cache sync can finish while the watch is still paused.
+	batchWatcher, err := NewRadixBatchWatcher(ctx, radixClient, namespace, history, notifier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer batchWatcher.Stop()
+	select {
+	case <-watchEntered:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for watch request")
+	}
+	select {
+	case <-watchStarted:
+		t.Fatal("watch reported ready before registration")
+	default:
+	}
+
+	// Once registered, the watch must deliver the batch deletion.
+	close(releaseWatch)
+	select {
+	case <-watchStarted:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for watch registration")
+	}
+	if err := radixClient.RadixV1().RadixBatches(namespace).Delete(ctx, radixBatch.Name, metav1.DeleteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-notified:
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for delete notification")
+	}
+}
 
 func Test_RadixBatchWatcher(t *testing.T) {
 	activeTime := metav1.NewTime(time.Date(2020, 10, 30, 1, 1, 1, 1, &time.Location{}))
@@ -204,14 +310,21 @@ func Test_RadixBatchWatcher(t *testing.T) {
 
 			ctrl := gomock.NewController(t)
 			history := batch.NewMockHistory(ctrl)
+			watchStarted := notifyOnWatchStarted(radixClient)
 			batchWatcher, err := NewRadixBatchWatcher(context.Background(), radixClient, namespace, history, tt.args.getNotifier(ctrl))
-			defer batchWatcher.Stop()
 			if err != nil {
 				assert.Fail(t, err.Error())
 				return
 			}
+			defer batchWatcher.Stop()
 			assert.NotNil(t, batchWatcher)
-
+			// WaitForCacheSync only guarantees the initial List; changes made before the
+			// informer's Watch is registered are not delivered as events (e.g. Delete).
+			select {
+			case <-watchStarted:
+			case <-time.After(5 * time.Second):
+				t.Fatal("timeout waiting for informer watch to start")
+			}
 			if tt.fields.newRadixBatch != nil && tt.fields.event == events.Create {
 				history.EXPECT().Cleanup(gomock.Any(), make(map[string]struct{})).Times(1)
 				// when radix batch exists and during test it will be updated
@@ -274,4 +387,23 @@ func (m *radixBatchJobStatusesMatcher) Matches(x any) bool {
 
 func (m *radixBatchJobStatusesMatcher) String() string {
 	return "radixBatchJobStatuses matcher"
+}
+
+// notifyOnWatchStarted returns a channel that is closed when the first watch is registered with the fake client's tracker
+func notifyOnWatchStarted(client *radixclientfake.Clientset) <-chan struct{} {
+	started := make(chan struct{})
+	var once sync.Once
+	client.PrependWatchReactor("*", func(action k8stesting.Action) (bool, watch.Interface, error) {
+		var opts metav1.ListOptions
+		if watchAction, ok := action.(k8stesting.WatchActionImpl); ok {
+			opts = watchAction.ListOptions
+		}
+		w, err := client.Tracker().Watch(action.GetResource(), action.GetNamespace(), opts)
+		if err != nil {
+			return false, nil, err
+		}
+		once.Do(func() { close(started) })
+		return true, w, nil
+	})
+	return started
 }

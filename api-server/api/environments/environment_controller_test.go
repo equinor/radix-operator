@@ -9,22 +9,18 @@ import (
 	"time"
 
 	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-common/utils/slice"
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
 	eventModels "github.com/equinor/radix-operator/api-server/api/events/models"
 	"github.com/equinor/radix-operator/api-server/api/secrets"
-	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
-	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
 	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
+	"github.com/equinor/radix-operator/api-server/internal/accounts"
 	radixhttp "github.com/equinor/radix-operator/api-server/internal/http"
-	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/pointers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedav2 "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned"
@@ -35,6 +31,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	authorizationapiv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -304,7 +301,8 @@ func TestDeleteEnvironment_OneOrphanedEnvironment_OnlyOrphanedCanBeDeleted(t *te
 	anyOrphanedEnvironment := "feature-1"
 
 	// Setup
-	commonTestUtils, environmentControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
+	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
+	allowEnvironmentAdministration(t, kubeClient)
 	_, err := commonTestUtils.ApplyApplication(operatorutils.
 		NewRadixApplicationBuilder().
 		WithAppName(anyAppName).
@@ -353,6 +351,68 @@ func TestDeleteEnvironment_OneOrphanedEnvironment_OnlyOrphanedCanBeDeleted(t *te
 	require.NoError(t, err)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(environments))
+}
+
+func TestDeleteEnvironment_RejectsEnvironmentSpecMismatch(t *testing.T) {
+	tests := []struct {
+		name        string
+		urlAppName  string
+		urlEnvName  string
+		specAppName string
+		specEnvName string
+	}{
+		{
+			name:        "application name mismatch",
+			urlAppName:  anyAppName,
+			urlEnvName:  anyEnvironment,
+			specAppName: "another-app",
+			specEnvName: anyEnvironment,
+		},
+		{
+			name:        "environment name mismatch",
+			urlAppName:  anyAppName,
+			urlEnvName:  anyEnvironment,
+			specAppName: anyAppName,
+			specEnvName: "another-environment",
+		},
+		{
+			name:        "concatenated resource name collision",
+			urlAppName:  "any-app",
+			urlEnvName:  "dev",
+			specAppName: "any",
+			specEnvName: "app-dev",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			controllerTestUtils, userClient, radixClient := setupEnvironmentAuthorizationTest(t, false)
+			mockEnvironmentAdminAccessReview(t, userClient, authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, nil)
+
+			re := operatorutils.NewEnvironmentBuilder().
+				WithAppName(tc.specAppName).
+				WithEnvironmentName(tc.specEnvName).
+				WithOrphaned(true).
+				BuildRE()
+			re.Name = operatorutils.GetEnvironmentNamespace(tc.urlAppName, tc.urlEnvName)
+			re, err := radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
+			require.NoError(t, err)
+			require.Equal(t, operatorutils.GetEnvironmentNamespace(tc.urlAppName, tc.urlEnvName), re.Name)
+
+			deleteCount := 0
+			radixClient.PrependReactor("delete", "radixenvironments", func(testing2.Action) (bool, runtime.Object, error) {
+				deleteCount++
+				return false, nil, nil
+			})
+
+			response := <-controllerTestUtils.ExecuteRequest("DELETE", fmt.Sprintf("/api/v1/applications/%s/environments/%s", tc.urlAppName, tc.urlEnvName))
+			assert.Equal(t, http.StatusNotFound, response.Code, response.Body.String())
+			assert.Zero(t, deleteCount, "mismatched environment specs must not be deleted")
+
+			_, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), re.Name, metav1.GetOptions{})
+			require.NoError(t, err, "the environment must remain intact")
+		})
+	}
 }
 
 func TestGetEnvironment_NoExistingEnvironment_ReturnsAnError(t *testing.T) {
@@ -539,7 +599,8 @@ func TestRestartEnvrionment_ApplicationWithDeployment_EnvironmentConsistent(t *t
 
 func TestCreateEnvironment(t *testing.T) {
 	// Setup
-	commonTestUtils, environmentControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
+	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
+	allowEnvironmentAdministration(t, kubeClient)
 	_, err := commonTestUtils.ApplyApplication(operatorutils.
 		ARadixApplication().
 		WithAppName(anyAppName))
@@ -549,6 +610,124 @@ func TestCreateEnvironment(t *testing.T) {
 	responseChannel := environmentControllerTestUtils.ExecuteRequest("POST", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
 	response := <-responseChannel
 	assert.Equal(t, http.StatusOK, response.Code)
+}
+
+func TestCreateEnvironment_ValidatesEnvironmentName(t *testing.T) {
+	testCases := map[string]struct {
+		envName      string
+		expectedCode int
+	}{
+		"valid name":             {envName: "my-env-2", expectedCode: http.StatusOK},
+		"trailing dash":          {envName: "my-env-", expectedCode: http.StatusBadRequest},
+		"leading dash":           {envName: "-my-env", expectedCode: http.StatusBadRequest},
+		"uppercase":              {envName: "MyEnv", expectedCode: http.StatusBadRequest},
+		"invalid character":      {envName: "my_env", expectedCode: http.StatusBadRequest},
+		"reserved name app":      {envName: "app", expectedCode: http.StatusBadRequest},
+		"combined name too long": {envName: strings.Repeat("a", 63-len(anyAppName)), expectedCode: http.StatusBadRequest},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			commonTestUtils, environmentControllerTestUtils, _, kubeClient, radixClient, _, _, _, _ := setupTest(t, nil)
+			allowEnvironmentAdministration(t, kubeClient)
+			_, err := commonTestUtils.ApplyApplication(operatorutils.ARadixApplication().WithAppName(anyAppName))
+			require.NoError(t, err)
+
+			responseChannel := environmentControllerTestUtils.ExecuteRequest("POST", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, tc.envName))
+			response := <-responseChannel
+			assert.Equal(t, tc.expectedCode, response.Code)
+
+			_, err = radixClient.RadixV1().RadixEnvironments().Get(context.Background(), operatorutils.GetEnvironmentNamespace(anyAppName, tc.envName), metav1.GetOptions{})
+			if tc.expectedCode == http.StatusOK {
+				assert.NoError(t, err)
+			} else {
+				assert.True(t, kubeerrors.IsNotFound(err), "RadixEnvironment should not be created")
+			}
+		})
+	}
+}
+
+func TestCreateEnvironment_Authorization(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		status       authorizationapiv1.SubjectAccessReviewStatus
+		reviewError  error
+		expectedCode int
+	}{
+		{name: "reader denied", status: authorizationapiv1.SubjectAccessReviewStatus{Denied: true}, expectedCode: http.StatusForbidden},
+		{name: "review returns neither allow nor deny", expectedCode: http.StatusForbidden},
+		{name: "access review API error", reviewError: kubeerrors.NewInternalError(fmt.Errorf("access review unavailable")), expectedCode: http.StatusInternalServerError},
+		{name: "application admins allowed", status: authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, expectedCode: http.StatusOK},
+	} {
+		for _, exists := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/environment already exists=%t", tc.name, exists), func(t *testing.T) {
+				controllerTestUtils, userClient, radixClient := setupEnvironmentAuthorizationTest(t, exists)
+				mockEnvironmentAdminAccessReview(t, userClient, tc.status, tc.reviewError)
+				createCount := 0
+				radixClient.PrependReactor("create", "radixenvironments", func(testing2.Action) (bool, runtime.Object, error) {
+					createCount++
+					return false, nil, nil
+				})
+
+				response := <-controllerTestUtils.ExecuteRequest("POST", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
+				assert.Equal(t, tc.expectedCode, response.Code, response.Body.String())
+				assert.Len(t, userClient.Actions(), 1, "authorization must be checked exactly once using the caller's client")
+				if tc.status.Allowed {
+					assert.Equal(t, 1, createCount)
+				} else {
+					assert.Zero(t, createCount, "denied requests must not attempt a privileged create")
+				}
+				envName := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+				_, err := radixClient.RadixV1().RadixEnvironments().Get(context.Background(), envName, metav1.GetOptions{})
+				if exists || tc.status.Allowed {
+					require.NoError(t, err)
+				} else {
+					assert.True(t, kubeerrors.IsNotFound(err))
+				}
+			})
+		}
+	}
+}
+
+func TestDeleteEnvironment_Authorization(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		status       authorizationapiv1.SubjectAccessReviewStatus
+		reviewError  error
+		expectedCode int
+	}{
+		{name: "reader denied", status: authorizationapiv1.SubjectAccessReviewStatus{Denied: true}, expectedCode: http.StatusForbidden},
+		{name: "review returns neither allow nor deny", expectedCode: http.StatusForbidden},
+		{name: "access review API error", reviewError: kubeerrors.NewInternalError(fmt.Errorf("access review unavailable")), expectedCode: http.StatusInternalServerError},
+		{name: "application admins allowed", status: authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, expectedCode: http.StatusOK},
+	} {
+		for _, orphanedByTimestamp := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/orphaned by timestamp=%t", tc.name, orphanedByTimestamp), func(t *testing.T) {
+				controllerTestUtils, userClient, radixClient := setupEnvironmentAuthorizationTest(t, true)
+				mockEnvironmentAdminAccessReview(t, userClient, tc.status, tc.reviewError)
+				markEnvironmentOrphaned(t, radixClient, orphanedByTimestamp)
+				deleteCount := 0
+				radixClient.PrependReactor("delete", "radixenvironments", func(testing2.Action) (bool, runtime.Object, error) {
+					deleteCount++
+					return false, nil, nil
+				})
+
+				response := <-controllerTestUtils.ExecuteRequest("DELETE", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
+
+				assert.Equal(t, tc.expectedCode, response.Code, response.Body.String())
+				assert.Len(t, userClient.Actions(), 1, "authorization must use the caller's client exactly once")
+				envName := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+				_, err := radixClient.RadixV1().RadixEnvironments().Get(context.Background(), envName, metav1.GetOptions{})
+				if tc.status.Allowed {
+					assert.Equal(t, 1, deleteCount)
+					assert.True(t, kubeerrors.IsNotFound(err))
+				} else {
+					assert.Zero(t, deleteCount, "denied requests must not attempt a privileged delete")
+					require.NoError(t, err, "the environment must remain intact")
+				}
+			})
+		}
+	}
 }
 
 func Test_GetEnvironmentEvents_Controller(t *testing.T) {
@@ -603,198 +782,6 @@ func Test_GetEnvironmentEvents_Controller(t *testing.T) {
 			errResponse.Message,
 		)
 	})
-}
-
-func TestUpdateSecret_AccountSecretForComponentVolumeMount_UpdatedOk(t *testing.T) {
-	// Setup
-	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithRadixApplication(operatorutils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment, "master")).
-		WithComponents(
-			operatorutils.NewDeployComponentBuilder().
-				WithName(anyComponentName).
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithVolumeMounts(
-					v1.RadixVolumeMount{
-						Name: "somevolumename",
-						Path: "some-path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Container: "some-container",
-						},
-					},
-				)))
-	require.NoError(t, err)
-
-	// Test
-	responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response := <-responseChannel
-
-	environment := environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(environment.Secrets))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountkey", anyComponentName)))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountname", anyComponentName)))
-
-	parameters := secretModels.SecretParameters{SecretValue: "anyValue"}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("PUT", fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, environment.Secrets[0].Name), parameters)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	responseChannel = environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	environment = environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-
-	accountKeySecret, ok := slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountKey
-	})
-	assert.True(t, ok)
-	assert.WithinDuration(t, time.Now(), pointers.Val(accountKeySecret.Updated), 1*time.Second)
-	accountNameSecret, ok := slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountName
-	})
-	assert.True(t, ok)
-	assert.Nil(t, accountNameSecret.Updated)
-}
-
-func TestUpdateSecret_AccountSecretForJobVolumeMount_UpdatedOk(t *testing.T) {
-	// Setup
-	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithRadixApplication(operatorutils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment, "master")).
-		WithJobComponents(
-			operatorutils.NewDeployJobComponentBuilder().
-				WithName(anyJobName).
-				WithVolumeMounts(
-					v1.RadixVolumeMount{
-						Name: "somevolumename",
-						Path: "some-path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Container: "some-container",
-						},
-					},
-				)))
-	require.NoError(t, err)
-
-	// Test
-	responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response := <-responseChannel
-	require.Equal(t, http.StatusOK, response.Code)
-
-	environment := environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(environment.Secrets))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountkey", anyJobName)))
-	assert.True(t, contains(environment.Secrets, fmt.Sprintf("%v-somevolumename-csiazurecreds-accountname", anyJobName)))
-
-	parameters := secretModels.SecretParameters{SecretValue: "anyValue"}
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters("PUT", fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyJobName, environment.Secrets[0].Name), parameters)
-	response = <-responseChannel
-	require.Equal(t, http.StatusOK, response.Code)
-
-	responseChannel = environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response = <-responseChannel
-	require.Equal(t, http.StatusOK, response.Code)
-	environment = environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	require.NotNil(t, environment.Secrets)
-
-	secret, ok := slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountKey
-	})
-	assert.True(t, ok)
-	assert.WithinDuration(t, time.Now(), pointers.Val(secret.Updated), 1*time.Second)
-
-	secret, ok = slice.FindFirst(environment.Secrets, func(secret secretModels.Secret) bool {
-		return secret.ID == secretModels.SecretIdAccountName
-	})
-	assert.True(t, ok)
-	assert.Nil(t, secret.Updated)
-}
-
-func TestUpdateSecret_OAuth2_UpdatedOk(t *testing.T) {
-	// Setup
-	envNs := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	commonTestUtils, environmentControllerTestUtils, controllerTestUtils, client, radixclient, kedaClient, promclient, secretProviderClient, certClient := setupTest(t, nil)
-	err := controllertest.ApplyDeploymentWithSync(client, radixclient, kedaClient, promclient, commonTestUtils, secretProviderClient, certClient, operatorutils.NewDeploymentBuilder().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironment).
-		WithRadixApplication(operatorutils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment(anyEnvironment, "master")).
-		WithComponents(
-			operatorutils.NewDeployComponentBuilder().WithName(anyComponentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}}),
-		))
-	require.NoError(t, err)
-
-	// Test
-	responseChannel := environmentControllerTestUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", anyAppName, anyEnvironment))
-	response := <-responseChannel
-
-	environment := environmentModels.Environment{}
-	err = controllertest.GetResponseBody(response, &environment)
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{anyComponentName + suffix.OAuth2ClientSecret, anyComponentName + suffix.OAuth2CookieSecret, anyComponentName + suffix.OAuth2RedisPassword}, environment.ActiveDeployment.Components[0].Secrets)
-
-	// Update secret when k8s secret object is missing should return 404
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2ClientSecret),
-		secretModels.SecretParameters{SecretValue: "clientsecret"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusNotFound, response.Code)
-
-	// Update client secret when k8s secret exists should set Data
-	secretName := operatorutils.GetAuxiliaryComponentSecretName(anyComponentName, v1.OAuthProxyAuxiliaryComponentSuffix)
-	_, err = client.CoreV1().Secrets(envNs).Create(context.Background(), &corev1.Secret{Name: secretName}, metav1.CreateOptions{})
-	require.NoError(t, err)
-
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2ClientSecret),
-		secretModels.SecretParameters{SecretValue: "clientsecret"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	actualSecret, _ := client.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
-	assert.Equal(t, actualSecret.Data, map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("clientsecret")})
-
-	// Update client secret when k8s secret exists should set Data
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2CookieSecret),
-		secretModels.SecretParameters{SecretValue: "cookiesecret"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	actualSecret, _ = client.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
-	assert.Equal(t, actualSecret.Data, map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("clientsecret"), operatordefaults.OAuthCookieSecretKeyName: []byte("cookiesecret")})
-
-	// Update client secret when k8s secret exists should set Data
-	responseChannel = controllerTestUtils.ExecuteRequestWithParameters(
-		"PUT",
-		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", anyAppName, anyEnvironment, anyComponentName, anyComponentName+suffix.OAuth2RedisPassword),
-		secretModels.SecretParameters{SecretValue: "redispassword"},
-	)
-	response = <-responseChannel
-	assert.Equal(t, http.StatusOK, response.Code)
-	actualSecret, _ = client.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
-	assert.Equal(t, actualSecret.Data, map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("clientsecret"), operatordefaults.OAuthCookieSecretKeyName: []byte("cookiesecret"), operatordefaults.OAuthRedisPasswordKeyName: []byte("redispassword")})
 }
 
 func TestGetSecretDeployments_SortedWithFromTo(t *testing.T) {
@@ -1005,7 +992,8 @@ func TestGetSecret_ExistingSecretInConfig_ReturnsAPendingSecret(t *testing.T) {
 
 func TestCreateSecret(t *testing.T) {
 	// Setup
-	commonTestUtils, environmentControllerTestUtils, _, _, _, _, _, _, _ := setupTest(t, nil)
+	commonTestUtils, environmentControllerTestUtils, _, kubeClient, _, _, _, _, _ := setupTest(t, nil)
+	allowEnvironmentAdministration(t, kubeClient)
 	_, err := commonTestUtils.ApplyApplication(operatorutils.
 		ARadixApplication().
 		WithAppName(anyAppName))
@@ -1134,11 +1122,67 @@ func createRadixDeploymentWithReplicas(tu *commontest.Utils, appName, envName st
 	return rd, err
 }
 
-func contains(secrets []secretModels.Secret, name string) bool {
-	for _, secret := range secrets {
-		if secret.Name == name {
-			return true
-		}
+func allowEnvironmentAdministration(t *testing.T, kubeClient *kubefake.Clientset) {
+	t.Helper()
+	mockEnvironmentAdminAccessReview(t, kubeClient, authorizationapiv1.SubjectAccessReviewStatus{Allowed: true}, nil)
+}
+
+func mockEnvironmentAdminAccessReview(t *testing.T, kubeClient *kubefake.Clientset, status authorizationapiv1.SubjectAccessReviewStatus, reviewError error) {
+	t.Helper()
+	kubeClient.PrependReactor("create", "selfsubjectaccessreviews", func(action testing2.Action) (bool, runtime.Object, error) {
+		review := action.(testing2.CreateAction).GetObject().(*authorizationapiv1.SelfSubjectAccessReview)
+		assert.Equal(t, &authorizationapiv1.ResourceAttributes{
+			Verb:     "patch",
+			Group:    v1.GroupName,
+			Resource: v1.ResourceRadixRegistrations,
+			Version:  "*",
+			Name:     anyAppName,
+		}, review.Spec.ResourceAttributes)
+		review.Status = status
+		return true, review, reviewError
+	})
+}
+
+func setupEnvironmentAuthorizationTest(t *testing.T, environmentExists bool) (*controllertest.TestUtils, *kubefake.Clientset, *radixfake.Clientset) {
+	t.Helper()
+	commonTestUtils, _, _, serviceClient, radixClient, kedaClient, _, secretClient, certClient := setupTest(t, nil)
+	userClient := kubefake.NewClientset()
+	serviceClient.PrependReactor("create", "selfsubjectaccessreviews", func(testing2.Action) (bool, runtime.Object, error) {
+		t.Error("authorization must use the caller's client")
+		return true, nil, fmt.Errorf("wrong authorization client")
+	})
+
+	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(t))
+	mockValidator.EXPECT().ValidateToken(gomock.Any(), gomock.Any()).AnyTimes().Return(controllertest.NewTestPrincipal(true), nil)
+	controller := NewEnvironmentController(func(a accounts.Accounts) EnvironmentHandler {
+		a.UserAccount.Client = userClient
+		return Init(WithAccounts(a))
+	})
+	controllerTestUtils := controllertest.NewTestUtils(serviceClient, radixClient.(*radixfake.Clientset),
+		kedaClient.(*kedafake.Clientset), secretClient.(*secretproviderfake.Clientset), certClient, nil, mockValidator, controller)
+
+	_, err := commonTestUtils.ApplyApplication(operatorutils.ARadixApplication().WithAppName(anyAppName))
+	require.NoError(t, err)
+	if environmentExists {
+		_, err = radixClient.RadixV1().RadixEnvironments().Create(context.Background(),
+			operatorutils.NewEnvironmentBuilder().WithAppName(anyAppName).WithEnvironmentName(anyEnvironment).BuildRE(), metav1.CreateOptions{})
+		require.NoError(t, err)
 	}
-	return false
+
+	return &controllerTestUtils, userClient, radixClient.(*radixfake.Clientset)
+}
+
+func markEnvironmentOrphaned(t *testing.T, radixClient radixclient.Interface, byTimestamp bool) {
+	t.Helper()
+	envName := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	re, err := radixClient.RadixV1().RadixEnvironments().Get(context.Background(), envName, metav1.GetOptions{})
+	require.NoError(t, err)
+	if byTimestamp {
+		now := metav1.Now()
+		re.Status.OrphanedTimestamp = &now
+	} else {
+		re.Status.Orphaned = true
+	}
+	_, err = radixClient.RadixV1().RadixEnvironments().UpdateStatus(context.Background(), re, metav1.UpdateOptions{})
+	require.NoError(t, err)
 }

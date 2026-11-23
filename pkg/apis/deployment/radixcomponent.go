@@ -239,7 +239,15 @@ func getRadixComponentAuthentication(radixComponent *radixv1.RadixComponent, env
 	if environmentSpecificConfig != nil {
 		environmentAuthentication = environmentSpecificConfig.Authentication
 	}
-	return GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
+	auth, err := GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
+	if err != nil {
+		return nil, err
+	}
+	// Credentials has no CRD default, since a defaulted value in environmentConfig would override the component value when merged
+	if oauth2 := auth.GetOAuth2(); oauth2 != nil && oauth2.Credentials == "" {
+		oauth2.Credentials = radixv1.Secret
+	}
+	return auth, nil
 }
 
 func GetAuthenticationForComponent(componentAuthentication *radixv1.Authentication, environmentAuthentication *radixv1.Authentication) (auth *radixv1.Authentication, err error) {

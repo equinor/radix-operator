@@ -11,12 +11,16 @@ import (
 	deploymentModels "github.com/equinor/radix-operator/api-server/api/deployments/models"
 	jobModels "github.com/equinor/radix-operator/api-server/api/jobs/models"
 	"github.com/equinor/radix-operator/api-server/internal/accounts"
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/git"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	"go.uber.org/mock/gomock"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -196,10 +200,86 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 		//lint:ignore SA1019 we want to make sure that Components is populated for backward compatibility (at least for a while)
 		s.ElementsMatch(slice.PointersOf(expectedComponents), actualJob.Components)
 		expectedSteps := []jobModels.Step{
-			{Name: step1Name, PodName: step1Pod, Status: string(step1Condition), Started: &step1Started.Time, Ended: &step1Ended.Time, Components: step1Components},
-			{Name: step2Name},
+			{Name: step1Name, Type: jobModels.StepTypeUnknown, PodName: step1Pod, Status: string(step1Condition), Started: &step1Started.Time, Ended: &step1Ended.Time, Components: step1Components},
+			{Name: step2Name, Type: jobModels.StepTypeUnknown},
 		}
 		s.ElementsMatch(expectedSteps, actualJob.Steps)
+	})
+}
+
+func (s *JobHandlerTestSuite) Test_GetApplicationJob_StepType() {
+	appName, jobName := "any_app", "any_job"
+	scenarios := map[string]struct {
+		step         radixv1.RadixJobStep
+		expectedType jobModels.StepType
+	}{
+		"explicit type clone-config":            {step: radixv1.RadixJobStep{Name: "any", Type: radixv1.RadixJobStepTypeCloneConfig}, expectedType: jobModels.StepTypeCloneConfig},
+		"explicit type pipeline-runner":         {step: radixv1.RadixJobStep{Name: "any", Type: radixv1.RadixJobStepTypePipelineRunner}, expectedType: jobModels.StepTypePipelineRunner},
+		"explicit type clone":                   {step: radixv1.RadixJobStep{Name: "any", Type: radixv1.RadixJobStepTypeClone}, expectedType: jobModels.StepTypeClone},
+		"explicit type build":                   {step: radixv1.RadixJobStep{Name: "any", Type: radixv1.RadixJobStepTypeBuild}, expectedType: jobModels.StepTypeBuild},
+		"explicit unknown type returns Unknown": {step: radixv1.RadixJobStep{Name: git.CloneConfigContainerName, Type: "any-unknown"}, expectedType: jobModels.StepTypeUnknown},
+		"no type, name clone-config":            {step: radixv1.RadixJobStep{Name: git.CloneConfigContainerName}, expectedType: jobModels.StepTypeCloneConfig},
+		"no type, name radix-pipeline":          {step: radixv1.RadixJobStep{Name: operatorDefaults.RadixPipelineJobPipelineContainerName}, expectedType: jobModels.StepTypePipelineRunner},
+		"no type, name clone":                   {step: radixv1.RadixJobStep{Name: git.CloneContainerName}, expectedType: jobModels.StepTypeClone},
+		"no type, name with clone prefix":       {step: radixv1.RadixJobStep{Name: git.CloneContainerName + "-other"}, expectedType: jobModels.StepTypeClone},
+		"no type, name build":                   {step: radixv1.RadixJobStep{Name: operatorDefaults.RadixPipelineJobBuildContainerName}, expectedType: jobModels.StepTypeBuild},
+		"no type, name with build prefix":       {step: radixv1.RadixJobStep{Name: operatorDefaults.RadixPipelineJobBuildContainerName + "-comp"}, expectedType: jobModels.StepTypeBuild},
+		"no type, unknown name returns Unknown": {step: radixv1.RadixJobStep{Name: "unknown"}, expectedType: jobModels.StepTypeUnknown},
+	}
+
+	for name, scenario := range scenarios {
+		s.Run(name, func() {
+			s.setupTest()
+			ctrl := gomock.NewController(s.T())
+			defer ctrl.Finish()
+
+			dh := deployMock.NewMockDeployHandler(ctrl)
+			dh.EXPECT().GetDeploymentsForPipelineJob(context.Background(), appName, jobName).Return(nil, nil).Times(1)
+			h := Init(s.accounts, dh)
+			rj := radixv1.RadixJob{
+				Name:      jobName,
+				Namespace: utils.GetAppNamespace(appName),
+				Status:    radixv1.RadixJobStatus{Steps: []radixv1.RadixJobStep{scenario.step}},
+			}
+			_, err := s.radixClient.RadixV1().RadixJobs(rj.Namespace).Create(context.Background(), &rj, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			actualJob, err := h.GetApplicationJob(context.Background(), appName, jobName)
+			s.Require().NoError(err)
+			s.Require().Len(actualJob.Steps, 1)
+			s.Equal(scenario.expectedType, actualJob.Steps[0].Type)
+		})
+	}
+
+	s.Run("sub-pipeline task run steps have type SubPipelineStep", func() {
+		s.setupTest()
+		ctrl := gomock.NewController(s.T())
+		defer ctrl.Finish()
+
+		dh := deployMock.NewMockDeployHandler(ctrl)
+		dh.EXPECT().GetDeploymentsForPipelineJob(context.Background(), appName, jobName).Return(nil, nil).Times(1)
+		h := Init(s.accounts, dh)
+		rj := radixv1.RadixJob{Name: jobName, Namespace: utils.GetAppNamespace(appName)}
+		_, err := s.radixClient.RadixV1().RadixJobs(rj.Namespace).Create(context.Background(), &rj, metav1.CreateOptions{})
+		s.Require().NoError(err)
+
+		taskRun := pipelinev1.TaskRun{
+			Name:      "taskrun1",
+			Namespace: rj.Namespace,
+			Labels:    map[string]string{kube.RadixJobNameLabel: jobName},
+			Status: pipelinev1.TaskRunStatus{
+				TaskRunStatusFields: pipelinev1.TaskRunStatusFields{
+					Steps: []pipelinev1.StepState{{Name: "step1"}},
+				},
+			},
+		}
+		_, err = s.tektonClient.TektonV1().TaskRuns(rj.Namespace).Create(context.Background(), &taskRun, metav1.CreateOptions{})
+		s.Require().NoError(err)
+
+		actualJob, err := h.GetApplicationJob(context.Background(), appName, jobName)
+		s.Require().NoError(err)
+		s.Require().Len(actualJob.Steps, 1)
+		s.Equal(jobModels.StepTypeSubPipelineStep, actualJob.Steps[0].Type)
 	})
 }
 
@@ -279,7 +359,7 @@ func (s *JobHandlerTestSuite) TestJobHandler_RerunJob() {
 		{scenarioName: "not existing job", existingJob: nil, jobNameToRerun: "job1", expectedError: jobModels.PipelineNotFoundError(appName, "job1")},
 	}
 	for _, tt := range tests {
-		s.T().Run(tt.scenarioName, func(t *testing.T) {
+		s.Run(tt.scenarioName, func() {
 			s.setupTest()
 			ctrl := gomock.NewController(s.T())
 			defer ctrl.Finish()

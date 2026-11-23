@@ -1,9 +1,6 @@
 package git
 
 const (
-	// InternalContainerPrefix To indicate that this is not for user interest
-	InternalContainerPrefix = "internal-"
-
 	// CloneConfigContainerName Name of container for clone in the outer pipeline
 	CloneConfigContainerName = "clone-config"
 

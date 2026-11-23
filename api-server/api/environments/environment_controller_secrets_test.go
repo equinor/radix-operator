@@ -3,292 +3,140 @@ package environments
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net/http"
 	"testing"
 	"time"
 
+	certclientfake "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/fake"
 	environmentModels "github.com/equinor/radix-operator/api-server/api/environments/models"
+	"github.com/equinor/radix-operator/api-server/api/secrets"
 	secretModels "github.com/equinor/radix-operator/api-server/api/secrets/models"
-	"github.com/equinor/radix-operator/api-server/api/secrets/suffix"
 	controllertest "github.com/equinor/radix-operator/api-server/api/test"
-	operatordefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	authnmock "github.com/equinor/radix-operator/api-server/api/utils/token/mock"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	commontest "github.com/equinor/radix-operator/pkg/apis/test"
 	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/stretchr/testify/require"
+	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/suite"
-	batchv1 "k8s.io/api/batch/v1"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	secretsstoreclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	kubefake "k8s.io/client-go/kubernetes/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-type secretHandlerTestSuite struct {
+type secretsTestSuite struct {
 	suite.Suite
+	commonTestUtils      *commontest.Utils
+	envController        *controllertest.TestUtils
+	secretController     *controllertest.TestUtils
+	kubeClient           *kubefake.Clientset
+	radixClient          *radixfake.Clientset
+	kedaClient           *kedafake.Clientset
+	dynamicClient        client.Client
+	secretProviderClient *secretproviderfake.Clientset
+	certClient           *certclientfake.Clientset
 }
 
-func TestRunSecretHandlerTestSuite(t *testing.T) {
-	suite.Run(t, new(secretHandlerTestSuite))
+func TestSecretsTestSuite(t *testing.T) {
+	suite.Run(t, new(secretsTestSuite))
 }
 
-type testSecretDescription struct {
-	secretName string
-	secretData map[string][]byte
-	labels     map[string]string
+func (s *secretsTestSuite) SetupTest() {
+	s.kubeClient = kubefake.NewClientset()
+	s.radixClient = radixfake.NewSimpleClientset() //nolint:staticcheck
+	s.kedaClient = kedafake.NewSimpleClientset()
+	s.dynamicClient = commontest.CreateClient()
+	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
+	s.certClient = certclientfake.NewSimpleClientset()
+
+	commonTestUtils := commontest.NewTestUtils(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient)
+	s.commonTestUtils = &commonTestUtils
+	s.Require().NoError(s.commonTestUtils.CreateClusterPrerequisites())
+
+	mockValidator := authnmock.NewMockValidatorInterface(gomock.NewController(s.T()))
+	mockValidator.EXPECT().ValidateToken(gomock.Any(), gomock.Any()).AnyTimes().Return(controllertest.NewTestPrincipal(true), nil)
+	envController := controllertest.NewTestUtils(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.certClient, nil, mockValidator, NewEnvironmentController(NewEnvironmentHandlerFactory()))
+	s.envController = &envController
+	secretController := controllertest.NewTestUtils(s.kubeClient, s.radixClient, s.kedaClient, s.secretProviderClient, s.certClient, nil, mockValidator, secrets.NewSecretController(nil))
+	s.secretController = &secretController
 }
 
-type getSecretScenario struct {
-	name                   string
-	components             []v1.RadixDeployComponent
-	jobs                   []v1.RadixDeployJobComponent
-	init                   func(kubernetes.Interface, radixclient.Interface, secretsstoreclient.Interface) // scenario optional custom init function
-	existingSecrets        []testSecretDescription
-	expectedSecrets        []secretModels.Secret
-	expectedSecretVersions map[string]map[string]map[string]map[string]map[string]bool // map[componentName]map[azureKeyVaultName]map[secretId]map[version]map[replicaName]bool
+func (s *secretsTestSuite) SetupSubTest() {
+	s.SetupTest()
 }
 
-type testSecretProviderClassAndSecret struct {
-	secretName string
-	className  string
+// Generic secrets
+
+func (s *secretsTestSuite) TestGenericSecrets_InitialState() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		secretName    = "SECRET1"
+	)
+	s.applyDeployment(appName, envName,
+		[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{secretName})},
+		[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithSecrets([]string{secretName})},
+	)
+
+	s.assertSecrets([]secretModels.Secret{
+		{Name: secretName, DisplayName: secretName, Type: secretModels.SecretTypeGeneric, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: secretName, DisplayName: secretName, Type: secretModels.SecretTypeGeneric, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+	}, s.getSecrets(appName, envName))
 }
 
-func (s *secretHandlerTestSuite) TestSecretHandler_GetSecrets() {
-	componentName1 := "component1"
-	jobName1 := "job1"
-	scenarios := []getSecretScenario{
-		{
-			name: "regular secrets with no existing secrets",
-			components: []v1.RadixDeployComponent{{
-				Name: componentName1,
-				Secrets: []string{
-					"SECRET_C1",
-				},
-			}},
-			jobs: []v1.RadixDeployJobComponent{{
-				Name: jobName1,
-				Secrets: []string{
-					"SECRET_J1",
-				},
-			}},
+func (s *secretsTestSuite) TestGenericSecrets_Update() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		secretName1   = "SECRET1"
+		secretName2   = "SECRET2"
+	)
+	s.applyDeployment(appName, envName,
+		[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithSecrets([]string{secretName1, secretName2})},
+		[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithSecrets([]string{secretName1, secretName2})},
+	)
+
+	updatedAt := time.Now()
+	s.Require().Equal(http.StatusOK, s.updateSecret(appName, envName, componentName, secretName1, "new-value"))
+	s.Require().Equal(http.StatusOK, s.updateSecret(appName, envName, jobName, secretName2, "new-value"))
+
+	s.assertSecrets([]secretModels.Secret{
+		{Name: secretName1, DisplayName: secretName1, Type: secretModels.SecretTypeGeneric, Component: componentName, Status: secretModels.Consistent.String(), Updated: &updatedAt},
+		{Name: secretName2, DisplayName: secretName2, Type: secretModels.SecretTypeGeneric, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: secretName1, DisplayName: secretName1, Type: secretModels.SecretTypeGeneric, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: secretName2, DisplayName: secretName2, Type: secretModels.SecretTypeGeneric, Component: jobName, Status: secretModels.Consistent.String(), Updated: &updatedAt},
+	}, s.getSecrets(appName, envName))
+}
+
+// Azure Blob volume credential secrets
+
+func (s *secretsTestSuite) TestAzureBlobVolumeSecrets_InitialState() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		volumeName    = "volume1"
+	)
+	tests := map[string]struct {
+		blobFuse2       v1.RadixBlobFuse2VolumeMount
+		expectedSecrets []secretModels.Secret
+	}{
+		"account key and account name are pending when no value is set": {
+			blobFuse2: v1.RadixBlobFuse2VolumeMount{Container: "container"},
 			expectedSecrets: []secretModels.Secret{
-				{
-					Name:        "SECRET_C1",
-					DisplayName: "SECRET_C1",
-					Type:        secretModels.SecretTypeGeneric,
-					Resource:    "",
-					Component:   componentName1,
-					Status:      secretModels.Pending.String(),
-				},
-				{
-					Name:        "SECRET_J1",
-					DisplayName: "SECRET_J1",
-					Type:        secretModels.SecretTypeGeneric,
-					Resource:    "",
-					Component:   jobName1,
-					Status:      secretModels.Pending.String(),
-				},
+				{Name: componentName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: componentName + "-" + volumeName + "-csiazurecreds-accountname", DisplayName: "Account Name", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountName, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: jobName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: jobName + "-" + volumeName + "-csiazurecreds-accountname", DisplayName: "Account Name", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountName, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
 			},
-		},
-		{
-			name: "regular secrets with existing secrets",
-			components: []v1.RadixDeployComponent{{
-				Name: componentName1,
-				Secrets: []string{
-					"SECRET_C1",
-				},
-			}},
-			jobs: []v1.RadixDeployJobComponent{{
-				Name: jobName1,
-				Secrets: []string{
-					"SECRET_J1",
-				},
-			}},
-			existingSecrets: []testSecretDescription{
-				{
-					secretName: operatorutils.GetComponentSecretName(componentName1),
-					secretData: map[string][]byte{"SECRET_C1": []byte("current-value1")},
-				},
-				{
-					secretName: operatorutils.GetComponentSecretName(jobName1),
-					secretData: map[string][]byte{"SECRET_J1": []byte("current-value2")},
-				},
-			},
-			expectedSecrets: []secretModels.Secret{
-				{
-					Name:        "SECRET_C1",
-					DisplayName: "SECRET_C1",
-					Type:        secretModels.SecretTypeGeneric,
-					Resource:    "",
-					Component:   componentName1,
-					Status:      secretModels.Consistent.String(),
-				},
-				{
-					Name:        "SECRET_J1",
-					DisplayName: "SECRET_J1",
-					Type:        secretModels.SecretTypeGeneric,
-					Resource:    "",
-					Component:   jobName1,
-					Status:      secretModels.Consistent.String(),
-				},
-			},
-		},
-		{
-			name: "Azure Blob volumes credential secrets with no secrets",
-			components: []v1.RadixDeployComponent{
-				{
-					Name: componentName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume1",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container: "container1",
-							},
-						},
-					},
-				},
-			},
-			jobs: []v1.RadixDeployJobComponent{
-				{
-					Name: jobName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume2",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container: "container2",
-							},
-						},
-					},
-				},
-			},
-			expectedSecrets: []secretModels.Secret{
-				{
-					Name:        "component1-volume1-csiazurecreds-accountkey",
-					DisplayName: "Account Key",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume1",
-					Component:   componentName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdAccountKey,
-				},
-				{
-					Name:        "component1-volume1-csiazurecreds-accountname",
-					DisplayName: "Account Name",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume1",
-					Component:   componentName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdAccountName,
-				},
-				{
-					Name:        "job1-volume2-csiazurecreds-accountkey",
-					DisplayName: "Account Key",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume2",
-					Component:   jobName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdAccountKey,
-				},
-				{
-					Name:        "job1-volume2-csiazurecreds-accountname",
-					DisplayName: "Account Name",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume2",
-					Component:   jobName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdAccountName,
-				},
-			},
-		},
-		{
-			name: "Azure BlobFuse2 volumes credential secrets with predefined StorageAccount",
-			components: []v1.RadixDeployComponent{
-				{
-					Name: componentName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume1",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container:      "container1",
-								StorageAccount: "storageaccount1",
-							},
-						},
-					},
-				},
-			},
-			jobs: []v1.RadixDeployJobComponent{
-				{
-					Name: jobName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume2",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container:      "container2",
-								StorageAccount: "storageaccount1",
-							},
-						},
-					},
-				},
-			},
-			expectedSecrets: []secretModels.Secret{
-				{
-					Name:        "component1-volume1-csiazurecreds-accountkey",
-					DisplayName: "Account Key for storageaccount1",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume1",
-					Component:   componentName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdAccountKey,
-				},
-				{
-					Name:        "job1-volume2-csiazurecreds-accountkey",
-					DisplayName: "Account Key for storageaccount1",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume2",
-					Component:   jobName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdAccountKey,
-				},
-			},
-		},
-		{
-			name: "Azure Blob volumes doe not use credential secrets when UseAzureIdentity is set to true",
-			components: []v1.RadixDeployComponent{
-				{
-					Name: componentName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume1",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container:        "container1",
-								UseAzureIdentity: new(true),
-								StorageAccount:   "storageaccount1",
-								ResourceGroup:    "resource-group1",
-								SubscriptionId:   "subscription-id1",
-							},
-						},
-					},
-				},
-			},
-			jobs: []v1.RadixDeployJobComponent{
-				{
-					Name: jobName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume2",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container:        "container2",
-								UseAzureIdentity: new(true),
-								StorageAccount:   "storageaccount1",
-								ResourceGroup:    "resource-group1",
-								SubscriptionId:   "subscription-id1",
-							},
-						},
-					},
-				},
-			},
-			expectedSecrets: []secretModels.Secret{},
 		},
 		{
 			name: "Azure Blob volumes credential secrets with existing secrets",
@@ -335,647 +183,381 @@ func (s *secretHandlerTestSuite) TestSecretHandler_GetSecrets() {
 				},
 			},
 			expectedSecrets: []secretModels.Secret{
-				{
-					Name:        "component1-volume1-csiazurecreds-accountkey",
-					DisplayName: "Account Key",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume1",
-					Component:   componentName1,
-					Status:      secretModels.Consistent.String(),
-					ID:          secretModels.SecretIdAccountKey,
-				},
-				{
-					Name:        "component1-volume1-csiazurecreds-accountname",
-					DisplayName: "Account Name",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume1",
-					Component:   componentName1,
-					Status:      secretModels.Consistent.String(),
-					ID:          secretModels.SecretIdAccountName,
-				},
-				{
-					Name:        "job1-volume2-csiazurecreds-accountkey",
-					DisplayName: "Account Key",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume2",
-					Component:   jobName1,
-					Status:      secretModels.Consistent.String(),
-					ID:          secretModels.SecretIdAccountKey,
-				},
-				{
-					Name:        "job1-volume2-csiazurecreds-accountname",
-					DisplayName: "Account Name",
-					Type:        secretModels.SecretTypeCsiAzureBlobVolume,
-					Resource:    "volume2",
-					Component:   jobName1,
-					Status:      secretModels.Consistent.String(),
-					ID:          secretModels.SecretIdAccountName,
-				},
+				{Name: componentName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key for storageaccount1", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: jobName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key for storageaccount1", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
 			},
 		},
-		{
-			name: "No Azure Key vault credential secrets when there is no Azure key vault SecretRefs",
-			components: []v1.RadixDeployComponent{
-				{
-					Name:       componentName1,
-					SecretRefs: v1.RadixSecretRefs{AzureKeyVaults: nil},
-				},
-			},
-			jobs: []v1.RadixDeployJobComponent{
-				{
-					Name:       jobName1,
-					SecretRefs: v1.RadixSecretRefs{AzureKeyVaults: nil},
-				},
-			},
+		"no secrets when using Azure identity": {
+			blobFuse2:       v1.RadixBlobFuse2VolumeMount{Container: "container", UseAzureIdentity: new(true), StorageAccount: "storageaccount1", ResourceGroup: "resource-group1", SubscriptionId: "subscription-id1"},
 			expectedSecrets: nil,
 		},
-		{
-			name: "Azure Key vault credential secrets when there are secret items with no secrets",
-			components: []v1.RadixDeployComponent{
-				{
-					Name: componentName1,
-					SecretRefs: v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
-						{
-							Name: "keyVault1",
-							Items: []v1.RadixAzureKeyVaultItem{
-								{
-									Name:   "secret1",
-									EnvVar: "SECRET_REF1",
-								},
-							}},
-					}},
-				},
-			},
-			jobs: []v1.RadixDeployJobComponent{
-				{
-					Name: jobName1,
-					SecretRefs: v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
-						{
-							Name: "keyVault2",
-							Items: []v1.RadixAzureKeyVaultItem{
-								{
-									Name:   "secret2",
-									EnvVar: "SECRET_REF2",
-								},
-							}},
-					}},
-				},
-			},
-			expectedSecrets: []secretModels.Secret{
-				{
-					Name:        "component1-keyvault1-csiazkvcreds-azkv-clientid",
-					DisplayName: "Client ID",
-					Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-					Resource:    "keyVault1",
-					Component:   componentName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdClientId,
-				},
-				{
-					Name:        "component1-keyvault1-csiazkvcreds-azkv-clientsecret",
-					DisplayName: "Client Secret",
-					Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-					Resource:    "keyVault1",
-					Component:   componentName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdClientSecret,
-				},
-				{
-					Name:        "AzureKeyVaultItem-component1--keyVault1--secret--secret1",
-					DisplayName: "secret secret1",
-					Type:        secretModels.SecretTypeCsiAzureKeyVaultItem,
-					Resource:    "keyVault1",
-					Component:   componentName1,
-					Status:      secretModels.NotAvailable.String(),
-					ID:          "secret/secret1",
-				},
-				{
-					Name:        "job1-keyvault2-csiazkvcreds-azkv-clientid",
-					DisplayName: "Client ID",
-					Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-					Resource:    "keyVault2",
-					Component:   jobName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdClientId,
-				},
-				{
-					Name:        "job1-keyvault2-csiazkvcreds-azkv-clientsecret",
-					DisplayName: "Client Secret",
-					Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-					Resource:    "keyVault2",
-					Component:   jobName1,
-					Status:      secretModels.Pending.String(),
-					ID:          secretModels.SecretIdClientSecret,
-				},
-				{
-					Name:        "AzureKeyVaultItem-job1--keyVault2--secret--secret2",
-					DisplayName: "secret secret2",
-					Type:        secretModels.SecretTypeCsiAzureKeyVaultItem,
-					Resource:    "keyVault2",
-					Component:   jobName1,
-					Status:      secretModels.NotAvailable.String(),
-					ID:          "secret/secret1",
-				},
-			},
-		},
-		{
-			name: "Secrets for components with OAuth2",
-			components: []v1.RadixDeployComponent{
-				{
-					Name:           "comp1",
-					PublicPort:     "http",
-					Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}},
-				},
-				{
-					Name:           "comp2",
-					PublicPort:     "http",
-					Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}},
-				},
-				{
-					Name:           "comp3",
-					Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}},
-				},
-				{
-					Name:       "comp4",
-					PublicPort: "http",
-				},
-				{
-					Name:           "comp5",
-					PublicPort:     "http",
-					Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}},
-				},
-				{
-					Name:           "comp6",
-					PublicPort:     "http",
-					Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}},
-				},
-				{
-					Name:           "comp7",
-					PublicPort:     "http",
-					Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{Credentials: v1.AzureWorkloadIdentity}},
-				},
-			},
-			expectedSecrets: []secretModels.Secret{
-				{Name: "comp1" + suffix.OAuth2ClientSecret, DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp1", Status: secretModels.Pending.String()},
-				{Name: "comp1" + suffix.OAuth2CookieSecret, DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp1", Status: secretModels.Pending.String()},
-				{Name: "comp2" + suffix.OAuth2ClientSecret, DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp2", Status: secretModels.Pending.String()},
-				{Name: "comp2" + suffix.OAuth2CookieSecret, DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp2", Status: secretModels.Pending.String()},
-				{Name: "comp2" + suffix.OAuth2RedisPassword, DisplayName: "Redis Password", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp2", Status: secretModels.Pending.String()},
-				{Name: "comp5" + suffix.OAuth2ClientSecret, DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp5", Status: secretModels.Consistent.String()},
-				{Name: "comp5" + suffix.OAuth2CookieSecret, DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp5", Status: secretModels.Pending.String()},
-				{Name: "comp6" + suffix.OAuth2ClientSecret, DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp6", Status: secretModels.Pending.String()},
-				{Name: "comp6" + suffix.OAuth2CookieSecret, DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp6", Status: secretModels.Consistent.String()},
-				{Name: "comp6" + suffix.OAuth2RedisPassword, DisplayName: "Redis Password", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp6", Status: secretModels.Consistent.String()},
-				{Name: "comp7" + suffix.OAuth2CookieSecret, DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: "comp7", Status: secretModels.Pending.String()},
-			},
-			existingSecrets: []testSecretDescription{
-				{
-					secretName: operatorutils.GetAuxiliaryComponentSecretName("comp5", v1.OAuthProxyAuxiliaryComponentSuffix),
-					secretData: map[string][]byte{operatordefaults.OAuthClientSecretKeyName: []byte("any data")},
-				},
-				{
-					secretName: operatorutils.GetAuxiliaryComponentSecretName("comp6", v1.OAuthProxyAuxiliaryComponentSuffix),
-					secretData: map[string][]byte{operatordefaults.OAuthCookieSecretKeyName: []byte("any data"), operatordefaults.OAuthRedisPasswordKeyName: []byte("any data")},
-				},
-			},
-		},
 	}
 
-	for _, scenario := range scenarios {
-		appName := anyAppName
-		environment := anyEnvironment
-		deploymentName := "deployment1"
+	for name, test := range tests {
+		s.Run(name, func() {
+			volumeMount := v1.RadixVolumeMount{Name: volumeName, Path: "/path", BlobFuse2: &test.blobFuse2}
+			s.applyDeployment(appName, envName,
+				[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(volumeMount)},
+				[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithVolumeMounts(volumeMount)},
+			)
 
-		s.Run(fmt.Sprintf("test GetSecretsForDeployment: %s", scenario.name), func() {
-			controllerUtils := s.prepareTestRun(&scenario, appName, environment, deploymentName)
-			responseChannel := controllerUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", appName, environment))
-			response := <-responseChannel
-			s.LessOrEqual(response.Code, 299)
-			var actual environmentModels.Environment
-			err := controllertest.GetResponseBody(response, &actual)
-			s.Require().Nil(err)
-			s.assertSecrets(&scenario, actual.Secrets)
+			s.assertSecrets(test.expectedSecrets, s.getSecrets(appName, envName))
 		})
 	}
 }
 
-func (s *secretHandlerTestSuite) TestSecretHandler_GetAzureKeyVaultSecretRefVersionStatuses() {
-	const deployment1 = "deployment1"
-	const componentName1 = "component1"
-	const jobName1 = "job1"
+func (s *secretsTestSuite) TestAzureBlobVolumeSecrets_Update() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		volumeName    = "volume1"
+	)
+	volumeMount := v1.RadixVolumeMount{Name: volumeName, Path: "/path", BlobFuse2: &v1.RadixBlobFuse2VolumeMount{Container: "container"}}
+	s.applyDeployment(appName, envName,
+		[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(volumeMount)},
+		[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithVolumeMounts(volumeMount)},
+	)
 
-	scenarios := []getSecretScenario{
-		testCreateScenarioWithComponentAndJobWithCredSecretsAndOneSecretPerComponent(
-			"Not available, when no secret provider class",
-			func(scenario *getSecretScenario) {
-				scenario.testSetExpectedSecretStatus(componentName1, secretModels.SecretIdClientId, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(componentName1, secretModels.SecretIdClientSecret, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(componentName1, "secret/secret1", secretModels.NotAvailable)
-				scenario.testSetExpectedSecretStatus(jobName1, secretModels.SecretIdClientId, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, secretModels.SecretIdClientSecret, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, "secret/secret2", secretModels.NotAvailable)
-			}),
-		testCreateScenarioWithComponentAndJobWithCredSecretsAndOneSecretPerComponent(
-			"Not available, when exists secret provider class, but no secret",
-			func(scenario *getSecretScenario) {
-				scenario.testSetExpectedSecretStatus(componentName1, secretModels.SecretIdClientId, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(componentName1, secretModels.SecretIdClientSecret, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(componentName1, "secret/secret1", secretModels.NotAvailable)
-				scenario.testSetExpectedSecretStatus(jobName1, secretModels.SecretIdClientId, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, secretModels.SecretIdClientSecret, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, "secret/secret2", secretModels.NotAvailable)
-				initFunc := func(_ kubernetes.Interface, _ radixclient.Interface, secretClient secretsstoreclient.Interface) {
-					testCreateSecretProviderClass(secretClient, deployment1, &scenario.components[0])
-					testCreateSecretProviderClass(secretClient, deployment1, &scenario.jobs[0])
-				}
-				scenario.init = initFunc
-			}),
-		testCreateScenarioWithComponentAndJobWithCredSecretsAndOneSecretPerComponent(
-			"Consistent, when exists secret provider class and secret",
-			func(scenario *getSecretScenario) {
-				scenario.testSetExpectedSecretStatus(componentName1, secretModels.SecretIdClientId, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(componentName1, secretModels.SecretIdClientSecret, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(componentName1, "secret/secret1", secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, secretModels.SecretIdClientId, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, secretModels.SecretIdClientSecret, secretModels.Consistent)
-				scenario.testSetExpectedSecretStatus(jobName1, "secret/secret2", secretModels.Consistent)
-				initFunc := func(kubeClient kubernetes.Interface, _ radixclient.Interface, secretClient secretsstoreclient.Interface) {
-					componentSecretMap := testCreateSecretProviderClass(secretClient, deployment1, &scenario.components[0])
-					jobSecretMap := testCreateSecretProviderClass(secretClient, deployment1, &scenario.jobs[0])
-					for _, secretProviderClassAndSecret := range componentSecretMap {
-						testCreateAzureKeyVaultCsiDriverSecret(kubeClient, secretProviderClassAndSecret.secretName, map[string]string{"SECRET1": "val1"})
-					}
-					for _, secretProviderClassAndSecret := range jobSecretMap {
-						testCreateAzureKeyVaultCsiDriverSecret(kubeClient, secretProviderClassAndSecret.secretName, map[string]string{"SECRET2": "val2"})
-					}
-				}
-				scenario.init = initFunc
-			}),
+	updatedAt := time.Now()
+	s.Require().Equal(http.StatusOK, s.updateSecret(appName, envName, componentName, componentName+"-"+volumeName+"-csiazurecreds-accountkey", "new-key"))
+	s.Require().Equal(http.StatusOK, s.updateSecret(appName, envName, jobName, jobName+"-"+volumeName+"-csiazurecreds-accountname", "new-name"))
+
+	s.assertSecrets([]secretModels.Secret{
+		{Name: componentName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: componentName, Status: secretModels.Consistent.String(), Updated: &updatedAt},
+		{Name: componentName + "-" + volumeName + "-csiazurecreds-accountname", DisplayName: "Account Name", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountName, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: jobName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: jobName + "-" + volumeName + "-csiazurecreds-accountname", DisplayName: "Account Name", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountName, Component: jobName, Status: secretModels.Consistent.String(), Updated: &updatedAt},
+	}, s.getSecrets(appName, envName))
+}
+
+// Azure Key Vault credential secrets
+
+func (s *secretsTestSuite) TestAzureKeyVaultCredentialSecrets_InitialState() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		keyVaultName  = "keyvault1"
+		itemName      = "item1"
+	)
+	keyVaultItemSecrets := []secretModels.Secret{
+		{Name: "AzureKeyVaultItem-" + componentName + "--" + keyVaultName + "--secret--" + itemName, DisplayName: "secret " + itemName, Type: secretModels.SecretTypeCsiAzureKeyVaultItem, Resource: keyVaultName, ID: "secret/" + itemName, Component: componentName, Status: secretModels.NotAvailable.String(), Updated: nil},
+		{Name: "AzureKeyVaultItem-" + jobName + "--" + keyVaultName + "--secret--" + itemName, DisplayName: "secret " + itemName, Type: secretModels.SecretTypeCsiAzureKeyVaultItem, Resource: keyVaultName, ID: "secret/" + itemName, Component: jobName, Status: secretModels.NotAvailable.String(), Updated: nil},
 	}
 
-	for _, scenario := range scenarios {
-		appName := anyAppName
-		environment := anyEnvironment
-		deploymentName := deployment1
+	tests := map[string]struct {
+		useAzureIdentity *bool
+		expectedSecrets  []secretModels.Secret
+	}{
+		"client id and client secret are pending when no value is set": {
+			useAzureIdentity: nil,
+			expectedSecrets: append([]secretModels.Secret{
+				{Name: componentName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientid", DisplayName: "Client ID", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientId, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: componentName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientSecret, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: jobName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientid", DisplayName: "Client ID", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientId, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: jobName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientSecret, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+			}, keyVaultItemSecrets...),
+		},
+		"no credential secrets when using Azure identity": {
+			useAzureIdentity: new(true),
+			expectedSecrets:  keyVaultItemSecrets,
+		},
+	}
 
-		s.Run(fmt.Sprintf("test GetSecretsStatus: %s", scenario.name), func() {
-			controllerUtils := s.prepareTestRun(&scenario, appName, environment, deploymentName)
-			responseChannel := controllerUtils.ExecuteRequest("GET", fmt.Sprintf("/api/v1/applications/%s/environments/%s", appName, environment))
-			response := <-responseChannel
-			s.LessOrEqual(response.Code, 299)
-			var actual environmentModels.Environment
-			err := controllertest.GetResponseBody(response, &actual)
-			s.Require().Nil(err)
-			s.assertSecrets(&scenario, actual.Secrets)
+	for name, test := range tests {
+		s.Run(name, func() {
+			secretRefs := v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name:             keyVaultName,
+				UseAzureIdentity: test.useAzureIdentity,
+				Items:            []v1.RadixAzureKeyVaultItem{{Name: itemName, EnvVar: "ITEM1"}},
+			}}}
+			identity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any-client-id"}}
+			s.applyDeployment(appName, envName,
+				[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithSecretRefs(secretRefs).WithIdentity(identity)},
+				[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithSecretRefs(secretRefs).WithIdentity(identity)},
+			)
+
+			s.assertSecrets(test.expectedSecrets, s.getSecrets(appName, envName))
 		})
 	}
 }
 
-func (s *secretHandlerTestSuite) assertSecrets(scenario *getSecretScenario, secrets []secretModels.Secret) {
-	s.Equal(len(scenario.expectedSecrets), len(secrets))
-	secretMap := testGetSecretMap(secrets)
-	for _, expectedSecret := range scenario.expectedSecrets {
-		secret, exists := secretMap[expectedSecret.Name]
-		s.True(exists, "Missed secret %s", expectedSecret.Name)
-		s.Equal(expectedSecret.Type, secret.Type, "Not expected secret Type for %s", expectedSecret.String())
-		s.Equal(expectedSecret.Component, secret.Component, "Not expected secret Component for %s", expectedSecret.String())
-		s.Equal(expectedSecret.DisplayName, secret.DisplayName, "Not expected secret Component for %s", expectedSecret.String())
-		s.Equal(expectedSecret.Status, secret.Status, "Not expected secret Status for %s", expectedSecret.String())
-		s.Equal(expectedSecret.Resource, secret.Resource, "Not expected secret Resource for %s", expectedSecret.String())
+func (s *secretsTestSuite) TestAzureKeyVaultCredentialSecrets_Update() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		keyVaultName  = "keyvault1"
+		itemName      = "item1"
+	)
+	secretRefs := v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+		Name:  keyVaultName,
+		Items: []v1.RadixAzureKeyVaultItem{{Name: itemName, EnvVar: "ITEM1"}},
+	}}}
+	s.applyDeployment(appName, envName,
+		[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithSecretRefs(secretRefs)},
+		[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithSecretRefs(secretRefs)},
+	)
 
+	updatedAt := time.Now()
+	s.Require().Equal(http.StatusOK, s.updateSecret(appName, envName, componentName, componentName+"-"+keyVaultName+"-csiazkvcreds-azkv-clientid", "new-id"))
+	s.Require().Equal(http.StatusOK, s.updateSecret(appName, envName, jobName, jobName+"-"+keyVaultName+"-csiazkvcreds-azkv-clientsecret", "new-secret"))
+
+	s.assertSecrets([]secretModels.Secret{
+		{Name: componentName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientid", DisplayName: "Client ID", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientId, Component: componentName, Status: secretModels.Consistent.String(), Updated: &updatedAt},
+		{Name: componentName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientSecret, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: "AzureKeyVaultItem-" + componentName + "--" + keyVaultName + "--secret--" + itemName, DisplayName: "secret " + itemName, Type: secretModels.SecretTypeCsiAzureKeyVaultItem, Resource: keyVaultName, ID: "secret/" + itemName, Component: componentName, Status: secretModels.NotAvailable.String(), Updated: nil},
+		{Name: jobName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientid", DisplayName: "Client ID", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientId, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
+		{Name: jobName + "-" + keyVaultName + "-csiazkvcreds-azkv-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeCsiAzureKeyVaultCreds, Resource: keyVaultName, ID: secretModels.SecretIdClientSecret, Component: jobName, Status: secretModels.Consistent.String(), Updated: &updatedAt},
+		{Name: "AzureKeyVaultItem-" + jobName + "--" + keyVaultName + "--secret--" + itemName, DisplayName: "secret " + itemName, Type: secretModels.SecretTypeCsiAzureKeyVaultItem, Resource: keyVaultName, ID: "secret/" + itemName, Component: jobName, Status: secretModels.NotAvailable.String(), Updated: nil},
+	}, s.getSecrets(appName, envName))
+}
+
+// Azure Key Vault item secrets are synced from Azure Key Vault by the CSI driver.
+// They cannot be updated through the Radix API, and Updated is never set.
+
+func (s *secretsTestSuite) TestAzureKeyVaultItemSecrets_InitialState() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+		jobName       = "job1"
+		keyVaultName  = "keyvault1"
+		itemName      = "item1"
+	)
+	tests := map[string]struct {
+		csiDriverHasCreatedSecrets bool
+		expectedStatus             string
+	}{
+		"not available when CSI driver has not created the secret": {
+			csiDriverHasCreatedSecrets: false,
+			expectedStatus:             secretModels.NotAvailable.String(),
+		},
+		"consistent when CSI driver has created the secret": {
+			csiDriverHasCreatedSecrets: true,
+			expectedStatus:             secretModels.Consistent.String(),
+		},
+	}
+
+	for name, test := range tests {
+		s.Run(name, func() {
+			secretRefs := v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name:             keyVaultName,
+				UseAzureIdentity: new(true),
+				Items:            []v1.RadixAzureKeyVaultItem{{Name: itemName, EnvVar: "ITEM1"}},
+			}}}
+			identity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any-client-id"}}
+			s.applyDeployment(appName, envName,
+				[]operatorutils.DeployComponentBuilder{operatorutils.NewDeployComponentBuilder().WithName(componentName).WithSecretRefs(secretRefs).WithIdentity(identity)},
+				[]operatorutils.DeployJobComponentBuilder{operatorutils.NewDeployJobComponentBuilder().WithName(jobName).WithSecretRefs(secretRefs).WithIdentity(identity)},
+			)
+			if test.csiDriverHasCreatedSecrets {
+				namespace := operatorutils.GetEnvironmentNamespace(appName, envName)
+				secretProviderClasses, err := s.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).List(context.Background(), metav1.ListOptions{})
+				s.Require().NoError(err)
+				s.Require().Len(secretProviderClasses.Items, 2)
+				for _, secretProviderClass := range secretProviderClasses.Items {
+					for _, secretObject := range secretProviderClass.Spec.SecretObjects {
+						_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
+							Name: secretObject.SecretName, Labels: map[string]string{"secrets-store.csi.k8s.io/managed": "true"},
+						}, metav1.CreateOptions{})
+						s.Require().NoError(err)
+					}
+				}
+			}
+
+			s.assertSecrets([]secretModels.Secret{
+				{Name: "AzureKeyVaultItem-" + componentName + "--" + keyVaultName + "--secret--" + itemName, DisplayName: "secret " + itemName, Type: secretModels.SecretTypeCsiAzureKeyVaultItem, Resource: keyVaultName, ID: "secret/" + itemName, Component: componentName, Status: test.expectedStatus, Updated: nil},
+				{Name: "AzureKeyVaultItem-" + jobName + "--" + keyVaultName + "--secret--" + itemName, DisplayName: "secret " + itemName, Type: secretModels.SecretTypeCsiAzureKeyVaultItem, Resource: keyVaultName, ID: "secret/" + itemName, Component: jobName, Status: test.expectedStatus, Updated: nil},
+			}, s.getSecrets(appName, envName))
+		})
+	}
+}
+
+// OAuth2 proxy secrets. The k8s secret is created by the OAuth2 auxiliary resource manager, which
+// is not run by the deployment sync in these tests, so tests create it explicitly when needed.
+
+func (s *secretsTestSuite) TestOAuth2Secrets_InitialState() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+	)
+	tests := map[string]struct {
+		component       operatorutils.DeployComponentBuilder
+		expectedSecrets []secretModels.Secret
+	}{
+		"client secret and cookie secret are pending when no value is set": {
+			component: operatorutils.NewDeployComponentBuilder().WithName(componentName).WithPort("http", 8080).WithPublicPort("http").
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}}),
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: nil},
+			},
+		},
+		"redis password is pending when session store is redis and no value is set": {
+			component: operatorutils.NewDeployComponentBuilder().WithName(componentName).WithPort("http", 8080).WithPublicPort("http").
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}}),
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-redispassword", DisplayName: "Redis Password", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+			},
+		},
+		"no client secret when using Azure workload identity": {
+			component: operatorutils.NewDeployComponentBuilder().WithName(componentName).WithPort("http", 8080).WithPublicPort("http").
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{Credentials: v1.AzureWorkloadIdentity}}),
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: nil},
+			},
+		},
+		"no secrets when component is not public": {
+			component: operatorutils.NewDeployComponentBuilder().WithName(componentName).WithPort("http", 8080).
+				WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}}),
+			expectedSecrets: nil,
+		},
+	}
+
+	for name, test := range tests {
+		s.Run(name, func() {
+			s.applyDeployment(appName, envName, []operatorutils.DeployComponentBuilder{test.component}, nil)
+
+			s.assertSecrets(test.expectedSecrets, s.getSecrets(appName, envName))
+		})
+	}
+}
+
+func (s *secretsTestSuite) TestOAuth2Secrets_Update() {
+	const (
+		appName       = "any-app"
+		envName       = "dev"
+		componentName = "comp1"
+	)
+	tests := map[string]struct {
+		oauth2                 v1.OAuth2
+		k8sSecretExists        bool
+		secretsToUpdate        []string
+		expectedResponseStatus int
+		expectedSecrets        []secretModels.Secret
+	}{
+		"updated clientsecret is consistent and have updated timestamp": {
+			oauth2:                 v1.OAuth2{SessionStoreType: v1.SessionStoreRedis},
+			k8sSecretExists:        true,
+			secretsToUpdate:        []string{componentName + "-oauth2proxy-clientsecret"},
+			expectedResponseStatus: http.StatusOK,
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: new(time.Now())},
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-redispassword", DisplayName: "Redis Password", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+			},
+		},
+		"updated cookiesecret is consistent and have updated timestamp": {
+			oauth2:                 v1.OAuth2{SessionStoreType: v1.SessionStoreRedis},
+			k8sSecretExists:        true,
+			secretsToUpdate:        []string{componentName + "-oauth2proxy-cookiesecret"},
+			expectedResponseStatus: http.StatusOK,
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: new(time.Now())},
+				{Name: componentName + "-oauth2proxy-redispassword", DisplayName: "Redis Password", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+			},
+		},
+		"updated redispassword is consistent and have updated timestamp": {
+			oauth2:                 v1.OAuth2{SessionStoreType: v1.SessionStoreRedis},
+			k8sSecretExists:        true,
+			secretsToUpdate:        []string{componentName + "-oauth2proxy-redispassword"},
+			expectedResponseStatus: http.StatusOK,
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-clientsecret", DisplayName: "Client Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: nil},
+				{Name: componentName + "-oauth2proxy-redispassword", DisplayName: "Redis Password", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: new(time.Now())},
+			},
+		},
+		"bad request when updating client secret while using Azure workload identity": {
+			oauth2:                 v1.OAuth2{Credentials: v1.AzureWorkloadIdentity},
+			k8sSecretExists:        true,
+			secretsToUpdate:        []string{componentName + "-oauth2proxy-clientsecret"},
+			expectedResponseStatus: http.StatusBadRequest,
+			expectedSecrets: []secretModels.Secret{
+				{Name: componentName + "-oauth2proxy-cookiesecret", DisplayName: "Cookie Secret", Type: secretModels.SecretTypeOAuth2Proxy, Component: componentName, Status: secretModels.Consistent.String(), Updated: nil},
+			},
+		},
+	}
+
+	for name, test := range tests {
+		s.Run(name, func() {
+			s.applyDeployment(appName, envName, []operatorutils.DeployComponentBuilder{
+				operatorutils.NewDeployComponentBuilder().WithName(componentName).WithPort("http", 8080).WithPublicPort("http").
+					WithAuthentication(&v1.Authentication{OAuth2: &test.oauth2}),
+			}, nil)
+
+			for _, secretName := range test.secretsToUpdate {
+				s.Equal(test.expectedResponseStatus, s.updateSecret(appName, envName, componentName, secretName, "new-value"))
+			}
+
+			s.assertSecrets(test.expectedSecrets, s.getSecrets(appName, envName))
+		})
+	}
+}
+
+func (s *secretsTestSuite) applyDeployment(appName, envName string, components []operatorutils.DeployComponentBuilder, jobs []operatorutils.DeployJobComponentBuilder) {
+	deployment := operatorutils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithRadixApplication(operatorutils.NewRadixApplicationBuilder().
+			WithRadixRegistration(operatorutils.ARadixRegistration()).
+			WithAppName(appName).
+			WithEnvironment(envName, "master")).
+		WithComponents(components...).
+		WithJobComponents(jobs...)
+	err := controllertest.ApplyDeploymentWithSync(s.kubeClient, s.radixClient, s.kedaClient, s.dynamicClient, s.commonTestUtils, s.secretProviderClient, s.certClient, deployment)
+	s.Require().NoError(err)
+}
+
+func (s *secretsTestSuite) getSecrets(appName, envName string) []secretModels.Secret {
+	response := <-s.envController.ExecuteRequest(http.MethodGet, fmt.Sprintf("/api/v1/applications/%s/environments/%s", appName, envName))
+	s.Require().Equal(http.StatusOK, response.Code)
+	var environment environmentModels.Environment
+	s.Require().NoError(controllertest.GetResponseBody(response, &environment))
+	return environment.Secrets
+}
+
+func (s *secretsTestSuite) updateSecret(appName, envName, componentName, secretName, value string) int {
+	response := <-s.secretController.ExecuteRequestWithParameters(http.MethodPut,
+		fmt.Sprintf("/api/v1/applications/%s/environments/%s/components/%s/secrets/%s", appName, envName, componentName, secretName),
+		secretModels.SecretParameters{SecretValue: value})
+	return response.Code
+}
+
+// assertSecrets requires actual to have the same number of secrets as expected, looks up each expected secret
+// in actual by name and component, and compares every field. Updated must be within 5 seconds of the expected time.
+func (s *secretsTestSuite) assertSecrets(expected, actual []secretModels.Secret) {
+	s.T().Helper()
+	s.Require().Len(actual, len(expected))
+	type secretKey struct{ name, component string }
+	actualByKey := make(map[secretKey]secretModels.Secret, len(actual))
+	for _, secret := range actual {
+		actualByKey[secretKey{secret.Name, secret.Component}] = secret
+	}
+	for _, expectedSecret := range expected {
+		name, component := expectedSecret.Name, expectedSecret.Component
+		actualSecret, found := actualByKey[secretKey{name, component}]
+		if !s.True(found, "secret %s in %s not found", name, component) {
+			continue
+		}
+		s.Equal(expectedSecret.DisplayName, actualSecret.DisplayName, "DisplayName of secret %s in %s", name, component)
+		s.Equal(expectedSecret.Type, actualSecret.Type, "Type of secret %s in %s", name, component)
+		s.Equal(expectedSecret.Resource, actualSecret.Resource, "Resource of secret %s in %s", name, component)
+		s.Equal(expectedSecret.ID, actualSecret.ID, "ID of secret %s in %s", name, component)
+		s.Equal(expectedSecret.Status, actualSecret.Status, "Status of secret %s in %s", name, component)
 		if expectedSecret.Updated == nil {
-			s.Nil(secret.Updated)
-		} else {
-			s.WithinDuration(time.Now(), *expectedSecret.Updated, 1*time.Second, "Updated timestamp for %s", expectedSecret.Name)
+			s.Nil(actualSecret.Updated, "Updated of secret %s in %s", name, component)
+		} else if s.NotNil(actualSecret.Updated, "Updated of secret %s in %s", name, component) {
+			s.WithinDuration(*expectedSecret.Updated, *actualSecret.Updated, 5*time.Second, "Updated of secret %s in %s", name, component)
 		}
 	}
-}
-
-func (s *secretHandlerTestSuite) prepareTestRun(scenario *getSecretScenario, appName, envName, deploymentName string) *controllertest.TestUtils {
-	_, environmentControllerTestUtils, _, kubeClient, radixClient, _, _, secretClient, _ := setupTest(s.T(), nil)
-	_, err := radixClient.RadixV1().RadixRegistrations().Create(context.Background(), &v1.RadixRegistration{Name: appName}, metav1.CreateOptions{})
-	require.NoError(s.T(), err)
-	appAppNamespace := operatorutils.GetAppNamespace(appName)
-	ra := &v1.RadixApplication{
-		Name: appName, Namespace: appAppNamespace,
-		Spec: v1.RadixApplicationSpec{
-			Environments: []v1.Environment{{Name: envName}},
-			Components:   testGetRadixComponents(scenario.components, envName),
-			Jobs:         testGetRadixJobComponents(scenario.jobs, envName),
-		},
-	}
-	_, _ = radixClient.RadixV1().RadixApplications(appAppNamespace).Create(context.Background(), ra, metav1.CreateOptions{})
-	envNamespace := operatorutils.GetEnvironmentNamespace(appName, envName)
-	re := &v1.RadixEnvironment{
-		Name: envNamespace,
-		Spec: v1.RadixEnvironmentSpec{AppName: appName, EnvName: envName},
-	}
-	_, err = radixClient.RadixV1().RadixEnvironments().Create(context.Background(), re, metav1.CreateOptions{})
-	require.NoError(s.T(), err)
-
-	radixDeployment := v1.RadixDeployment{
-		Name: deploymentName,
-		Spec: v1.RadixDeploymentSpec{
-			Environment: envName,
-			Components:  scenario.components,
-			Jobs:        scenario.jobs,
-		},
-		Status: v1.RadixDeployStatus{
-			Condition: v1.DeploymentActive,
-		},
-	}
-	rd, _ := radixClient.RadixV1().RadixDeployments(envNamespace).Create(context.Background(), &radixDeployment, metav1.CreateOptions{})
-	if scenario.init != nil {
-		scenario.init(kubeClient, radixClient, secretClient) // scenario optional custom init function
-	}
-	for _, secret := range scenario.existingSecrets {
-		_, _ = kubeClient.CoreV1().Secrets(envNamespace).Create(context.Background(), &corev1.Secret{
-			Name:      secret.secretName,
-			Namespace: envNamespace,
-			Labels:    secret.labels,
-			Data:      secret.secretData,
-		}, metav1.CreateOptions{})
-	}
-	for _, component := range rd.Spec.Components {
-		s.createExpectedReplicas(scenario, &component, kubeClient, appName, envNamespace, false)
-	}
-	for _, jobComponent := range rd.Spec.Jobs {
-		s.createExpectedReplicas(scenario, &jobComponent, kubeClient, appName, envNamespace, true)
-	}
-	return environmentControllerTestUtils
-}
-
-func (s *secretHandlerTestSuite) createExpectedReplicas(scenario *getSecretScenario, component v1.RadixCommonDeployComponent, kubeClient kubernetes.Interface, appName, envNamespace string, isJobComponent bool) {
-	// map[componentName]map[azureKeyVaultName]map[secretId]map[version]map[replicaName]bool
-	if azureKeyVaultNameMap, ok := scenario.expectedSecretVersions[component.GetName()]; ok {
-		replicaNameMap := make(map[string]bool)
-		for _, secretIdMap := range azureKeyVaultNameMap {
-			for _, versionMap := range secretIdMap {
-				for _, replicaMap := range versionMap {
-					for replicaName := range replicaMap {
-						replicaNameMap[replicaName] = true
-					}
-				}
-			}
-		}
-		for replicaName := range replicaNameMap {
-			s.createPodForRadixComponent(kubeClient, appName, envNamespace, component.GetName(), replicaName, isJobComponent)
-			if isJobComponent {
-				s.createJobForRadixJobComponent(kubeClient, appName, envNamespace, component.GetName())
-			}
-		}
-	}
-}
-
-func (s *secretHandlerTestSuite) createPodForRadixComponent(kubeClient kubernetes.Interface, appName, envNamespace, componentName, replicaName string, isJobComponent bool) {
-	labels := map[string]string{
-		kube.RadixAppLabel:       appName,
-		kube.RadixComponentLabel: componentName,
-	}
-	if isJobComponent {
-		labels[kube.RadixJobTypeLabel] = kube.RadixJobTypeJobSchedule
-	}
-	_, _ = kubeClient.CoreV1().Pods(envNamespace).Create(context.Background(), &corev1.Pod{
-		Name:              replicaName,
-		Namespace:         envNamespace,
-		Labels:            labels,
-		CreationTimestamp: metav1.Now(),
-	}, metav1.CreateOptions{})
-}
-
-func (s *secretHandlerTestSuite) createJobForRadixJobComponent(kubeClient kubernetes.Interface, appName, envNamespace, componentName string) {
-	labels := map[string]string{
-		kube.RadixAppLabel:       appName,
-		kube.RadixComponentLabel: componentName,
-		kube.RadixJobTypeLabel:   kube.RadixJobTypeJobSchedule,
-	}
-	_, _ = kubeClient.BatchV1().Jobs(envNamespace).Create(context.Background(), &batchv1.Job{
-		Name:              componentName,
-		Namespace:         envNamespace,
-		Labels:            labels,
-		CreationTimestamp: metav1.Now(),
-	}, metav1.CreateOptions{})
-}
-
-func testGetRadixComponents(components []v1.RadixDeployComponent, envName string) []v1.RadixComponent {
-	var radixComponents []v1.RadixComponent
-	for _, radixDeployComponent := range components {
-		radixComponents = append(radixComponents, v1.RadixComponent{
-			Name:       radixDeployComponent.Name,
-			Identity:   &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "some-client-id"}},
-			Variables:  radixDeployComponent.GetEnvironmentVariables(),
-			Secrets:    radixDeployComponent.Secrets,
-			SecretRefs: radixDeployComponent.SecretRefs,
-			EnvironmentConfig: []v1.RadixEnvironmentConfig{{
-				Environment:  envName,
-				VolumeMounts: radixDeployComponent.VolumeMounts,
-			}},
-		})
-	}
-	return radixComponents
-}
-
-func testGetRadixJobComponents(jobComponents []v1.RadixDeployJobComponent, envName string) []v1.RadixJobComponent {
-	var radixComponents []v1.RadixJobComponent
-	for _, radixDeployJobComponent := range jobComponents {
-		radixComponents = append(radixComponents, v1.RadixJobComponent{
-			Name:       radixDeployJobComponent.Name,
-			Identity:   &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "some-client-id"}},
-			Variables:  radixDeployJobComponent.GetEnvironmentVariables(),
-			Secrets:    radixDeployJobComponent.Secrets,
-			SecretRefs: radixDeployJobComponent.SecretRefs,
-			EnvironmentConfig: []v1.RadixJobComponentEnvironmentConfig{{
-				Environment:  envName,
-				VolumeMounts: radixDeployJobComponent.VolumeMounts,
-			}},
-		})
-	}
-	return radixComponents
-}
-
-func testGetSecretMap(secrets []secretModels.Secret) map[string]secretModels.Secret {
-	secretMap := make(map[string]secretModels.Secret, len(secrets))
-	for _, secret := range secrets {
-		secretMap[secret.Name] = secret
-	}
-	return secretMap
-}
-
-func (scenario *getSecretScenario) testSetExpectedSecretStatus(componentName, secretId string, status secretModels.SecretStatus) {
-	for i, expectedSecret := range scenario.expectedSecrets {
-		if strings.EqualFold(expectedSecret.Component, componentName) && strings.EqualFold(expectedSecret.ID, secretId) {
-			scenario.expectedSecrets[i].Status = status.String()
-			return
-		}
-	}
-}
-
-func testCreateAzureKeyVaultCsiDriverSecret(kubeClient kubernetes.Interface, secretName string, data map[string]string) {
-	secretData := make(map[string][]byte)
-	for key, value := range data {
-		secretData[key] = []byte(value)
-	}
-	namespace := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	_, err := kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
-		Name:   secretName,
-		Labels: map[string]string{"secrets-store.csi.k8s.io/managed": "true"},
-		Data:   secretData,
-	}, metav1.CreateOptions{})
-	if err != nil {
-		panic(err)
-	}
-}
-
-func testCreateScenario(name string, modify func(*getSecretScenario)) getSecretScenario {
-	scenario := getSecretScenario{
-		name: name,
-	}
-	modify(&scenario)
-	return scenario
-}
-
-func testCreateScenarioWithComponentAndJobWithCredSecretsAndOneSecretPerComponent(name string, modify func(*getSecretScenario)) getSecretScenario {
-	scenario := testCreateScenario(name, func(scenario *getSecretScenario) {
-		const (
-			componentName1 = "component1"
-			jobName1       = "job1"
-			keyVaultName1  = "keyVault1"
-			keyVaultName2  = "keyVault2"
-		)
-		scenario.components = []v1.RadixDeployComponent{
-			testCreateRadixDeployComponent(componentName1, keyVaultName1, "", "secret1", "SECRET_REF1"),
-		}
-		scenario.jobs = []v1.RadixDeployJobComponent{
-			testCreateRadixDeployJobComponent(jobName1, keyVaultName2, "secret2", "SECRET_REF2"),
-		}
-		scenario.existingSecrets = []testSecretDescription{
-			{
-				secretName: "component1-keyvault1-csiazkvcreds",
-				secretData: map[string][]byte{
-					"clientid":     []byte("current client id1"),
-					"clientsecret": []byte("current client secret1"),
-				},
-			},
-			{
-				secretName: "job1-keyvault2-csiazkvcreds",
-				secretData: map[string][]byte{
-					"clientid":     []byte("current client id2"),
-					"clientsecret": []byte("current client secret2"),
-				},
-			},
-		}
-		scenario.expectedSecrets = []secretModels.Secret{
-			{
-				Name:        "component1-keyvault1-csiazkvcreds-azkv-clientid",
-				DisplayName: "Client ID",
-				Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-				Resource:    keyVaultName1,
-				Component:   componentName1,
-				Status:      secretModels.Pending.String(),
-				ID:          secretModels.SecretIdClientId,
-			},
-			{
-				Name:        "component1-keyvault1-csiazkvcreds-azkv-clientsecret",
-				DisplayName: "Client Secret",
-				Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-				Resource:    keyVaultName1,
-				Component:   componentName1,
-				Status:      secretModels.Pending.String(),
-				ID:          secretModels.SecretIdClientSecret,
-			},
-			{
-				Name:        "AzureKeyVaultItem-component1--keyVault1--secret--secret1",
-				DisplayName: "secret secret1",
-				Type:        secretModels.SecretTypeCsiAzureKeyVaultItem,
-				Resource:    keyVaultName1,
-				Component:   componentName1,
-				Status:      secretModels.Pending.String(),
-				ID:          "secret/secret1",
-			},
-			{
-				Name:        "job1-keyvault2-csiazkvcreds-azkv-clientid",
-				DisplayName: "Client ID",
-				Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-				Resource:    keyVaultName2,
-				Component:   jobName1,
-				Status:      secretModels.Pending.String(),
-				ID:          secretModels.SecretIdClientId,
-			},
-			{
-				Name:        "job1-keyvault2-csiazkvcreds-azkv-clientsecret",
-				DisplayName: "Client Secret",
-				Type:        secretModels.SecretTypeCsiAzureKeyVaultCreds,
-				Resource:    keyVaultName2,
-				Component:   jobName1,
-				Status:      secretModels.Pending.String(),
-				ID:          secretModels.SecretIdClientSecret,
-			},
-			{
-				Name:        "AzureKeyVaultItem-job1--keyVault2--secret--secret2",
-				DisplayName: "secret secret2",
-				Type:        secretModels.SecretTypeCsiAzureKeyVaultItem,
-				Resource:    keyVaultName2,
-				Component:   jobName1,
-				Status:      secretModels.NotAvailable.String(),
-				ID:          "secret/secret2",
-			},
-		}
-
-	})
-	modify(&scenario)
-	return scenario
-}
-
-func testCreateRadixDeployComponent(componentName, keyVaultName string, secretObjectType v1.RadixAzureKeyVaultObjectType, secretName, envVarName string) v1.RadixDeployComponent {
-	return v1.RadixDeployComponent{
-		Name: componentName,
-		SecretRefs: v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
-			{
-				Name: keyVaultName,
-				Items: []v1.RadixAzureKeyVaultItem{
-					{
-						Name:   secretName,
-						EnvVar: envVarName,
-						Type:   &secretObjectType,
-					},
-				}},
-		}},
-	}
-}
-
-func testCreateRadixDeployJobComponent(componentName, keyVaultName, secretName, envVarName string) v1.RadixDeployJobComponent {
-	return v1.RadixDeployJobComponent{
-		Name: componentName,
-		SecretRefs: v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
-			{
-				Name: keyVaultName,
-				Items: []v1.RadixAzureKeyVaultItem{
-					{
-						Name:   secretName,
-						EnvVar: envVarName,
-					},
-				}},
-		}},
-	}
-}
-
-func testCreateSecretProviderClass(secretProviderClient secretsstoreclient.Interface, radixDeploymentName string, component v1.RadixCommonDeployComponent) map[string]testSecretProviderClassAndSecret {
-	azureKeyVaultSecretProviderClassNameMap := make(map[string]testSecretProviderClassAndSecret)
-	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
-		secretProviderClass, err := kube.BuildAzureKeyVaultSecretProviderClass("123456789", anyAppName, radixDeploymentName, component.GetName(), azureKeyVault, component.GetIdentity())
-		if err != nil {
-			panic(err)
-		}
-		namespace := operatorutils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-		_, err = secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.Background(),
-			secretProviderClass, metav1.CreateOptions{})
-		if err != nil {
-			panic(err)
-		}
-		azureKeyVaultSecretProviderClassNameMap[azureKeyVault.Name] = testSecretProviderClassAndSecret{
-			secretName: secretProviderClass.Spec.SecretObjects[0].SecretName,
-			className:  secretProviderClass.GetName(),
-		}
-	}
-	return azureKeyVaultSecretProviderClassNameMap // map[componentName]map[azureKeyVaultName]createSecretProviderClassName
 }

@@ -36,6 +36,9 @@ type RadixEnvironmentList struct {
 // RadixEnvironmentSpec is the spec for an RE
 type RadixEnvironmentSpec struct {
 	AppName string `json:"appName"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	// +kubebuilder:validation:XValidation:rule="self != '' && self != 'app'",message="envName must not be empty or 'app'"
 	EnvName string `json:"envName"`
 

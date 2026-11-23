@@ -1,0 +1,27 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: oauth2-workload-identity-test
+spec:
+  environments:
+    - name: dev
+  components:
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http
+      authentication:
+        oauth2:
+          clientId: 00000000-0000-0000-0000-000000000000
+          credentials: azureWorkloadIdentity
+          scope: openid profile email
+      environmentConfig:
+        - environment: dev
+          authentication:
+            oauth2:
+              scope: openid profile email offline_access
+              setXAuthRequestHeaders: true

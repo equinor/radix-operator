@@ -41,16 +41,16 @@ func (m *MockJobsBuilder) EXPECT() *MockJobsBuilderMockRecorder {
 	return m.recorder
 }
 
-// BuildJobs mocks base method.
-func (m *MockJobsBuilder) BuildJobs(componentImages []pipeline.BuildComponentImage, buildSecrets []string, gitCommitHash, gitTags string, useBuildCache, refreshBuildCache bool) []v1.Job {
+// BuildJob mocks base method.
+func (m *MockJobsBuilder) BuildJob(componentImage pipeline.BuildComponentImage, buildSecrets []string, gitCommitHash, gitTags string, useBuildCache, refreshBuildCache bool) v1.Job {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildJobs", componentImages, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
-	ret0, _ := ret[0].([]v1.Job)
+	ret := m.ctrl.Call(m, "BuildJob", componentImage, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
+	ret0, _ := ret[0].(v1.Job)
 	return ret0
 }
 
-// BuildJobs indicates an expected call of BuildJobs.
-func (mr *MockJobsBuilderMockRecorder) BuildJobs(componentImages, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache any) *gomock.Call {
+// BuildJob indicates an expected call of BuildJob.
+func (mr *MockJobsBuilderMockRecorder) BuildJob(componentImage, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildJobs", reflect.TypeOf((*MockJobsBuilder)(nil).BuildJobs), componentImages, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildJob", reflect.TypeOf((*MockJobsBuilder)(nil).BuildJob), componentImage, buildSecrets, gitCommitHash, gitTags, useBuildCache, refreshBuildCache)
 }

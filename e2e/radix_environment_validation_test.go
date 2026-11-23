@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -41,6 +42,26 @@ func TestRadixEnvironmentEnvNameValidation(t *testing.T) {
 		{
 			name:        "invalid - env name is 'app'",
 			envName:     "app",
+			shouldError: true,
+		},
+		{
+			name:        "invalid - leading dash",
+			envName:     "-my-env",
+			shouldError: true,
+		},
+		{
+			name:        "invalid - trailing dash",
+			envName:     "my-env-",
+			shouldError: true,
+		},
+		{
+			name:        "invalid - uppercase",
+			envName:     "MyEnv",
+			shouldError: true,
+		},
+		{
+			name:        "invalid - longer than 63 characters",
+			envName:     strings.Repeat("a", 64),
 			shouldError: true,
 		},
 	}
