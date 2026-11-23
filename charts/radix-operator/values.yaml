@@ -32,21 +32,6 @@ config:
   pipelineRunner:
     containerRegistry: ""
     cacheContainerRegistry: ""
-    builder:
-      image:
-        repository: ghcr.io/equinor/radix/buildkit-builder
-        tag: "latest"
-      seccompProfileLocalhostProfile: ""
-      resources:
-        limits:
-          memory: 500M
-          cpu: 2000m
-        requests:
-          memory: 500M
-          cpu: 200m
-    gitCloneImage:
-      repository: docker.io/alpine/git
-      tag: "latest"
   operator:
     logLevel: info
     logPrettyPrint: false
@@ -151,7 +136,9 @@ config:
     pipelineRunnerTemplate:
       base: null # Defaults to content in file ./files/pipeline-runner-base.yaml
       overlay: null
-    
+    pipelineBuilderTemplate:
+      base: null # Defaults to content in file ./files/pipeline-builder-base.yaml
+      overlay: null
     oauth2ProxyTemplate:
       # Must expose port 4180!
       base: null # Defaults to content in file ./files/oauth2-proxy-base.yaml

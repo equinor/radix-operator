@@ -19,7 +19,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
@@ -64,27 +63,6 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 		PipelineRunner: config.PipelineRunnerConfig{
 			ContainerRegistry:      "anybuildregistry",
 			CacheContainerRegistry: "anycacheregistry",
-			Builder: config.BuilderConfig{
-				Image: config.ContainerImage{
-					Repository: "docker.io/buildkit",
-					Tag:        "any",
-				},
-				Resources: config.Resources{
-					Requests: config.ResourceRequirements{
-						CPU:    resource.MustParse("100m"),
-						Memory: resource.MustParse("1000Mi"),
-					},
-					Limits: config.ResourceRequirements{
-						CPU:    resource.MustParse("200m"),
-						Memory: resource.MustParse("2000Mi"),
-					},
-				},
-				SeccompProfileLocalhostProfile: "anyseccomp",
-			},
-			GitCloneImage: config.ContainerImage{
-				Repository: "alpine/git",
-				Tag:        "latest",
-			},
 		},
 		Runtime: config.RuntimeConfig{
 			PipelineRunnerTemplate: config.RuntimeBaseOverlayPodConfig{

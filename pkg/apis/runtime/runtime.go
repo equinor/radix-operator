@@ -5,20 +5,10 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-// NodeTypeDeprecation holds information about deprecation of a node type
-type NodeTypeDeprecation struct {
-	// Message is the deprecation message
-	Message string `json:"message,omitempty"`
-	// ReplacedBy is the node type that replaces this node type
-	ReplacedBy string `json:"replacedBy,omitempty"`
-}
-
 // NodeType holds information about a node type attributes
 type NodeType struct {
 	// Architecture is the architecture of the node type
 	Architecture radixv1.RuntimeArchitecture `json:"architecture,omitempty"`
-	// Deprecated is the deprecation information of the node type
-	Deprecated *NodeTypeDeprecation `json:"deprecated,omitempty"`
 }
 
 const (

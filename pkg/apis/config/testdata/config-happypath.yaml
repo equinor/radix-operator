@@ -31,6 +31,51 @@ common:
         renewBefore: 768h
         duration: 2160h
 runtime:
+  defaultArchitecture: amd64
+  architectures:
+    amd64:
+      disabled: false
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: amd64
+            kubernetes.io/os: linux
+    arm64:
+      disabled: true
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: arm64
+            kubernetes.io/os: linux
+  nodeTypes:
+    gpu-nvidia-v1:
+      disabled: false
+      description: "Nvidia GPU node 1"
+      architecture: amd64
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: amd64
+            kubernetes.io/os: linux
+    gpu-nvidia-v0:
+      disabled: true
+      description: "Nvidia GPU node 0"
+      architecture: arm64
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: arm64
+            kubernetes.io/os: linux
+    memory-v1:
+      disabled: true
+      description: "Memory node 1"
+      architecture: armv7
+      builderTemplate:
+        spec:
+          nodeSelector:
+            kubernetes.io/arch: armv7
+            kubernetes.io/os: linux
+    
   oauth2SessionStoreTemplate:
     base:
       spec:
@@ -74,6 +119,20 @@ runtime:
         containers:
           - name: radix-pipeline
             image: ghcr.io/equinor/radix/pipeline:1.2.0
+  pipelineBuilderTemplate:
+    base:
+      spec:
+        containers:
+          - name: build
+            image: ghcr.io/equinor/radix/builder:1.0.0
+    overlay:
+      spec:
+        automountServiceAccountToken: false
+        securityContext:
+          runAsUser: 1000
+        containers:
+          - name: build
+            image: ghcr.io/equinor/radix/builder:1.2.0            
   # specialNodeTypes:
   #   gpu-nvidia-v1:
   #     description: "Nvidia GPU node"
@@ -128,21 +187,6 @@ runtime:
 pipelineRunner:
   containerRegistry: "any.registry.com"
   cacheContainerRegistry: "app.registry.com"
-  builder:
-    resources:
-      limits:
-        memory: 500M
-        cpu: 2000m
-      requests:
-        memory: 500M
-        cpu: 200m
-    image:
-      repository: ghcr.io/equinor/radix/buildkit-builder
-      tag: v3.4.5
-    seccompProfileLocalhostProfile: "anyseccomp.json"
-  gitCloneImage:
-    repository: ghcr.io/equinor/radix-git-clone
-    tag: v1.0.0
 operator:
   logLevel: info
   logPrettyPrint: true
