@@ -228,9 +228,9 @@ func getComponentSecretRefsAzureKeyVaultVolumes(ctx context.Context, kubeutil *k
 			switch provider {
 			case "azure":
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
-					Driver:           CsiVolumeSourceDriverSecretStore,
+					Driver:           csiVolumeSourceDriverSecretStore,
 					ReadOnly:         new(true),
-					VolumeAttributes: map[string]string{CsiVolumeSourceVolumeAttributeSecretProviderClass: secretProviderClass.Name},
+					VolumeAttributes: map[string]string{csiVolumeSourceVolumeAttributeSecretProviderClass: secretProviderClass.Name},
 				}
 
 				useAzureIdentity := azureKeyVault.UseAzureIdentity != nil && *azureKeyVault.UseAzureIdentity

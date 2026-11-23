@@ -1,10 +1,10 @@
 package volumemount
 
 const (
-	// CsiVolumeSourceDriverSecretStore Driver name for the secret store
-	CsiVolumeSourceDriverSecretStore = "secrets-store.csi.k8s.io"
-	// CsiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
-	CsiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
+	// csiVolumeSourceDriverSecretStore Driver name for the secret store
+	csiVolumeSourceDriverSecretStore = "secrets-store.csi.k8s.io"
+	// csiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
+	csiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
 
 	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<hash>
 	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-radixvolumemount-<hash>

@@ -6,7 +6,6 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,9 +139,9 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				volume := volumes[i]
 				assert.Less(t, len(volume.Name), 64, "volume name is too long")
 				assert.NotNil(t, volume.CSI, "CSI should ne not nil")
-				assert.NotEmpty(t, volume.CSI.VolumeAttributes[volumemount.CsiVolumeSourceVolumeAttributeSecretProviderClass], "VolumeAttributes should not be empty")
+				assert.NotEmpty(t, volume.CSI.VolumeAttributes["secretProviderClass"], "secretProviderClass must be set")
 				assert.NotNil(t, volume.CSI.NodePublishSecretRef, "NodePublishSecretRef should not be nil")
-				assert.Equal(t, volumemount.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver, "Volume driver should be %s, but it is %s", volumemount.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver)
+				assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
 
 				volumeProp := scenario.expectedVolumeProps[i]
 				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
