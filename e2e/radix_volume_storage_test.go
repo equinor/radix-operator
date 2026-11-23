@@ -412,18 +412,6 @@ func waitForComponentPodWithClaim(t *testing.T, c client.Client, namespace, clai
 	return readyPod
 }
 
-func isPodReady(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodRunning {
-		return false
-	}
-	for _, condition := range pod.Status.Conditions {
-		if condition.Type == corev1.PodReady {
-			return condition.Status == corev1.ConditionTrue
-		}
-	}
-	return false
-}
-
 func podClaimName(pod *corev1.Pod) string {
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {
