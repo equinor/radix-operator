@@ -128,6 +128,95 @@ func TestOAuth2SystemManagedRedis(t *testing.T) {
 	}
 }
 
+// TestOAuth2WorkloadIdentityWithEnvironmentOverride deploys a component that sets OAuth2 credentials to
+// azureWorkloadIdentity on component level and overrides other OAuth2 fields (but not credentials) in
+// environmentConfig. The environment override must not reset credentials to the CRD default "secret".
+func TestOAuth2WorkloadIdentityWithEnvironmentOverride(t *testing.T) {
+	t.Parallel()
+	c := getClient(t)
+	const (
+		appName       = "oauth2-workload-identity-test"
+		envName       = "dev"
+		componentName = "web"
+	)
+
+	activeRD := deployToEnvironmentThroughPipeline(t, c, appName, envName)
+	envNamespace := activeRD.Namespace
+
+	rdComponent := activeRD.GetComponentByName(componentName)
+	require.NotNil(t, rdComponent, "RadixDeployment should contain component %s", componentName)
+	rdOAuth2 := rdComponent.GetAuthentication().GetOAuth2()
+	require.NotNil(t, rdOAuth2, "RadixDeployment component %s should have OAuth2 configured", componentName)
+	assert.Equal(t, "openid profile email offline_access", rdOAuth2.Scope, "scope should be overridden by environmentConfig")
+	assert.Equal(t, v1.AzureWorkloadIdentity, rdOAuth2.Credentials, "credentials from component should not be overridden by environmentConfig that does not set credentials")
+
+	proxyName := utils.GetAuxiliaryComponentDeploymentName(componentName, v1.OAuthProxyAuxiliaryComponentSuffix)
+	proxyDeployment := &appsv1.Deployment{}
+	require.NoError(t, wait.PollUntilContextTimeout(t.Context(), 500*time.Millisecond, time.Minute, true, func(ctx context.Context) (bool, error) {
+		return c.Get(ctx, client.ObjectKey{Namespace: envNamespace, Name: proxyName}, proxyDeployment) == nil, nil
+	}), "OAuth2 proxy deployment %s should exist in %s", proxyName, envNamespace)
+	expectedServiceAccountName := (&v1.OAuth2{Credentials: v1.AzureWorkloadIdentity}).GetServiceAccountName(componentName)
+	assert.Equal(t, expectedServiceAccountName, proxyDeployment.Spec.Template.Spec.ServiceAccountName, "OAuth2 proxy should run with the workload identity service account")
+}
+
+// deployToEnvironmentThroughPipeline registers appName, runs a deploy pipeline job that reads radixconfig.yaml
+// from the e2e git server repository equinor/<appName>.git, and returns the active RadixDeployment in envName.
+func deployToEnvironmentThroughPipeline(t *testing.T, c client.Client, appName, envName string) *v1.RadixDeployment {
+	t.Helper()
+	const (
+		testTimeout  = 5 * time.Minute
+		setupTimeout = 60 * time.Second
+		pollInterval = 500 * time.Millisecond
+	)
+	jobName := "deploy-" + envName
+
+	readyCtx, cancelReady := context.WithTimeout(t.Context(), setupTimeout)
+	defer cancelReady()
+	require.NoError(t, WaitForDeploymentReady(readyCtx, c, "radix-system", "radix-operator"), "radix-operator deployment should be ready")
+
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
+	require.NoError(t, waitForSecret(t.Context(), c, appNamespace, defaults.GitPrivateKeySecretName, setupTimeout),
+		"registration secret %s should be created in %s", defaults.GitPrivateKeySecretName, appNamespace)
+	require.NoError(t, waitForPipelineRBAC(t.Context(), c, appNamespace, setupTimeout), "pipeline RBAC should be provisioned in %s", appNamespace)
+
+	rj := &v1.RadixJob{
+		Name: jobName, Namespace: appNamespace,
+		Spec: v1.RadixJobSpec{
+			AppName:      appName,
+			PipeLineType: v1.Deploy,
+			Deploy:       v1.RadixDeploySpec{ToEnvironment: envName},
+			TriggeredBy:  "e2e",
+		},
+	}
+	require.NoError(t, c.Create(t.Context(), rj), "should create deploy job")
+
+	cond, err := waitForJobCondition(t.Context(), c, appNamespace, jobName, v1.RadixJobCondition.IsDone, testTimeout)
+	if err != nil || cond != v1.JobSucceeded {
+		t.Logf("deploy job failed or did not succeed, last condition: %s, error: %v", cond, err)
+		logRadixJobDiagnostics(t, c, appNamespace, jobName)
+		logRadixOperatorLogs(t, c, appName)
+	}
+	require.NoError(t, err, "deploy job should finish, last condition: %s", cond)
+	require.Equal(t, v1.JobSucceeded, cond, "deploy job should succeed")
+
+	envNamespace := utils.GetEnvironmentNamespace(appName, envName)
+	var activeRD *v1.RadixDeployment
+	require.NoError(t, wait.PollUntilContextTimeout(t.Context(), pollInterval, testTimeout, true, func(ctx context.Context) (bool, error) {
+		rds := &v1.RadixDeploymentList{}
+		if err := c.List(ctx, rds, client.InNamespace(envNamespace)); err != nil {
+			return false, nil
+		}
+		for i := range rds.Items {
+			if rds.Items[i].Status.Condition == v1.DeploymentActive && rds.Items[i].Status.ReconcileStatus == v1.RadixDeploymentReconcileSucceeded {
+				activeRD = &rds.Items[i]
+				return true, nil
+			}
+		}
+		return false, nil
+	}), "an active RadixDeployment should exist in %s", envNamespace)
+	return activeRD
+}
+
 // checkDeploymentPods reports whether all pods of a deployment are running and ready with at most
 // maxRestarts container restarts (maxRestarts < 0 disables the restart check).
 func checkDeploymentPods(ctx context.Context, c client.Client, namespace, name string, maxRestarts int32) (bool, string) {

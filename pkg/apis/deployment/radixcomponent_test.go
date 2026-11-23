@@ -85,6 +85,42 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 	}
 }
 
+func TestGetRadixComponentsForEnv_OAuth2Credentials(t *testing.T) {
+	const env = "dev"
+	testCases := []struct {
+		name     string
+		comp     radixv1.CredentialsType
+		env      *radixv1.OAuth2
+		expected radixv1.CredentialsType
+	}{
+		{name: "defaults to secret when not set", expected: radixv1.Secret},
+		{name: "component workload identity is kept when not set in environment", comp: radixv1.AzureWorkloadIdentity, env: &radixv1.OAuth2{Scope: "openid"}, expected: radixv1.AzureWorkloadIdentity},
+		{name: "environment overrides component credentials", comp: radixv1.AzureWorkloadIdentity, env: &radixv1.OAuth2{Credentials: radixv1.Secret}, expected: radixv1.Secret},
+		{name: "environment sets workload identity", env: &radixv1.OAuth2{Credentials: radixv1.AzureWorkloadIdentity}, expected: radixv1.AzureWorkloadIdentity},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			envConfig := utils.AnEnvironmentConfig().WithEnvironment(env)
+			if testCase.env != nil {
+				envConfig = envConfig.WithAuthentication(&radixv1.Authentication{OAuth2: testCase.env})
+			}
+			ra := utils.ARadixApplication().
+				WithComponents(
+					utils.NewApplicationComponentBuilder().
+						WithName("comp").
+						WithAuthentication(&radixv1.Authentication{OAuth2: &radixv1.OAuth2{ClientID: "1234", Credentials: testCase.comp}}).
+						WithEnvironmentConfigs(envConfig)).
+				BuildRA()
+
+			deployComponents, err := GetRadixComponentsForEnv(context.Background(), ra, nil, env, make(pipeline.DeployComponentImages), make(radixv1.EnvVarsMap), nil, "digicert")
+			require.NoError(t, err)
+			require.Len(t, deployComponents, 1)
+			assert.Equal(t, testCase.expected, deployComponents[0].GetAuthentication().GetOAuth2().Credentials)
+		})
+	}
+}
+
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	// New publicPort does not exist, old public does not exist
 	componentName := "comp"

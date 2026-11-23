@@ -9,9 +9,8 @@ const (
 // +kubebuilder:validation:XValidation:rule="self.maxReplicas > 0",message="maxReplicas must be greater than 0"
 // +kubebuilder:validation:XValidation:rule="!has(self.minReplicas) || self.minReplicas <= self.maxReplicas",message="minReplicas must be less than or equal to maxReplicas"
 type RadixHorizontalScaling struct {
-	// Defines the minimum number of replicas.
+	// Defines the minimum number of replicas. Defaults to 1.
 	// +optional
-	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=0
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
