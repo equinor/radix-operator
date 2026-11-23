@@ -138,50 +138,8 @@ func (s *secretsTestSuite) TestAzureBlobVolumeSecrets_InitialState() {
 				{Name: jobName + "-" + volumeName + "-csiazurecreds-accountname", DisplayName: "Account Name", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountName, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
 			},
 		},
-		{
-			name: "Azure Blob volumes credential secrets with existing secrets",
-			components: []v1.RadixDeployComponent{
-				{
-					Name: componentName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume1",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container: "container1",
-							},
-						},
-					},
-				},
-			},
-			jobs: []v1.RadixDeployJobComponent{
-				{
-					Name: jobName1,
-					VolumeMounts: []v1.RadixVolumeMount{
-						{
-							Name: "volume2",
-							BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-								Container: "container2",
-							},
-						},
-					},
-				},
-			},
-			existingSecrets: []testSecretDescription{
-				{
-					secretName: "component1-volume1-csiazurecreds",
-					secretData: map[string][]byte{
-						"accountname": []byte("current account name1"),
-						"accountkey":  []byte("current account key1"),
-					},
-				},
-				{
-					secretName: "job1-volume2-csiazurecreds",
-					secretData: map[string][]byte{
-						"accountname": []byte("current account name2"),
-						"accountkey":  []byte("current account key2"),
-					},
-				},
-			},
+		"only account key when storage account is set": {
+			blobFuse2: v1.RadixBlobFuse2VolumeMount{Container: "container", StorageAccount: "storageaccount1"},
 			expectedSecrets: []secretModels.Secret{
 				{Name: componentName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key for storageaccount1", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: componentName, Status: secretModels.Pending.String(), Updated: nil},
 				{Name: jobName + "-" + volumeName + "-csiazurecreds-accountkey", DisplayName: "Account Key for storageaccount1", Type: secretModels.SecretTypeCsiAzureBlobVolume, Resource: volumeName, ID: secretModels.SecretIdAccountKey, Component: jobName, Status: secretModels.Pending.String(), Updated: nil},
