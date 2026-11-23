@@ -192,6 +192,7 @@ func assertBuildKitJobSpec(t *testing.T, useBuildCache, refreshBuildCache, pushI
 			expectedCloneVolumeMounts := []corev1.VolumeMount{
 				{Name: git.BuildContextVolumeName, MountPath: gitWorkspace},
 				{Name: git.GitSSHKeyVolumeName, MountPath: "/.ssh", ReadOnly: true},
+				{Name: git.CloneRepoHomeVolumeName, MountPath: git.CloneRepoHomeVolumePath},
 			}
 			assert.ElementsMatch(t, expectedCloneVolumeMounts, cloneContainer.VolumeMounts)
 
