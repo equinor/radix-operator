@@ -29,10 +29,10 @@ config:
     certificateAutomation:
       defaultIssuer: "" # Optional. If set, must match a key in issuers
       issuers: {} # Map of issuer name to issuer config. Default empty
-        # some-name:
-        #   clusterIssuerName: "letsencrypt-prod-http01"
-        #   duration: 2160h
-        #   renewBefore: 720h
+      # some-name:
+      #   clusterIssuerName: "letsencrypt-prod-http01"
+      #   duration: 2160h
+      #   renewBefore: 720h
   pipelineRunner:
     containerRegistry: ""
     cacheContainerRegistry: ""

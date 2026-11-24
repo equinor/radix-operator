@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -15,8 +16,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// deletionGracePeriod is the minimum age of a PVC or PV before it is garbage collected.
+// The RadixDeployment and RadixBatch syncers do not share a lock, so the RadixBatch syncer can create a PV/PVC for a job
+// while the RadixDeployment syncer garbage collects the PVs/PVCs of the job. Without a grace period, the new PV/PVC
+// could be deleted before the Pod of the Kubernetes Job uses it. Once a Pod uses the PVC,
+// kubernetes.io/pvc-protection and kubernetes.io/pv-protection keep the PVC and PV until the Pod is gone.
+const deletionGracePeriod = 10 * time.Minute
+
 // GarbageCollectVolumesNoLongerInSpec deletes the Radix owned PVCs and PVs of the application in the namespace of the RadixDeployment
-// that belong to components or jobs that are not in the RadixDeployment.
+// that belong to components or jobs that are not in the RadixDeployment. PVCs and PVs created less than deletionGracePeriod ago are kept.
 func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kubernetes.Interface, appName string, rd *radixv1.RadixDeployment) error {
 	componentNames := make(map[string]struct{})
 	for _, component := range rd.Spec.Components {
@@ -63,12 +71,18 @@ func deleteUnusedVolumeResources(ctx context.Context, kubeClient kubernetes.Inte
 	return deleteVolumeResources(ctx, kubeClient, unusedPvcs, unusedPvs)
 }
 
-// deleteVolumeResources deletes the PVCs, then the PVs. Resources that are already being deleted are skipped.
+// deleteVolumeResources deletes the PVCs, then the PVs.
+// Resources that are already being deleted, or that are within the deletion grace period, are skipped.
 func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume) error {
 	logger := log.Ctx(ctx)
+	now := time.Now()
 	var errs []error
 	for _, pvc := range pvcs {
 		if pvc.GetDeletionTimestamp() != nil {
+			continue
+		}
+		if isWithinDeletionGracePeriod(&pvc, now) {
+			logger.Debug().Msgf("Skip delete of PersistentVolumeClaim %s in namespace %s, created less than %s ago", pvc.GetName(), pvc.GetNamespace(), deletionGracePeriod)
 			continue
 		}
 		logger.Info().Msgf("Delete PersistentVolumeClaim %s in namespace %s", pvc.GetName(), pvc.GetNamespace())
@@ -80,12 +94,21 @@ func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface,
 		if pv.GetDeletionTimestamp() != nil {
 			continue
 		}
+		if isWithinDeletionGracePeriod(&pv, now) {
+			logger.Debug().Msgf("Skip delete of PersistentVolume %s, created less than %s ago", pv.GetName(), deletionGracePeriod)
+			continue
+		}
 		logger.Info().Msgf("Delete PersistentVolume %s (phase %s)", pv.GetName(), pv.Status.Phase)
 		if err := kubeClient.CoreV1().PersistentVolumes().Delete(ctx, pv.GetName(), deleteOptionsWithUIDPrecondition(&pv)); ignoreNotFoundOrConflict(err) != nil {
 			errs = append(errs, fmt.Errorf("failed to delete PersistentVolume %s: %w", pv.GetName(), err))
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// isWithinDeletionGracePeriod returns true if the object was created less than deletionGracePeriod before now
+func isWithinDeletionGracePeriod(obj metav1.Object, now time.Time) bool {
+	return obj.GetCreationTimestamp().Add(deletionGracePeriod).After(now)
 }
 
 // deleteOptionsWithUIDPrecondition makes a delete fail with a Conflict error, if the object was replaced by another object with the same name

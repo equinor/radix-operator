@@ -10,6 +10,6 @@ RUN go mod download
 COPY main.go ./
 RUN go build -ldflags="-s -w" -o /build/fake-blob-csi .
 
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/static:debug
 COPY --from=builder /build/fake-blob-csi /fake-blob-csi
 ENTRYPOINT ["/fake-blob-csi"]
