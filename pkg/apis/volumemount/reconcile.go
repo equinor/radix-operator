@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
@@ -97,13 +98,18 @@ func (s *componentStorage) reconcile(ctx context.Context, deleteUnused bool) (ma
 		currentPvcsByVolumeMount[name] = append(currentPvcsByVolumeMount[name], pvc)
 	}
 
+	deployedClaimNames, err := s.getDeployedClaimNames(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	usedPvcs := make(map[string]*corev1.PersistentVolumeClaim)
 	var errs []error
 	for _, radixVolumeMount := range s.component.GetVolumeMounts() {
 		if !radixVolumeMount.HasBlobFuse2() {
 			continue
 		}
-		pvc, err := s.ensurePersistentVolumeClaim(ctx, radixVolumeMount, currentPvcsByVolumeMount[radixVolumeMount.Name])
+		pvc, err := s.ensurePersistentVolumeClaim(ctx, radixVolumeMount, currentPvcsByVolumeMount[radixVolumeMount.Name], deployedClaimNames)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to ensure storage for volume mount %s in component %s: %w", radixVolumeMount.Name, s.component.GetName(), err))
 			continue
@@ -157,8 +163,32 @@ func getVolumeMountVolumes(component radixv1.RadixCommonDeployComponent, claimNa
 	return volumes, nil
 }
 
+// getDeployedClaimNames returns the names of the PVCs used by the Pod template of the current Kubernetes Deployment of the component,
+// or of the job-aux Deployment for a job. It returns an empty set if the Deployment does not exist.
+func (s *componentStorage) getDeployedClaimNames(ctx context.Context) (map[string]struct{}, error) {
+	deploymentName := s.component.GetName()
+	if s.component.GetType() == radixv1.RadixComponentTypeJob {
+		deploymentName = defaults.GetJobAuxKubeDeployName(s.component.GetName())
+	}
+	deployment, err := s.kubeUtil.GetDeployment(ctx, s.namespace(), deploymentName)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get Deployment %s: %w", deploymentName, err)
+	}
+	claimNames := make(map[string]struct{})
+	for _, volume := range deployment.Spec.Template.Spec.Volumes {
+		if volume.PersistentVolumeClaim != nil {
+			claimNames[volume.PersistentVolumeClaim.ClaimName] = struct{}{}
+		}
+	}
+	return claimNames, nil
+}
+
 // ensurePersistentVolumeClaim returns a current PVC of the volume mount that matches the desired spec, or creates the desired PV/PVC.
-func (s *componentStorage) ensurePersistentVolumeClaim(ctx context.Context, radixVolumeMount radixv1.RadixVolumeMount, currentPvcs []corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
+// deployedClaimNames has the PVCs used by the current Deployment (or job-aux Deployment) of the component.
+func (s *componentStorage) ensurePersistentVolumeClaim(ctx context.Context, radixVolumeMount radixv1.RadixVolumeMount, currentPvcs []corev1.PersistentVolumeClaim, deployedClaimNames map[string]struct{}) (*corev1.PersistentVolumeClaim, error) {
 	desired, err := buildDesiredVolumeResources(s.appName, s.rd, s.component, radixVolumeMount)
 	if err != nil {
 		return nil, err
@@ -184,8 +214,17 @@ func (s *componentStorage) ensurePersistentVolumeClaim(ctx context.Context, radi
 	}
 
 	if len(matching) > 0 {
-		// Select deterministically, not by list order, so every sync and both the RadixDeployment and RadixBatch syncers pick the same PVC.
-		// The oldest is most likely the one running workloads use; the others are deleted by ReconcileComponentVolumes.
+		// Prefer a PVC the current Deployment already uses, so an unchanged spec never rolls out the workload,
+		// e.g. when several legacy pairs match and the Deployment uses one that is not the oldest.
+		// Otherwise select deterministically, not by list order, so every sync and both the RadixDeployment and RadixBatch syncers pick the same PVC.
+		// The others are deleted by ReconcileComponentVolumes.
+		deployed := slices.DeleteFunc(slices.Clone(matching), func(pvc corev1.PersistentVolumeClaim) bool {
+			_, ok := deployedClaimNames[pvc.GetName()]
+			return !ok
+		})
+		if len(deployed) > 0 {
+			matching = deployed
+		}
 		selected := selectOldestPersistentVolumeClaim(matching)
 		return &selected, nil
 	}

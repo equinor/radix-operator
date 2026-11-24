@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	testutils "github.com/equinor/radix-operator/pkg/apis/test"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -208,6 +210,59 @@ func (s *reconcileComponentVolumesTestSuite) Test_OldestMatchingClaimIsSelected(
 	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 	s.Equal(oldestPvc.Name, claimNameOf(volumes, volumeName))
+}
+
+func (s *reconcileComponentVolumesTestSuite) Test_MatchingClaimOfCurrentDeploymentIsPreferred() {
+	const jobName = "anyjob"
+	tests := map[string]struct {
+		isJob                bool
+		deploymentName       string
+		deployedClaimMatches bool
+	}{
+		"component deployment uses newer matching claim": {deploymentName: ensureTestComponentName, deployedClaimMatches: true},
+		"job-aux deployment uses newer matching claim":   {isJob: true, deploymentName: defaults.GetJobAuxKubeDeployName(jobName), deployedClaimMatches: true},
+		"component deployment uses claim of other spec":  {deploymentName: ensureTestComponentName},
+		"job-aux deployment uses claim of other spec":    {isJob: true, deploymentName: defaults.GetJobAuxKubeDeployName(jobName)},
+	}
+	for name, test := range tests {
+		s.Run(name, func() {
+			vm := blobFuse2VolumeMount("vol", "container")
+			rd, component := newEnsureTestRd(vm)
+			var target radixv1.RadixCommonDeployComponent = component
+			if test.isJob {
+				rd.Spec.Components = nil
+				rd.Spec.Jobs = []radixv1.RadixDeployJobComponent{{Name: jobName, VolumeMounts: []radixv1.RadixVolumeMount{vm}}}
+				target = &rd.Spec.Jobs[0]
+			}
+			volumeName, err := getVolumeMountVolumeName(&vm, target.GetName())
+			s.Require().NoError(err)
+			_, oldestPvc := s.createLegacyPair(rd, target, vm, "aaaaa", beforeGracePeriod().Add(-time.Hour))
+			newerPv, newerPvc := s.createLegacyPair(rd, target, vm, "bbbbb", beforeGracePeriod())
+			_, otherSpecPvc := s.createLegacyPair(rd, target, blobFuse2VolumeMount("vol", "othercontainer"), "ccccc", beforeGracePeriod())
+			deployedPvc, expectedPvc := otherSpecPvc, oldestPvc
+			if test.deployedClaimMatches {
+				deployedPvc, expectedPvc = newerPvc, newerPvc
+			}
+			deployment := &appsv1.Deployment{
+				Name: test.deploymentName, Namespace: rd.Namespace,
+				Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Volumes: []corev1.Volume{{
+					Name:                  volumeName,
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: deployedPvc.Name},
+				}}}}},
+			}
+			_, err = s.kubeClient.AppsV1().Deployments(rd.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
+			s.Require().NoError(err)
+
+			volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, target, testDeletionGracePeriod)
+			s.Require().NoError(err)
+			s.Equal(expectedPvc.Name, claimNameOf(volumes, volumeName))
+			s.True(s.pvcExists(expectedPvc.Name), "the selected PVC must be kept")
+			if test.deployedClaimMatches {
+				s.True(s.pvExists(newerPv.Name), "the PV of the selected PVC must be kept")
+				s.False(s.pvcExists(oldestPvc.Name), "the older matching PVC that is not deployed must be deleted")
+			}
+		})
+	}
 }
 
 func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {

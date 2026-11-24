@@ -46,7 +46,7 @@ The design relies on Kubernetes storage object protection: a PVC that is used by
    - be bound both ways (`pvc.spec.volumeName` and `pv.spec.claimRef`), and the PV `claimRef.uid` must be empty or the uid of the PVC. A PV with the uid of a deleted PVC with the same name never binds to the PVC, so such a pair is not reused;
    - pass `matchesDesired`. This compares the PVC labels, resources, access modes, volume mode and storage class. It also compares four PV labels, plus PV capacity, access modes, normalized mount options, CSI driver, node-stage secret, CSI attributes (without provisioner-set keys), reclaim policy and storage class. Names, the volume handle and the `--block-cache-path` value are not compared.
 
-   If several PVCs match, the oldest is used (then by name).
+   If several PVCs match, a PVC that is used by the Pod template of the current Kubernetes Deployment of the component (the job-aux Deployment for a job) is preferred, so an unchanged spec never rolls out the workload, e.g. when several legacy pairs match and the Deployment uses one that is not the oldest. Otherwise, or if several of them are used, the oldest is used (then by name).
 4. If nothing matches, the desired PV and then the PVC are created. Each build of the desired PV/PVC gets a new [ULID](https://github.com/oklog/ulid) as unique part of the names:
    - PV: `pv-<app>-<ulid>`
    - PVC: `pvc-<component>-<volumeMount>-<ulid>`
