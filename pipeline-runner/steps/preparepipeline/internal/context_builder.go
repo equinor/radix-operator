@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/git"
@@ -149,16 +147,4 @@ func entryDir(entry git.DiffEntry) string {
 		return cleanPathForPrefixComparison(entry.Name)
 	}
 	return cleanPathForPrefixComparison(path.Dir(entry.Name))
-}
-
-// Returns list of distinct directories
-func distinctDirs(s git.DiffEntries) []string {
-	allDirs := slice.Map(s, func(e git.DiffEntry) string {
-		if e.IsDir {
-			return e.Name
-		}
-		return path.Dir(e.Name)
-	})
-	slices.Sort(allDirs)
-	return slices.Compact(allDirs)
 }
