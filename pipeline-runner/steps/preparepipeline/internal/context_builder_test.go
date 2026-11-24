@@ -475,6 +475,18 @@ func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
 			},
 			expectedComponents: []string{"comp1", "job1"},
 		},
+		"absolute Dockerfile: path is cleaned": {
+			diffs: git.DiffEntries{{Name: "/docker/Dockerfile.app"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("/sub/../docker/Dockerfile.app"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("/sub/../docker/Dockerfile.other"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("/sub/../docker/Dockerfile.app"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("/sub/../docker/Dockerfile.other"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
 		"matching environment config: use Dockerfile": {
 			diffs: git.DiffEntries{{Name: "docker/Dockerfile.env"}},
 			components: []utils.RadixApplicationComponentBuilder{

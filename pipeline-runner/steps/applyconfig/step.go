@@ -498,9 +498,9 @@ func getBuildContext(workspace string, source radixv1.ComponentSource) string {
 func getDockerfileRelativeToSourceContext(source radixv1.ComponentSource) (string, error) {
 	sourceRoot := filepath.Join("/", source.Folder)
 
-	dockerfileName := source.DockefileName
-	if !filepath.IsAbs(source.DockefileName) {
-		dockerfileName = filepath.Join(sourceRoot, source.DockefileName)
+	dockerfileName := source.DockerfileName
+	if !filepath.IsAbs(source.DockerfileName) {
+		dockerfileName = filepath.Join(sourceRoot, source.DockerfileName)
 	}
 	return filepath.Rel(sourceRoot, dockerfileName)
 }

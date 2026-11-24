@@ -113,7 +113,7 @@ func componentHasChangedSource(envName string, component radixv1.RadixCommonComp
 		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
 	}
 
-	dockerFilePath := componentSource.DockefileName
+	dockerFilePath := filepath.Clean(componentSource.DockerfileName)
 	if !filepath.IsAbs(dockerFilePath) {
 		dockerFilePath = filepath.Join(cleanedSourceFolder, dockerFilePath)
 	}
