@@ -301,6 +301,7 @@ func TestParse_HappyPath(t *testing.T) {
 			OrphanedEnvironmentsCleanupCron:     "0 0 * * *",
 			PipelineJobsHistoryLimit:            5,
 			PipelineJobsHistoryPeriodLimit:      720 * time.Hour,
+			VolumeDeletionGracePeriod:           10 * time.Minute,
 		},
 		Webhook: config.WebhookConfig{
 			LogLevel:                 "info",
@@ -552,6 +553,45 @@ func TestParse_OrphanedEnvironmentsValidation(t *testing.T) {
 		"equal to 5 minutes should pass": {
 			mutateConfig: func(cfg *config.Config) {
 				cfg.Operator.OrphanedEnvironmentsRetentionPeriod = 5 * time.Minute
+			},
+			expectedError: ``,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			configYaml := []byte(mutateConfig(t, test.mutateConfig))
+
+			var cfg config.Config
+			err := configcodec.Decode(configYaml, &cfg)
+
+			if test.expectedError == "" {
+				require.NoError(t, err)
+				return
+			} else {
+				require.Error(t, err)
+				assert.Empty(t, cfg)
+				assert.ErrorContains(t, err, test.expectedError)
+			}
+		})
+	}
+
+}
+
+func TestParse_VolumeDeletionGracePeriodValidation(t *testing.T) {
+	tests := map[string]struct {
+		mutateConfig  MutateConfigFunc
+		expectedError string
+	}{
+		"below 1 second should fail": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.VolumeDeletionGracePeriod = 999 * time.Millisecond
+			},
+			expectedError: `failed to validate config: field "Operator.VolumeDeletionGracePeriod" did not pass validation expression`,
+		},
+		"equal to 1 second should pass": {
+			mutateConfig: func(cfg *config.Config) {
+				cfg.Operator.VolumeDeletionGracePeriod = time.Second
 			},
 			expectedError: ``,
 		},

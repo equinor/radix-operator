@@ -33,6 +33,8 @@ const (
 	ensureTestNamespace     = "anyapp-anyenv"
 	ensureTestComponentName = "anycomp"
 	ensureTestRdName        = "anyrd"
+
+	testDeletionGracePeriod = 10 * time.Minute
 )
 
 type reconcileComponentVolumesTestSuite struct {
@@ -119,7 +121,7 @@ func (s *testSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radi
 
 // beforeGracePeriod returns a creation time of a PV/PVC that is no longer protected by the deletion grace period
 func beforeGracePeriod() time.Time {
-	return time.Now().Add(-2 * deletionGracePeriod)
+	return time.Now().Add(-2 * testDeletionGracePeriod)
 }
 
 func (s *testSuite) listPvAndPvcNames() ([]string, []string) {
@@ -254,7 +256,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 			s.True(s.pvcExists(legacyPvc.Name), "EnsureComponentVolumes must not delete the current PVC")
 			s.True(s.pvExists(legacyPv.Name), "EnsureComponentVolumes must not delete the current PV")
 
-			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent)
+			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent, testDeletionGracePeriod)
 			s.Require().NoError(err)
 			s.Equal(claimName, claimNameOf(volumes, changedVolumeName), "the new pair must be reused")
 			s.False(s.pvcExists(legacyPvc.Name), "ReconcileComponentVolumes must delete the PVC that does not match")
@@ -292,7 +294,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_RepeatedCallsCreateExactlyOneP
 	s.Require().NoError(err)
 	volumes2, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
-	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
+	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
 	s.Require().NoError(err)
 	s.Equal(volumes1, volumes2)
 	s.Equal(volumes1, volumes3)
@@ -311,7 +313,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairWithStaleClaimRefIsReplace
 	_, err := s.kubeClient.CoreV1().PersistentVolumes().Update(context.Background(), stalePv, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
 	s.Require().NoError(err)
 
 	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
@@ -426,7 +428,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsSelectedPairAndD
 	_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), releasedPv, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
 	s.Require().NoError(err)
 
 	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
@@ -452,7 +454,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileDeletesNothingWhenEns
 		return true, nil, errors.New("any create error")
 	})
 
-	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
+	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
 	s.Require().Error(err)
 	s.True(s.pvcExists(oldSpecPvc.Name))
 	s.True(s.pvExists(oldSpecPv.Name))
@@ -492,7 +494,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 		s.Require().NoError(err)
 	}
 
-	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd))
+	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd, testDeletionGracePeriod))
 
 	s.True(s.pvcExists(componentPvc.Name))
 	s.True(s.pvExists(componentPv.Name))
@@ -517,10 +519,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsPairsWithinDelet
 	keptPv, keptPvc := s.createLegacyPair(rd, component, vm, "aaaaa", beforeGracePeriod())
 	// A pair for the same spec, as created by the RadixBatch syncer at the same time as the RadixDeployment syncer
 	newDuplicatePv, newDuplicatePvc := s.createLegacyPair(rd, component, vm, "bbbbb", now)
-	newOldSpecPv, newOldSpecPvc := s.createLegacyPair(rd, component, blobFuse2VolumeMount("vol", "oldcontainer"), "ccccc", now.Add(-deletionGracePeriod+time.Minute))
+	newOldSpecPv, newOldSpecPvc := s.createLegacyPair(rd, component, blobFuse2VolumeMount("vol", "oldcontainer"), "ccccc", now.Add(-testDeletionGracePeriod+time.Minute))
 	expiredOldSpecPv, expiredOldSpecPvc := s.createLegacyPair(rd, component, blobFuse2VolumeMount("vol", "oldcontainer"), "ddddd", beforeGracePeriod())
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
 	s.Require().NoError(err)
 
 	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
@@ -542,7 +544,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 	newPv, newPvc := s.createLegacyPair(rd, removedComponent, vm, "aaaaa", time.Now())
 	expiredPv, expiredPvc := s.createLegacyPair(rd, removedComponent, vm, "bbbbb", beforeGracePeriod())
 
-	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd))
+	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd, testDeletionGracePeriod))
 
 	s.True(s.pvcExists(newPvc.Name))
 	s.True(s.pvExists(newPv.Name))

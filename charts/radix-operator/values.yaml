@@ -76,6 +76,7 @@ config:
     orphanedEnvironmentsCleanupCron: "0 0 * * *"
     pipelineJobsHistoryLimit: 5
     pipelineJobsHistoryPeriodLimit: "720h"
+    volumeDeletionGracePeriod: 10m
 
     podSecurityStandard:
       appNamespace:

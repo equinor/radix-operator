@@ -75,7 +75,7 @@ func TestVolumeMountIsMountedByCSIDriver(t *testing.T) {
 }
 
 // TestVolumeMountSpecChange changes the storage spec of a component, and verifies that a new PV/PVC pair is
-// created and used by the rolled out Pod, and that the old pair is deleted when the RadixDeployment syncs.
+// created and used by the rolled out Pod, and that the old pair is deleted when the RadixDeployment syncs after the deletion grace period.
 // Kubernetes keeps the old pair while the old Pod uses it, and removes it when the Pod is gone, without another sync.
 func TestVolumeMountSpecChange(t *testing.T) {
 	t.Parallel()
@@ -104,7 +104,7 @@ func TestVolumeMountSpecChange(t *testing.T) {
 	info := readVolumeInfoFromPodLogs(t, envNamespace, pod2.Name)
 	assert.Equal(t, "container2", info.VolumeContext["containerName"])
 
-	waitForVolumeResourcesDeleted(t, c, envNamespace, claim1, pv1Name)
+	waitForVolumeResourcesDeleted(t, c, envNamespace, rd2.Name, claim1, pv1Name)
 
 	pvc2 := &corev1.PersistentVolumeClaim{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: claim2}, pvc2), "the PVC in use should be kept")
@@ -131,11 +131,11 @@ func TestVolumesOfRemovedComponentAreDeleted(t *testing.T) {
 	rd2 := createVolumeTestRadixDeploymentWithSpec(t, c, appName, envNamespace, "rd-2", []v1.RadixDeployComponent{otherComponent}, nil)
 	waitForActiveRadixDeployment(t, c, envNamespace, rd2.Name)
 
-	waitForVolumeResourcesDeleted(t, c, envNamespace, pvc.Name, pvc.Spec.VolumeName)
+	waitForVolumeResourcesDeleted(t, c, envNamespace, rd2.Name, pvc.Name, pvc.Spec.VolumeName)
 }
 
 // TestRunningJobKeepsVolumeDeletedByRadixDeploymentSync starts a job from a RadixBatch, changes the storage spec of the job
-// in a new RadixDeployment, and verifies that the RadixDeployment sync deletes the PV/PVC of the batch, that Kubernetes keeps
+// in a new RadixDeployment, and verifies that a RadixDeployment sync after the deletion grace period deletes the PV/PVC of the batch, that Kubernetes keeps
 // them in Terminating state while the job Pod is running, and that they are removed when the job is stopped.
 func TestRunningJobKeepsVolumeDeletedByRadixDeploymentSync(t *testing.T) {
 	t.Parallel()
@@ -174,12 +174,12 @@ func TestRunningJobKeepsVolumeDeletedByRadixDeploymentSync(t *testing.T) {
 	waitForActiveRadixDeployment(t, c, envNamespace, rd2.Name)
 
 	// The RadixDeployment sync deletes the PVC of the batch, as it does not match the job spec of the active RadixDeployment
-	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
+	err := waitForConditionWhileResyncingRadixDeployment(t.Context(), c, envNamespace, rd2.Name, func(ctx context.Context) bool {
 		pvc := &corev1.PersistentVolumeClaim{}
 		if err := c.Get(ctx, client.ObjectKey{Namespace: envNamespace, Name: claim1}, pvc); err != nil {
-			return false, nil
+			return false
 		}
-		return pvc.DeletionTimestamp != nil, nil
+		return pvc.DeletionTimestamp != nil
 	})
 	if err != nil {
 		logRadixOperatorLogs(t, c, "PersistentVolume")
@@ -200,7 +200,7 @@ func TestRunningJobKeepsVolumeDeletedByRadixDeploymentSync(t *testing.T) {
 		current.Spec.Jobs[0].Stop = new(true)
 		return c.Update(t.Context(), current)
 	}), "should stop the batch job")
-	waitForVolumeResourcesDeleted(t, c, envNamespace, claim1, pv1Name)
+	waitForVolumeResourcesDeleted(t, c, envNamespace, rd2.Name, claim1, pv1Name)
 }
 
 // TestLegacyVolumesAreReusedWhenMatching creates PV/PVC pairs as created by previous operator versions, before the
@@ -229,8 +229,8 @@ func TestLegacyVolumesAreReusedWhenMatching(t *testing.T) {
 	waitForActiveRadixDeployment(t, c, envNamespace, rd.Name)
 	pod := waitForComponentPodWithClaim(t, c, envNamespace, legacyPvc.Name)
 
-	// The pair for the older spec is not used by any Pod, and is removed after the first sync
-	waitForVolumeResourcesDeleted(t, c, envNamespace, oldSpecPvc.Name, oldSpecPv.Name)
+	// The pair for the older spec is not used by any Pod, and is removed by the first sync after the deletion grace period
+	waitForVolumeResourcesDeleted(t, c, envNamespace, rd.Name, oldSpecPvc.Name, oldSpecPv.Name)
 	pvcs := &corev1.PersistentVolumeClaimList{}
 	require.NoError(t, c.List(t.Context(), pvcs, client.InNamespace(envNamespace)))
 	var pvcNames []string
@@ -263,18 +263,38 @@ func TestLegacyVolumesAreReusedWhenMatching(t *testing.T) {
 	assert.Nil(t, currentLegacyPv.DeletionTimestamp, "the legacy PV in use should not be deleted")
 }
 
-// waitForVolumeResourcesDeleted waits until the PVC and the PV are gone
-func waitForVolumeResourcesDeleted(t *testing.T, c client.Client, namespace, pvcName, pvName string) {
+// waitForVolumeResourcesDeleted waits until the PVC and the PV are gone.
+// See waitForConditionWhileResyncingRadixDeployment for why the RadixDeployment is synced while waiting.
+func waitForVolumeResourcesDeleted(t *testing.T, c client.Client, namespace, rdName, pvcName, pvName string) {
 	t.Helper()
-	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
+	err := waitForConditionWhileResyncingRadixDeployment(t.Context(), c, namespace, rdName, func(ctx context.Context) bool {
 		pvcErr := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: pvcName}, &corev1.PersistentVolumeClaim{})
 		pvErr := c.Get(ctx, client.ObjectKey{Name: pvName}, &corev1.PersistentVolume{})
-		return apierrors.IsNotFound(pvcErr) && apierrors.IsNotFound(pvErr), nil
+		return apierrors.IsNotFound(pvcErr) && apierrors.IsNotFound(pvErr)
 	})
 	if err != nil {
 		logRadixOperatorLogs(t, c, "PersistentVolume")
 	}
 	require.NoError(t, err, "the PVC %s and PV %s should be deleted", pvcName, pvName)
+}
+
+// waitForConditionWhileResyncingRadixDeployment waits until condition is true, and triggers a sync of the RadixDeployment
+// at each poll while it is false. Unused PVs/PVCs created less than volumeDeletionGracePeriod ago are kept by a sync, and the
+// operator does not sync the RadixDeployment again by itself, so a sync is triggered until the grace period has passed.
+func waitForConditionWhileResyncingRadixDeployment(ctx context.Context, c client.Client, namespace, rdName string, condition func(ctx context.Context) bool) error {
+	return wait.PollUntilContextTimeout(ctx, volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
+		if condition(ctx) {
+			return true, nil
+		}
+		_ = triggerRadixDeploymentSync(ctx, c, namespace, rdName)
+		return false, nil
+	})
+}
+
+// triggerRadixDeploymentSync changes an annotation of the RadixDeployment, which makes the operator sync it
+func triggerRadixDeploymentSync(ctx context.Context, c client.Client, namespace, name string) error {
+	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"e2e/resync":%q}}}`, time.Now().Format(time.RFC3339Nano))
+	return c.Patch(ctx, &v1.RadixDeployment{Namespace: namespace, Name: name}, client.RawPatch(types.MergePatchType, patch))
 }
 
 // resyncRadixDeployment triggers a sync of the RadixDeployment, and waits until it has been reconciled
@@ -285,8 +305,7 @@ func resyncRadixDeployment(t *testing.T, c client.Client, namespace, name string
 	lastReconciled := rd.Status.Reconciled
 	// Reconciled has a precision of seconds, so the sync is triggered until it changes
 	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
-		patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"e2e/resync":%q}}}`, time.Now().Format(time.RFC3339Nano))
-		if err := c.Patch(ctx, &v1.RadixDeployment{Namespace: namespace, Name: name}, client.RawPatch(types.MergePatchType, patch)); err != nil {
+		if err := triggerRadixDeploymentSync(ctx, c, namespace, name); err != nil {
 			return false, nil
 		}
 		current := &v1.RadixDeployment{}

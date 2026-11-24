@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -26,6 +27,8 @@ type componentStorage struct {
 	appName   string
 	rd        *radixv1.RadixDeployment
 	component radixv1.RadixCommonDeployComponent
+	// deletionGracePeriod is the minimum age of an unused PV/PVC before it is deleted. Only used when unused PVs/PVCs are deleted.
+	deletionGracePeriod time.Duration
 }
 
 // ReconcileComponentVolumes returns the Pod volumes and container volume mounts for a component or job in the RadixDeployment.
@@ -33,8 +36,8 @@ type componentStorage struct {
 // All other PVs/PVCs of the component are deleted, except those created less than deletionGracePeriod ago. Kubernetes keeps a PVC, and its PV, that is used by a Pod in Terminating state
 // (kubernetes.io/pvc-protection and kubernetes.io/pv-protection) until the Pod is gone, so running workloads are not affected.
 // Blob data is never deleted, as all PVs use the reclaim policy Retain.
-func ReconcileComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) ([]corev1.Volume, []corev1.VolumeMount, error) {
-	storage := componentStorage{kubeUtil: kubeUtil, appName: appName, rd: rd, component: component}
+func ReconcileComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, deletionGracePeriod time.Duration) ([]corev1.Volume, []corev1.VolumeMount, error) {
+	storage := componentStorage{kubeUtil: kubeUtil, appName: appName, rd: rd, component: component, deletionGracePeriod: deletionGracePeriod}
 	return storage.getComponentVolumes(ctx, true)
 }
 
@@ -116,7 +119,7 @@ func (s *componentStorage) reconcile(ctx context.Context, deleteUnused bool) (ma
 		if err != nil {
 			return nil, err
 		}
-		if err := deleteUnusedVolumeResources(ctx, s.kubeUtil.KubeClient(), currentPvcs, currentPvs, usedPvcs); err != nil {
+		if err := deleteUnusedVolumeResources(ctx, s.kubeUtil.KubeClient(), currentPvcs, currentPvs, usedPvcs, s.deletionGracePeriod); err != nil {
 			return nil, fmt.Errorf("failed to delete unused storage for component %s: %w", s.component.GetName(), err)
 		}
 	}

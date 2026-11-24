@@ -54,6 +54,7 @@ config:
     alertControllerThreads: 21
     kubeClientRateLimitBurst: 500
     kubeClientRateLimitQPS: 500
+    volumeDeletionGracePeriod: 5s
 
     jobSchedulerImage:
       tag: "{{IMAGE_TAG}}"

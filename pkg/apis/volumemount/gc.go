@@ -16,16 +16,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// deletionGracePeriod is the minimum age of a PVC or PV before it is garbage collected.
+// GarbageCollectVolumesNoLongerInSpec deletes the Radix owned PVCs and PVs of the application in the namespace of the RadixDeployment
+// that belong to components or jobs that are not in the RadixDeployment. PVCs and PVs created less than deletionGracePeriod ago are kept.
+//
 // The RadixDeployment and RadixBatch syncers do not share a lock, so the RadixBatch syncer can create a PV/PVC for a job
 // while the RadixDeployment syncer garbage collects the PVs/PVCs of the job. Without a grace period, the new PV/PVC
 // could be deleted before the Pod of the Kubernetes Job uses it. Once a Pod uses the PVC,
 // kubernetes.io/pvc-protection and kubernetes.io/pv-protection keep the PVC and PV until the Pod is gone.
-const deletionGracePeriod = 10 * time.Minute
-
-// GarbageCollectVolumesNoLongerInSpec deletes the Radix owned PVCs and PVs of the application in the namespace of the RadixDeployment
-// that belong to components or jobs that are not in the RadixDeployment. PVCs and PVs created less than deletionGracePeriod ago are kept.
-func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kubernetes.Interface, appName string, rd *radixv1.RadixDeployment) error {
+func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kubernetes.Interface, appName string, rd *radixv1.RadixDeployment, deletionGracePeriod time.Duration) error {
 	componentNames := make(map[string]struct{})
 	for _, component := range rd.Spec.Components {
 		componentNames[component.GetName()] = struct{}{}
@@ -49,11 +47,11 @@ func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kuberne
 	}
 	pvcs = slices.DeleteFunc(pvcs, func(pvc corev1.PersistentVolumeClaim) bool { return isInSpec(pvc.GetLabels()) })
 	pvs = slices.DeleteFunc(pvs, func(pv corev1.PersistentVolume) bool { return isInSpec(pv.GetLabels()) })
-	return deleteVolumeResources(ctx, kubeClient, pvcs, pvs)
+	return deleteVolumeResources(ctx, kubeClient, pvcs, pvs, deletionGracePeriod)
 }
 
 // deleteUnusedVolumeResources deletes the PVCs and PVs that are not used by any volume mount. usedPvcs has the used PVC by volume mount name.
-func deleteUnusedVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume, usedPvcs map[string]*corev1.PersistentVolumeClaim) error {
+func deleteUnusedVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume, usedPvcs map[string]*corev1.PersistentVolumeClaim, deletionGracePeriod time.Duration) error {
 	usedPvcNames := make(map[string]struct{}, len(usedPvcs))
 	usedPvNames := make(map[string]struct{}, len(usedPvcs))
 	for _, pvc := range usedPvcs {
@@ -68,12 +66,12 @@ func deleteUnusedVolumeResources(ctx context.Context, kubeClient kubernetes.Inte
 		_, used := usedPvNames[pv.GetName()]
 		return used
 	})
-	return deleteVolumeResources(ctx, kubeClient, unusedPvcs, unusedPvs)
+	return deleteVolumeResources(ctx, kubeClient, unusedPvcs, unusedPvs, deletionGracePeriod)
 }
 
 // deleteVolumeResources deletes the PVCs, then the PVs.
 // Resources that are already being deleted, or that are within the deletion grace period, are skipped.
-func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume) error {
+func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume, deletionGracePeriod time.Duration) error {
 	logger := log.Ctx(ctx)
 	now := time.Now()
 	var errs []error
@@ -81,7 +79,7 @@ func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface,
 		if pvc.GetDeletionTimestamp() != nil {
 			continue
 		}
-		if isWithinDeletionGracePeriod(&pvc, now) {
+		if isWithinDeletionGracePeriod(&pvc, now, deletionGracePeriod) {
 			logger.Debug().Msgf("Skip delete of PersistentVolumeClaim %s in namespace %s, created less than %s ago", pvc.GetName(), pvc.GetNamespace(), deletionGracePeriod)
 			continue
 		}
@@ -94,7 +92,7 @@ func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface,
 		if pv.GetDeletionTimestamp() != nil {
 			continue
 		}
-		if isWithinDeletionGracePeriod(&pv, now) {
+		if isWithinDeletionGracePeriod(&pv, now, deletionGracePeriod) {
 			logger.Debug().Msgf("Skip delete of PersistentVolume %s, created less than %s ago", pv.GetName(), deletionGracePeriod)
 			continue
 		}
@@ -107,7 +105,7 @@ func deleteVolumeResources(ctx context.Context, kubeClient kubernetes.Interface,
 }
 
 // isWithinDeletionGracePeriod returns true if the object was created less than deletionGracePeriod before now
-func isWithinDeletionGracePeriod(obj metav1.Object, now time.Time) bool {
+func isWithinDeletionGracePeriod(obj metav1.Object, now time.Time, deletionGracePeriod time.Duration) bool {
 	return obj.GetCreationTimestamp().Add(deletionGracePeriod).After(now)
 }
 
