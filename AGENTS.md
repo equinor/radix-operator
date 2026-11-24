@@ -1,6 +1,7 @@
 # AGENTS.md
 
-Guidelines for AI coding agents working in this repository.
+- **Always** Grill the Human in the loop and ask clarifying questions before starting work.
+- Awoid using deprecetad fields in new code, unless to support legacy behaviour
 
 ## Testing
 

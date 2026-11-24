@@ -6,8 +6,8 @@ const (
 	// csiVolumeSourceVolumeAttributeSecretProviderClass Secret provider class volume attribute
 	csiVolumeSourceVolumeAttributeSecretProviderClass = "secretProviderClass"
 
-	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s"              // pvc-<volumename>-<hash>
-	csiPersistentVolumeNameTemplate      = "pv-radixvolumemount-%s" // pv-radixvolumemount-<hash>
+	csiPersistentVolumeClaimNameTemplate = "pvc-%s-%s-%s" // pvc-<componentname>-<volumemountname>-<ulid>
+	csiPersistentVolumeNameTemplate      = "pv-%s-%s"     // pv-<appname>-<ulid>
 	csiVolumeAttributeStorageAccount     = "storageAccount"
 	csiVolumeAttributeClientID           = "clientID"
 	csiVolumeAttributeResourceGroup      = "resourcegroup"

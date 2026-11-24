@@ -1681,6 +1681,7 @@
                             "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                             "maxLength": 40,
                             "minLength": 1,
+                            "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                             "type": "string"
                           },
                           "path": {
@@ -3008,6 +3009,7 @@
                       "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                       "maxLength": 40,
                       "minLength": 1,
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "path": {
@@ -4083,6 +4085,7 @@
                             "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                             "maxLength": 40,
                             "minLength": 1,
+                            "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                             "type": "string"
                           },
                           "path": {
@@ -4692,6 +4695,7 @@
                       "description": "User-defined name of the volume mount.\nMust be unique for the component.",
                       "maxLength": 40,
                       "minLength": 1,
+                      "pattern": "^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$",
                       "type": "string"
                     },
                     "path": {

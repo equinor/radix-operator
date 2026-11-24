@@ -41,11 +41,39 @@ import (
 )
 
 // RadixDNSAliasInformer provides access to a shared informer and lister for
-// RadixDNSAliases.
+// RadixDNSAliases. Prefer using the type-safe variant (see [TypedRadixDNSAliasInformer]).
 type RadixDNSAliasInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixDNSAliasLister
 }
+
+// TypedRadixDNSAliasInformer provides access to a shared informer and lister for
+// RadixDNSAliases, including the type-safe TypedInformer variant.
+// It is a superset of RadixDNSAliasInformer.
+type TypedRadixDNSAliasInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixDNSAliasIndexInformer
+	Lister() radixv1.RadixDNSAliasLister
+}
+
+// RadixDNSAliasIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixDNSAliasIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixDNSAlias]
+
+// RadixDNSAliasHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixDNSAlias.
+type RadixDNSAliasHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixDNSAlias]
+
+// RadixDNSAliasDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixDNSAlias.
+type RadixDNSAliasDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixDNSAlias]
+
+// RadixDNSAliasFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixDNSAlias.
+type RadixDNSAliasFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixDNSAlias]
+
+// RadixDNSAliasIndexers is a specialization of [cache.TypedIndexers] for RadixDNSAlias.
+type RadixDNSAliasIndexers = cache.TypedIndexers[*apisradixv1.RadixDNSAlias]
+
+// DeletedRadixDNSAlias is a specialization of [cache.DeletedObject] for RadixDNSAlias.
+type DeletedRadixDNSAlias = cache.DeletedObject[*apisradixv1.RadixDNSAlias]
 
 type radixDNSAliasInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -55,25 +83,49 @@ type radixDNSAliasInformer struct {
 // NewRadixDNSAliasInformer constructs a new informer for RadixDNSAlias type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixDNSAliasInformer]).
 func NewRadixDNSAliasInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixDNSAliasInformer constructs a new informer for RadixDNSAlias type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixDNSAliasInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RadixDNSAliasIndexers) RadixDNSAliasIndexInformer {
+	return NewTypedRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixDNSAliasInformer constructs a new informer for RadixDNSAlias type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixDNSAliasInformer]).
 func NewFilteredRadixDNSAliasInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixDNSAliasInformer constructs a new informer for RadixDNSAlias type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixDNSAliasInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RadixDNSAliasIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixDNSAliasIndexInformer {
+	return NewTypedRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixDNSAliasInformerWithOptions constructs a new informer for RadixDNSAlias type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixDNSAliasInformerWithOptions]).
 func NewRadixDNSAliasInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixDNSAliasInformerWithOptions(client, options)
+}
+
+// NewTypedRadixDNSAliasInformerWithOptions constructs a new informer for RadixDNSAlias type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixDNSAliasInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) RadixDNSAliasIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixdnsaliass"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDNSAlias](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -106,17 +158,57 @@ func NewRadixDNSAliasInformerWithOptions(client versioned.Interface, options int
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixDNSAliasInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixDNSAliasInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixDNSAliasInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixDNSAlias{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixDNSAliasInformer) TypedInformer() RadixDNSAliasIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDNSAlias](f.factory.InformerFor(&apisradixv1.RadixDNSAlias{}, f.defaultInformer))
 }
 
 func (f *radixDNSAliasInformer) Lister() radixv1.RadixDNSAliasLister {
 	return radixv1.NewRadixDNSAliasLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixDNSAliasInformer converts an untyped informer into a TypedRadixDNSAliasInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixDNSAlias. If that is not the case, calling type-safe methods of the returned
+// TypedRadixDNSAliasInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixDNSAliasInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixDNSAliasInformer(informer RadixDNSAliasInformer) TypedRadixDNSAliasInformer {
+	if informer, ok := informer.(TypedRadixDNSAliasInformer); ok {
+		return informer
+	}
+	return &radixDNSAliasTypedInformerAdapter{informer}
+}
+
+type radixDNSAliasTypedInformerAdapter struct {
+	RadixDNSAliasInformer
+}
+
+func (a *radixDNSAliasTypedInformerAdapter) TypedInformer() RadixDNSAliasIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDNSAlias](a.Informer())
+}
+
+// ToRadixDNSAliasIndexInformer converts an untyped informer into a RadixDNSAliasIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixDNSAlias. If that is not the case, calling type-safe methods of the returned
+// RadixDNSAliasIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixDNSAliasIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixDNSAliasIndexInformer(informer cache.SharedIndexInformer) RadixDNSAliasIndexInformer {
+	if informer, ok := informer.(RadixDNSAliasIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDNSAlias](informer)
 }

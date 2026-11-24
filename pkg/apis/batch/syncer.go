@@ -77,32 +77,7 @@ func (s *syncer) OnSync(ctx context.Context) error {
 		return nil
 	}
 
-	wasCompleted := s.isBatchDone()
-	err := s.syncStatus(ctx, s.reconcile(ctx))
-	if !wasCompleted && s.isBatchDone() {
-		s.garbageCollectVolumes(ctx)
-	}
-	return err
-}
-
-// garbageCollectVolumes releases storage that is no longer needed when the batch is completed.
-// It uses the active RadixDeployment of the namespace, and is skipped if there is none.
-// Errors are logged, and do not fail the sync, since garbage collection also runs when RadixDeployments sync.
-func (s *syncer) garbageCollectVolumes(ctx context.Context) {
-	logger := log.Ctx(ctx)
-	rds, err := s.kubeUtil.ListRadixDeployments(ctx, s.radixBatch.GetNamespace())
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to list RadixDeployments for garbage collection of volumes")
-		return
-	}
-	activeRd, ok := slice.FindFirst(rds, func(rd *radixv1.RadixDeployment) bool { return rd.Status.Condition == radixv1.DeploymentActive })
-	if !ok {
-		logger.Debug().Msg("Skip garbage collection of volumes, no active RadixDeployment")
-		return
-	}
-	if err := volumemount.GarbageCollectVolumes(ctx, s.kubeUtil, activeRd, s.clock.Now(), s.config.Operator.VolumeGarbageCollectionGracePeriod); err != nil {
-		logger.Error().Err(err).Msg("Failed to garbage collect volumes")
-	}
+	return s.syncStatus(ctx, s.reconcile(ctx))
 }
 
 func (s *syncer) reconcile(ctx context.Context) error {
@@ -124,12 +99,9 @@ func (s *syncer) reconcile(ctx context.Context) error {
 
 	// Volumes are ensured at most once per reconcile, and only when a Kubernetes Job is going to be created.
 	// The RadixDeployment referenced by the batch may be an older, inactive RadixDeployment; its jobs get the storage defined in it.
+	// Ensuring volumes never deletes anything, storage that is no longer needed is deleted when the RadixDeployment syncs.
 	jobVolumesGetter := sync.OnceValues(func() (*jobVolumes, error) {
-		auxVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
-		if err != nil {
-			return nil, err
-		}
-		volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, rd, jobComponent, auxVolumes)
+		volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, rd, jobComponent)
 		if err != nil {
 			return nil, err
 		}

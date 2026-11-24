@@ -3,20 +3,28 @@ package volumemount
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	testutils "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 const (
@@ -27,12 +35,21 @@ const (
 	ensureTestRdName        = "anyrd"
 )
 
-type ensureComponentVolumesTestSuite struct {
+type reconcileComponentVolumesTestSuite struct {
 	testSuite
 }
 
-func TestEnsureComponentVolumesTestSuite(t *testing.T) {
-	suite.Run(t, new(ensureComponentVolumesTestSuite))
+func TestReconcileComponentVolumesTestSuite(t *testing.T) {
+	suite.Run(t, new(reconcileComponentVolumesTestSuite))
+}
+
+func (s *reconcileComponentVolumesTestSuite) SetupTest() {
+	s.setupTest()
+	testutils.CreateEnvNamespace(s.kubeClient, ensureTestAppName, ensureTestEnvName)
+}
+
+func (s *reconcileComponentVolumesTestSuite) SetupSubTest() {
+	s.SetupTest()
 }
 
 func newEnsureTestRd(volumeMounts ...radixv1.RadixVolumeMount) (*radixv1.RadixDeployment, *radixv1.RadixDeployComponent) {
@@ -58,20 +75,20 @@ func blobFuse2VolumeMount(name, container string, modify ...func(*radixv1.RadixB
 // createLegacyPair creates a bound PV/PVC pair as created by previous operator versions: a random PVC name suffix,
 // a PV name and volumeHandle with a UUID, a block cache path with another UUID, and attributes and labels added by others.
 func (s *testSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, vm radixv1.RadixVolumeMount, pvcSuffix string, created time.Time) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim) {
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
+	desired, err := buildDesiredVolumeResources(ensureTestAppName, rd, component, vm)
 	s.Require().NoError(err)
 	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 
 	pvcName := fmt.Sprintf("pvc-%s-%s", volumeName, pvcSuffix)
 	pvName := fmt.Sprintf("pv-radixvolumemount-%s", uuid.New().String())
-	builder := newBlobfuse2PersistentVolumeBuilder(rd.Spec.AppName, rd.Spec.Environment, component, vm)
+	builder := newBlobfuse2PersistentVolumeBuilder(component, vm)
 
 	pv := desired.pv.DeepCopy()
 	pv.SetName(pvName)
 	pv.SetCreationTimestamp(metav1.NewTime(created))
 	pv.Labels["any-other-label"] = "any-value"
-	pv.Spec = builder.BuildSpec(pvcName, rd.Namespace, buildVolumeHandle(rd.Spec.AppName, rd.Spec.Environment, component.GetName(), vm.Name, uuid.New().String()))
+	pv.Spec = builder.BuildSpec(pvcName, rd.Namespace, buildVolumeHandle(ensureTestAppName, rd.Spec.Environment, component.GetName(), vm.Name, uuid.New().String()))
 	for i, option := range pv.Spec.MountOptions {
 		if normalizeMountOption(option) == blockCachePathMountOption {
 			pv.Spec.MountOptions[i] = fmt.Sprintf("%s=/mnt/%s#blockcache", blockCachePathMountOption, uuid.New().String())
@@ -117,6 +134,16 @@ func (s *testSuite) listPvAndPvcNames() ([]string, []string) {
 	return pvNames, pvcNames
 }
 
+func (s *testSuite) pvcExists(name string) bool {
+	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Get(context.Background(), name, metav1.GetOptions{})
+	return err == nil
+}
+
+func (s *testSuite) pvExists(name string) bool {
+	_, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), name, metav1.GetOptions{})
+	return err == nil
+}
+
 func claimNameOf(volumes []corev1.Volume, volumeName string) string {
 	for _, v := range volumes {
 		if v.Name == volumeName && v.PersistentVolumeClaim != nil {
@@ -126,7 +153,7 @@ func claimNameOf(volumes []corev1.Volume, volumeName string) string {
 	return ""
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIsCreated() {
+func (s *reconcileComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIsCreated() {
 	volumeMounts := map[string]radixv1.RadixVolumeMount{
 		"default": blobFuse2VolumeMount("vol", "container"),
 		"block disk": blobFuse2VolumeMount("vol", "container", func(b *radixv1.RadixBlobFuse2VolumeMount) {
@@ -147,7 +174,7 @@ func (s *ensureComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIsCre
 			_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 			pvsBefore, pvcsBefore := s.listPvAndPvcNames()
 
-			volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
+			volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 			s.Require().NoError(err)
 
 			volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
@@ -162,58 +189,21 @@ func (s *ensureComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIsCre
 	}
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_SelectsClaimFromHintThenOldest() {
+func (s *reconcileComponentVolumesTestSuite) Test_OldestMatchingClaimIsSelected() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
 	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 	now := time.Now()
-	hintFor := func(claimName string) []corev1.Volume {
-		return []corev1.Volume{{Name: volumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName}}}}
-	}
+	_, _ = s.createLegacyPair(rd, component, vm, "bbbbb", now.Add(-1*time.Hour))
+	_, oldestPvc := s.createLegacyPair(rd, component, vm, "aaaab", now.Add(-2*time.Hour))
 
-	tests := map[string]struct {
-		hint         func(oldest, newest *corev1.PersistentVolumeClaim) []corev1.Volume
-		expectNewest bool
-	}{
-		"hint is preferred":                {hint: func(_, newest *corev1.PersistentVolumeClaim) []corev1.Volume { return hintFor(newest.Name) }, expectNewest: true},
-		"oldest is selected without hint":  {hint: func(_, _ *corev1.PersistentVolumeClaim) []corev1.Volume { return nil }},
-		"hint that does not match ignored": {hint: func(_, _ *corev1.PersistentVolumeClaim) []corev1.Volume { return hintFor("pvc-unknown") }},
-	}
-	for name, test := range tests {
-		s.Run(name, func() {
-			_, newestPvc := s.createLegacyPair(rd, component, vm, "bbbbb", now.Add(-1*time.Hour))
-			_, oldestPvc := s.createLegacyPair(rd, component, vm, "aaaab", now.Add(-2*time.Hour))
-			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, test.hint(oldestPvc, newestPvc))
-			s.Require().NoError(err)
-			expected := oldestPvc.Name
-			if test.expectNewest {
-				expected = newestPvc.Name
-			}
-			s.Equal(expected, claimNameOf(volumes, volumeName))
-			pvNames, pvcNames := s.listPvAndPvcNames()
-			s.Len(pvNames, 2)
-			s.Len(pvcNames, 2)
-		})
-	}
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	s.Require().NoError(err)
+	s.Equal(oldestPvc.Name, claimNameOf(volumes, volumeName))
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_HashNamedPairIsPreferredOverOlderLegacyPair() {
-	vm := blobFuse2VolumeMount("vol", "container")
-	rd, component := newEnsureTestRd(vm)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
-	s.Require().NoError(err)
-	s.Require().NoError(createDesiredVolumeResources(context.Background(), s.kubeClient, desired))
-	_, _ = s.createLegacyPair(rd, component, vm, "aaaaa", time.Now().Add(-24*time.Hour))
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
-	s.Require().NoError(err)
-
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
-	s.Require().NoError(err)
-	s.Equal(desired.pvc.Name, claimNameOf(volumes, volumeName))
-}
-
-func (s *ensureComponentVolumesTestSuite) Test_ChangedSpecCreatesNewHashNamedPair() {
+func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 	tests := map[string]func(*radixv1.RadixBlobFuse2VolumeMount){
 		"requestsStorage": func(b *radixv1.RadixBlobFuse2VolumeMount) { b.RequestsStorage = resource.MustParse("10Gi") },
 		"accessMode":      func(b *radixv1.RadixBlobFuse2VolumeMount) { b.AccessMode = "ReadWriteMany" },
@@ -237,36 +227,40 @@ func (s *ensureComponentVolumesTestSuite) Test_ChangedSpecCreatesNewHashNamedPai
 		s.Run(name, func() {
 			initialVm := blobFuse2VolumeMount("vol", "container")
 			rd, component := newEnsureTestRd(initialVm)
-			_, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", time.Now())
+			legacyPv, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", time.Now())
 
 			changedVm := blobFuse2VolumeMount("vol", "container", modify)
 			changedRd, changedComponent := newEnsureTestRd(changedVm)
 			changedVolumeName, err := GetVolumeMountVolumeName(&changedVm, changedComponent.GetName())
 			s.Require().NoError(err)
-			hint := []corev1.Volume{{Name: changedVolumeName, VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: legacyPvc.Name}}}}
 
-			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent, hint)
+			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent)
 			s.Require().NoError(err)
 
-			desired, err := buildDesiredVolumeResources(changedRd, changedComponent, changedVm)
-			s.Require().NoError(err)
-			s.Equal(desired.pvc.Name, claimNameOf(volumes, changedVolumeName))
-			s.NotEqual(legacyPvc.Name, desired.pvc.Name)
-
-			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Get(context.Background(), desired.pvc.Name, metav1.GetOptions{})
+			claimName := claimNameOf(volumes, changedVolumeName)
+			s.NotEqual(legacyPvc.Name, claimName)
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Get(context.Background(), claimName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			pv, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
-			s.Equal(desired.pv.Name, pv.Name)
-			s.True(matchesDesired(pv, pvc, desired.pv, desired.pvc))
+			desired, err := buildDesiredVolumeResources(ensureTestAppName, changedRd, changedComponent, changedVm)
+			s.Require().NoError(err)
+			s.True(matchesDesired(pv, pvc, desired.pv, desired.pvc), "the new pair must match the changed spec")
+			s.True(s.pvcExists(legacyPvc.Name), "EnsureComponentVolumes must not delete the current PVC")
+			s.True(s.pvExists(legacyPv.Name), "EnsureComponentVolumes must not delete the current PV")
 
-			_, err = s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Get(context.Background(), legacyPvc.Name, metav1.GetOptions{})
-			s.NoError(err, "existing PVC must not be deleted")
+			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent)
+			s.Require().NoError(err)
+			s.Equal(claimName, claimNameOf(volumes, changedVolumeName), "the new pair must be reused")
+			s.False(s.pvcExists(legacyPvc.Name), "ReconcileComponentVolumes must delete the PVC that does not match")
+			s.False(s.pvExists(legacyPv.Name), "ReconcileComponentVolumes must delete the PV that does not match")
+			s.True(s.pvcExists(pvc.Name))
+			s.True(s.pvExists(pv.Name))
 		})
 	}
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_SettingThatDoesNotChangeSpecReusesPair() {
+func (s *reconcileComponentVolumesTestSuite) Test_SettingThatDoesNotChangeSpecReusesPair() {
 	initialVm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(initialVm)
 	_, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", time.Now())
@@ -280,97 +274,56 @@ func (s *ensureComponentVolumesTestSuite) Test_SettingThatDoesNotChangeSpecReuse
 	volumeName, err := GetVolumeMountVolumeName(&changedVm, changedComponent.GetName())
 	s.Require().NoError(err)
 
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent, nil)
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent)
 	s.Require().NoError(err)
 	s.Equal(legacyPvc.Name, claimNameOf(volumes, volumeName))
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_RepeatedCallsCreateExactlyOnePair() {
+func (s *reconcileComponentVolumesTestSuite) Test_RepeatedCallsCreateExactlyOnePair() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
-	s.Require().NoError(err)
 
-	// Simulates two controllers that both found no matching pair
-	s.Require().NoError(createDesiredVolumeResources(context.Background(), s.kubeClient, desired))
-	s.Require().NoError(createDesiredVolumeResources(context.Background(), s.kubeClient, desired))
-
-	volumes1, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
+	volumes1, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 	s.Require().NoError(err)
-	volumes2, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
+	volumes2, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	s.Require().NoError(err)
+	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 	s.Require().NoError(err)
 	s.Equal(volumes1, volumes2)
+	s.Equal(volumes1, volumes3)
 
 	pvNames, pvcNames := s.listPvAndPvcNames()
-	s.Equal([]string{desired.pv.Name}, pvNames)
-	s.Equal([]string{desired.pvc.Name}, pvcNames)
+	s.Len(pvNames, 1)
+	s.Len(pvcNames, 1)
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_ReleasedHashNamedPvIsReboundToRecreatedPvc() {
+func (s *reconcileComponentVolumesTestSuite) Test_PairWithStaleClaimRefIsReplaced() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
+	// The PV is still Bound to a deleted PVC with the same name, so the recreated PVC never binds to it
+	stalePv, stalePvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
+	stalePv.Spec.ClaimRef.UID = "deleted-pvc-uid"
+	_, err := s.kubeClient.CoreV1().PersistentVolumes().Update(context.Background(), stalePv, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	releasedPv := desired.pv.DeepCopy()
-	releasedPv.Spec.ClaimRef.UID = "old-pvc-uid"
-	releasedPv.Spec.ClaimRef.ResourceVersion = "42"
-	releasedPv.Status.Phase = corev1.VolumeReleased
-	_, err = s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), releasedPv, metav1.CreateOptions{})
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 	s.Require().NoError(err)
 
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
-	s.Require().NoError(err)
 	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
-	s.Equal(desired.pvc.Name, claimNameOf(volumes, volumeName))
-
-	pv, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), desired.pv.Name, metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Empty(pv.Spec.ClaimRef.UID)
-	s.Empty(pv.Spec.ClaimRef.ResourceVersion)
-	s.Equal(desired.pvc.Name, pv.Spec.ClaimRef.Name)
-	s.Equal(desired.pv.Spec.MountOptions, pv.Spec.MountOptions, "PV spec must not be changed")
-	_, err = s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Get(context.Background(), desired.pvc.Name, metav1.GetOptions{})
-	s.NoError(err)
+	claimName := claimNameOf(volumes, volumeName)
+	s.NotEqual(stalePvc.Name, claimName)
+	s.True(s.pvcExists(claimName))
+	s.False(s.pvcExists(stalePvc.Name))
+	s.False(s.pvExists(stalePv.Name))
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_StaleClaimRefOfMatchingPairIsCleared() {
-	vm := blobFuse2VolumeMount("vol", "container")
-	rd, component := newEnsureTestRd(vm)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
-	s.Require().NoError(err)
-
-	// The PV is still Bound to a deleted PVC with the same name, and the PVC has been recreated
-	staleBoundPv := desired.pv.DeepCopy()
-	staleBoundPv.Spec.ClaimRef.UID = "deleted-pvc-uid"
-	staleBoundPv.Spec.ClaimRef.ResourceVersion = "42"
-	staleBoundPv.Status.Phase = corev1.VolumeBound
-	_, err = s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), staleBoundPv, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	recreatedPvc := desired.pvc.DeepCopy()
-	recreatedPvc.SetUID("recreated-pvc-uid")
-	recreatedPvc.Status.Phase = corev1.ClaimPending
-	_, err = s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Create(context.Background(), recreatedPvc, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
-	s.Require().NoError(err)
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
-	s.Require().NoError(err)
-	s.Equal(desired.pvc.Name, claimNameOf(volumes, volumeName))
-	pv, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), desired.pv.Name, metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Empty(pv.Spec.ClaimRef.UID)
-	s.Empty(pv.Spec.ClaimRef.ResourceVersion)
-}
-
-func (s *ensureComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated() {
+func (s *reconcileComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
 	legacyPv, _ := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 
-	_, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
+	_, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 	s.Require().NoError(err)
 	pv, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), legacyPv.Name, metav1.GetOptions{})
 	s.Require().NoError(err)
@@ -378,76 +331,7 @@ func (s *ensureComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated() 
 	s.Equal(legacyPv.ResourceVersion, pv.ResourceVersion, "PV must not be updated")
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_ConflictingExistingHashNamedResourcesReturnError() {
-	tests := map[string]struct {
-		modifyPv      func(pv *corev1.PersistentVolume)
-		modifyPvc     func(pvc *corev1.PersistentVolumeClaim)
-		createPvc     bool
-		expectedError string
-	}{
-		"PV with changed mount options": {
-			modifyPv:      func(pv *corev1.PersistentVolume) { pv.Spec.MountOptions = append(pv.Spec.MountOptions, "-o gid=1000") },
-			expectedError: "does not match the desired spec",
-		},
-		"PV being deleted": {
-			modifyPv: func(pv *corev1.PersistentVolume) {
-				pv.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-				pv.Finalizers = []string{"kubernetes.io/pv-protection"}
-			},
-			expectedError: "is being deleted",
-		},
-		"PV bound to another claim": {
-			modifyPv:      func(pv *corev1.PersistentVolume) { pv.Spec.ClaimRef.Name = "other-pvc" },
-			expectedError: "does not refer to PersistentVolumeClaim",
-		},
-		"PVC is Lost": {
-			createPvc:     true,
-			modifyPvc:     func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimLost },
-			expectedError: "is Lost",
-		},
-		"PVC bound to another volume": {
-			createPvc:     true,
-			modifyPvc:     func(pvc *corev1.PersistentVolumeClaim) { pvc.Spec.VolumeName = "other-pv" },
-			expectedError: "is not bound to PersistentVolume",
-		},
-		"PVC with changed storage request": {
-			createPvc: true,
-			modifyPvc: func(pvc *corev1.PersistentVolumeClaim) {
-				pvc.Spec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("2Mi")
-			},
-			expectedError: "does not match the desired spec",
-		},
-	}
-	for name, test := range tests {
-		s.Run(name, func() {
-			vm := blobFuse2VolumeMount("vol", "container")
-			rd, component := newEnsureTestRd(vm)
-			desired, err := buildDesiredVolumeResources(rd, component, vm)
-			s.Require().NoError(err)
-			pv := desired.pv.DeepCopy()
-			if test.modifyPv != nil {
-				test.modifyPv(pv)
-			}
-			_, err = s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), pv, metav1.CreateOptions{})
-			s.Require().NoError(err)
-			if test.createPvc {
-				pvc := desired.pvc.DeepCopy()
-				pvc.Status.Phase = corev1.ClaimBound
-				if test.modifyPvc != nil {
-					test.modifyPvc(pvc)
-				}
-				_, err = s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Create(context.Background(), pvc, metav1.CreateOptions{})
-				s.Require().NoError(err)
-			}
-
-			_, _, err = EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
-			s.Require().Error(err)
-			s.Contains(err.Error(), test.expectedError)
-		})
-	}
-}
-
-func (s *ensureComponentVolumesTestSuite) Test_PvcBeingDeletedIsNotReused() {
+func (s *reconcileComponentVolumesTestSuite) Test_PvcBeingDeletedIsNotReused() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
 	_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
@@ -455,16 +339,16 @@ func (s *ensureComponentVolumesTestSuite) Test_PvcBeingDeletedIsNotReused() {
 	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Update(context.Background(), legacyPvc, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
-	s.Require().NoError(err)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 	s.Require().NoError(err)
 	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
-	s.Equal(desired.pvc.Name, claimNameOf(volumes, volumeName))
+	claimName := claimNameOf(volumes, volumeName)
+	s.NotEqual(legacyPvc.Name, claimName)
+	s.True(s.pvcExists(claimName))
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_VolumesAndMountsAreConsistentAndOrdered() {
+func (s *reconcileComponentVolumesTestSuite) Test_VolumesAndMountsAreConsistentAndOrdered() {
 	vms := []radixv1.RadixVolumeMount{
 		blobFuse2VolumeMount("vol1", "container1"),
 		{Name: "empty", Path: "/mnt/empty", EmptyDir: &radixv1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("1Mi")}},
@@ -472,7 +356,7 @@ func (s *ensureComponentVolumesTestSuite) Test_VolumesAndMountsAreConsistentAndO
 	}
 	rd, component := newEnsureTestRd(vms...)
 
-	volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component, nil)
+	volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
 	s.Require().NoError(err)
 	s.Require().Len(volumes, 3)
 	s.Require().Len(volumeMounts, 3)
@@ -489,7 +373,7 @@ func (s *ensureComponentVolumesTestSuite) Test_VolumesAndMountsAreConsistentAndO
 	s.NotEqual(volumes[0].PersistentVolumeClaim.ClaimName, volumes[2].PersistentVolumeClaim.ClaimName)
 }
 
-func (s *ensureComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenComponentsOrVolumeMounts() {
+func (s *reconcileComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenComponentsOrVolumeMounts() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	otherVm := blobFuse2VolumeMount("othervol", "container")
 	tests := map[string]struct {
@@ -506,7 +390,7 @@ func (s *ensureComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenComponent
 
 			otherRd, otherComponent := newEnsureTestRd(test.vm)
 			otherComponent.Name = test.componentName
-			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, otherRd, otherComponent, nil)
+			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, otherRd, otherComponent)
 			s.Require().NoError(err)
 			volumeName, err := GetVolumeMountVolumeName(&test.vm, otherComponent.GetName())
 			s.Require().NoError(err)
@@ -517,84 +401,134 @@ func (s *ensureComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenComponent
 	}
 }
 
-func Test_HashIsDeterministic(t *testing.T) {
-	vm := blobFuse2VolumeMount("vol", "container", func(b *radixv1.RadixBlobFuse2VolumeMount) {
-		b.GID = "1000"
-		b.BlockCacheOptions = &radixv1.BlobFuse2BlockCacheOptions{DiskSize: new(uint32(100))}
-	})
+func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsSelectedPairAndDeletesAllOtherPairsOfComponent() {
+	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	first, err := buildDesiredVolumeResources(rd, component, vm)
-	if err != nil {
-		t.Fatal(err)
+	now := time.Now()
+	keptPv, keptPvc := s.createLegacyPair(rd, component, vm, "aaaaa", now.Add(-2*time.Hour))
+	duplicatePv, duplicatePvc := s.createLegacyPair(rd, component, vm, "bbbbb", now.Add(-1*time.Hour))
+	oldSpecVm := blobFuse2VolumeMount("vol", "oldcontainer")
+	oldSpecPv, oldSpecPvc := s.createLegacyPair(rd, component, oldSpecVm, "ccccc", now)
+	removedVm := blobFuse2VolumeMount("removed", "container")
+	removedPv, removedPvc := s.createLegacyPair(rd, component, removedVm, "ddddd", now)
+	otherRd, otherComponent := newEnsureTestRd(vm)
+	otherComponent.Name = "othercomp"
+	otherPv, otherPvc := s.createLegacyPair(otherRd, otherComponent, vm, "eeeee", now)
+	releasedPv := keptPv.DeepCopy()
+	releasedPv.ObjectMeta = metav1.ObjectMeta{Name: "pv-released", Labels: keptPv.Labels}
+	releasedPv.Spec.ClaimRef.Name = "deleted-pvc"
+	releasedPv.Status.Phase = corev1.VolumeReleased
+	_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), releasedPv, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	s.Require().NoError(err)
+
+	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+	s.Require().NoError(err)
+	s.Equal(keptPvc.Name, claimNameOf(volumes, volumeName), "the oldest matching pair must be reused")
+	s.True(s.pvcExists(keptPvc.Name))
+	s.True(s.pvExists(keptPv.Name))
+	for _, deleted := range []struct{ pv, pvc string }{{duplicatePv.Name, duplicatePvc.Name}, {oldSpecPv.Name, oldSpecPvc.Name}, {removedPv.Name, removedPvc.Name}} {
+		s.False(s.pvcExists(deleted.pvc), "PVC %s must be deleted", deleted.pvc)
+		s.False(s.pvExists(deleted.pv), "PV %s must be deleted", deleted.pv)
 	}
-	for range 20 {
-		next, err := buildDesiredVolumeResources(rd, component, vm)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if first.pv.Name != next.pv.Name || first.pvc.Name != next.pvc.Name || first.pv.Spec.CSI.VolumeHandle != next.pv.Spec.CSI.VolumeHandle {
-			t.Fatalf("names differ: %s/%s vs %s/%s", first.pv.Name, first.pvc.Name, next.pv.Name, next.pvc.Name)
-		}
+	s.False(s.pvExists(releasedPv.Name), "a released PV of the component must be deleted")
+	s.True(s.pvcExists(otherPvc.Name), "the PVC of another component must not be deleted")
+	s.True(s.pvExists(otherPv.Name), "the PV of another component must not be deleted")
+}
+
+func (s *reconcileComponentVolumesTestSuite) Test_ReconcileDeletesNothingWhenEnsureFails() {
+	oldSpecVm := blobFuse2VolumeMount("vol", "oldcontainer")
+	rd, component := newEnsureTestRd(oldSpecVm)
+	oldSpecPv, oldSpecPvc := s.createLegacyPair(rd, component, oldSpecVm, "abcde", time.Now())
+	component.VolumeMounts = []radixv1.RadixVolumeMount{blobFuse2VolumeMount("vol", "newcontainer")}
+	s.kubeClient.(*fake.Clientset).PrependReactor("create", "persistentvolumeclaims", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("any create error")
+	})
+
+	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	s.Require().Error(err)
+	s.True(s.pvcExists(oldSpecPvc.Name))
+	s.True(s.pvExists(oldSpecPv.Name))
+}
+
+func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerInSpec() {
+	vm := blobFuse2VolumeMount("vol", "container")
+	rd, component := newEnsureTestRd(vm)
+	rd.Spec.Jobs = []radixv1.RadixDeployJobComponent{{Name: "anyjob", VolumeMounts: []radixv1.RadixVolumeMount{vm}}}
+	componentPv, componentPvc := s.createLegacyPair(rd, component, vm, "aaaaa", time.Now())
+	jobPv, jobPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], vm, "bbbbb", time.Now())
+	removedComponent := &radixv1.RadixDeployComponent{Name: "removedcomp", VolumeMounts: []radixv1.RadixVolumeMount{vm}}
+	removedPv, removedPvc := s.createLegacyPair(rd, removedComponent, vm, "ccccc", time.Now())
+	removedReleasedPv := removedPv.DeepCopy()
+	removedReleasedPv.ObjectMeta = metav1.ObjectMeta{Name: "pv-removed-released", Labels: removedPv.Labels}
+	removedReleasedPv.Status.Phase = corev1.VolumeReleased
+	_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), removedReleasedPv, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	untouchedPvcs := []*corev1.PersistentVolumeClaim{
+		{ObjectMeta: metav1.ObjectMeta{Name: "no-labels", Namespace: ensureTestNamespace}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "other-app", Namespace: ensureTestNamespace, Labels: map[string]string{kube.RadixAppLabel: "otherapp", kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "no-volume-mount-label", Namespace: ensureTestNamespace, Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixComponentLabel: "removedcomp"}}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "other-namespace", Namespace: "other-ns", Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
+	}
+	for _, pvc := range untouchedPvcs {
+		_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.Background(), pvc, metav1.CreateOptions{})
+		s.Require().NoError(err)
+	}
+	untouchedPvs := []*corev1.PersistentVolume{
+		{ObjectMeta: metav1.ObjectMeta{Name: "pv-no-labels"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "pv-other-namespace", Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixNamespace: "other-ns", kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "pv-other-app", Labels: map[string]string{kube.RadixAppLabel: "otherapp", kube.RadixNamespace: ensureTestNamespace, kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
+	}
+	for _, pv := range untouchedPvs {
+		_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), pv, metav1.CreateOptions{})
+		s.Require().NoError(err)
 	}
 
-	hash1, err := hashDesiredVolumeResources(ensureTestNamespace, first.pv, first.pvc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	shuffledPv := first.pv.DeepCopy()
-	slices.Reverse(shuffledPv.Spec.MountOptions)
-	shuffledPv.Spec.CSI.VolumeHandle = "any-other-handle"
-	shuffledPv.Spec.ClaimRef.Name = "any-other-name"
-	shuffledPv.Spec.ClaimRef.UID = "any-uid"
-	shuffledPv.Labels = maps.Clone(first.pv.Labels)
-	shuffledPvc := first.pvc.DeepCopy()
-	shuffledPvc.Spec.VolumeName = "any-other-pv"
-	hash2, err := hashDesiredVolumeResources(ensureTestNamespace, shuffledPv, shuffledPvc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if hash1 != hash2 {
-		t.Fatalf("hash differs: %s vs %s", hash1, hash2)
-	}
+	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, rd))
 
-	hash3, err := hashDesiredVolumeResources("othernamespace", first.pv, first.pvc)
-	if err != nil {
-		t.Fatal(err)
+	s.True(s.pvcExists(componentPvc.Name))
+	s.True(s.pvExists(componentPv.Name))
+	s.True(s.pvcExists(jobPvc.Name))
+	s.True(s.pvExists(jobPv.Name))
+	s.False(s.pvcExists(removedPvc.Name))
+	s.False(s.pvExists(removedPv.Name))
+	s.False(s.pvExists(removedReleasedPv.Name))
+	for _, pvc := range untouchedPvcs {
+		_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Get(context.Background(), pvc.Name, metav1.GetOptions{})
+		s.NoError(err, "PVC %s/%s must not be deleted", pvc.Namespace, pvc.Name)
 	}
-	if hash1 == hash3 {
-		t.Fatal("hash must include namespace")
+	for _, pv := range untouchedPvs {
+		s.True(s.pvExists(pv.Name), "PV %s must not be deleted", pv.Name)
 	}
 }
 
-func Test_DesiredNamesAndVolumeHandleUseHash(t *testing.T) {
+func Test_DesiredNamesAndVolumeHandle(t *testing.T) {
 	vm := blobFuse2VolumeMount("vol", "container", func(b *radixv1.RadixBlobFuse2VolumeMount) {
 		b.BlockCacheOptions = &radixv1.BlobFuse2BlockCacheOptions{DiskSize: new(uint32(100))}
 	})
 	rd, component := newEnsureTestRd(vm)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
-	if err != nil {
-		t.Fatal(err)
-	}
-	hash, err := hashDesiredVolumeResources(ensureTestNamespace, desired.pv, desired.pvc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expectedHandle := fmt.Sprintf("radixvolumemount#%s#%s#%s#%s#%s", ensureTestAppName, ensureTestEnvName, ensureTestComponentName, "vol", hash[:20])
-	checks := map[string][2]string{
-		"pv name":       {"pv-radixvolumemount-" + hash[:20], desired.pv.Name},
-		"pvc name":      {"pvc-csi-blobfuse2-fuse2-anycomp-vol-container-" + hash[:10], desired.pvc.Name},
-		"volume handle": {expectedHandle, desired.pv.Spec.CSI.VolumeHandle},
-		"claimRef":      {desired.pvc.Name, desired.pv.Spec.ClaimRef.Name},
-		"volumeName":    {desired.pv.Name, desired.pvc.Spec.VolumeName},
-	}
-	for name, c := range checks {
-		if c[0] != c[1] {
-			t.Errorf("%s: expected %s, got %s", name, c[0], c[1])
-		}
-	}
-	if !slices.Contains(desired.pv.Spec.MountOptions, fmt.Sprintf("--block-cache-path=/mnt/%s#blockcache", expectedHandle)) {
-		t.Errorf("block cache path must be derived from the volume handle: %v", desired.pv.Spec.MountOptions)
-	}
+	desired, err := buildDesiredVolumeResources(ensureTestAppName, rd, component, vm)
+	require.NoError(t, err)
+
+	uniquePart, found := strings.CutPrefix(desired.pv.Name, "pv-"+ensureTestAppName+"-")
+	require.True(t, found, "PV name %s must start with pv-<appname>-", desired.pv.Name)
+	_, err = ulid.ParseStrict(strings.ToUpper(uniquePart))
+	require.NoError(t, err, "the unique part of the PV name must be a ULID")
+	assert.Equal(t, strings.ToLower(uniquePart), uniquePart, "names must be lower case")
+	expectedHandle := fmt.Sprintf("radixvolumemount#%s#%s#%s#%s#%s", ensureTestAppName, ensureTestEnvName, ensureTestComponentName, "vol", uniquePart)
+	assert.Equal(t, fmt.Sprintf("pvc-%s-%s-%s", ensureTestComponentName, "vol", uniquePart), desired.pvc.Name)
+	assert.Equal(t, expectedHandle, desired.pv.Spec.CSI.VolumeHandle)
+	assert.Equal(t, desired.pvc.Name, desired.pv.Spec.ClaimRef.Name)
+	assert.Equal(t, desired.pv.Name, desired.pvc.Spec.VolumeName)
+	assert.Contains(t, desired.pv.Spec.MountOptions, fmt.Sprintf("--block-cache-path=/mnt/%s#blockcache", expectedHandle), "the block cache path must be derived from the volume handle")
+
+	next, err := buildDesiredVolumeResources(ensureTestAppName, rd, component, vm)
+	require.NoError(t, err)
+	assert.NotEqual(t, desired.pv.Name, next.pv.Name, "each build must get new names")
+	assert.True(t, matchesDesired(next.pv, next.pvc, desired.pv, desired.pvc), "builds with new names must have the same spec")
 }
 
 func Test_MatchesDesired(t *testing.T) {
@@ -602,7 +536,7 @@ func Test_MatchesDesired(t *testing.T) {
 		b.BlockCacheOptions = &radixv1.BlobFuse2BlockCacheOptions{DiskSize: new(uint32(100))}
 	})
 	rd, component := newEnsureTestRd(vm)
-	desired, err := buildDesiredVolumeResources(rd, component, vm)
+	desired, err := buildDesiredVolumeResources(ensureTestAppName, rd, component, vm)
 	if err != nil {
 		t.Fatal(err)
 	}

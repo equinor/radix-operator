@@ -41,11 +41,39 @@ import (
 )
 
 // RadixDeploymentInformer provides access to a shared informer and lister for
-// RadixDeployments.
+// RadixDeployments. Prefer using the type-safe variant (see [TypedRadixDeploymentInformer]).
 type RadixDeploymentInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixDeploymentLister
 }
+
+// TypedRadixDeploymentInformer provides access to a shared informer and lister for
+// RadixDeployments, including the type-safe TypedInformer variant.
+// It is a superset of RadixDeploymentInformer.
+type TypedRadixDeploymentInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixDeploymentIndexInformer
+	Lister() radixv1.RadixDeploymentLister
+}
+
+// RadixDeploymentIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixDeploymentIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixDeployment]
+
+// RadixDeploymentHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixDeployment.
+type RadixDeploymentHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixDeployment]
+
+// RadixDeploymentDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixDeployment.
+type RadixDeploymentDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixDeployment]
+
+// RadixDeploymentFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixDeployment.
+type RadixDeploymentFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixDeployment]
+
+// RadixDeploymentIndexers is a specialization of [cache.TypedIndexers] for RadixDeployment.
+type RadixDeploymentIndexers = cache.TypedIndexers[*apisradixv1.RadixDeployment]
+
+// DeletedRadixDeployment is a specialization of [cache.DeletedObject] for RadixDeployment.
+type DeletedRadixDeployment = cache.DeletedObject[*apisradixv1.RadixDeployment]
 
 type radixDeploymentInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -56,25 +84,49 @@ type radixDeploymentInformer struct {
 // NewRadixDeploymentInformer constructs a new informer for RadixDeployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixDeploymentInformer]).
 func NewRadixDeploymentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixDeploymentInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixDeploymentInformer constructs a new informer for RadixDeployment type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixDeploymentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixDeploymentIndexers) RadixDeploymentIndexInformer {
+	return NewTypedRadixDeploymentInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixDeploymentInformer constructs a new informer for RadixDeployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixDeploymentInformer]).
 func NewFilteredRadixDeploymentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixDeploymentInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixDeploymentInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixDeploymentInformer constructs a new informer for RadixDeployment type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixDeploymentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixDeploymentIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixDeploymentIndexInformer {
+	return NewTypedRadixDeploymentInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixDeploymentInformerWithOptions constructs a new informer for RadixDeployment type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixDeploymentInformerWithOptions]).
 func NewRadixDeploymentInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixDeploymentInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedRadixDeploymentInformerWithOptions constructs a new informer for RadixDeployment type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixDeploymentInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) RadixDeploymentIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixdeployments"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDeployment](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -107,17 +159,57 @@ func NewRadixDeploymentInformerWithOptions(client versioned.Interface, namespace
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixDeploymentInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixDeploymentInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixDeploymentInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixDeploymentInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixDeployment{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixDeploymentInformer) TypedInformer() RadixDeploymentIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDeployment](f.factory.InformerFor(&apisradixv1.RadixDeployment{}, f.defaultInformer))
 }
 
 func (f *radixDeploymentInformer) Lister() radixv1.RadixDeploymentLister {
 	return radixv1.NewRadixDeploymentLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixDeploymentInformer converts an untyped informer into a TypedRadixDeploymentInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixDeployment. If that is not the case, calling type-safe methods of the returned
+// TypedRadixDeploymentInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixDeploymentInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixDeploymentInformer(informer RadixDeploymentInformer) TypedRadixDeploymentInformer {
+	if informer, ok := informer.(TypedRadixDeploymentInformer); ok {
+		return informer
+	}
+	return &radixDeploymentTypedInformerAdapter{informer}
+}
+
+type radixDeploymentTypedInformerAdapter struct {
+	RadixDeploymentInformer
+}
+
+func (a *radixDeploymentTypedInformerAdapter) TypedInformer() RadixDeploymentIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDeployment](a.Informer())
+}
+
+// ToRadixDeploymentIndexInformer converts an untyped informer into a RadixDeploymentIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixDeployment. If that is not the case, calling type-safe methods of the returned
+// RadixDeploymentIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixDeploymentIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixDeploymentIndexInformer(informer cache.SharedIndexInformer) RadixDeploymentIndexInformer {
+	if informer, ok := informer.(RadixDeploymentIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixDeployment](informer)
 }

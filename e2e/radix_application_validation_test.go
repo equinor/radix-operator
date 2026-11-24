@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -491,6 +492,57 @@ func TestRadixApplicationComponentNameValidation(t *testing.T) {
 
 			if tc.shouldError {
 				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestRadixApplicationVolumeMountNameValidation tests RadixVolumeMount.Name validation (MinLength=1, MaxLength=40, Pattern).
+// The name is part of the names of the Pod volume and the PersistentVolumeClaim, which must be valid Kubernetes names.
+func TestRadixApplicationVolumeMountNameValidation(t *testing.T) {
+	t.Parallel()
+	c := getClient(t)
+	appName := "test-volume-mount-name"
+	appNamespace := createRadixRegistrationAndNamespaceForTest(t, c, appName)
+
+	testCases := []struct {
+		name            string
+		volumeMountName string
+		shouldError     bool
+	}{
+		{name: "valid - lowercase alphanumeric with dash", volumeMountName: "blob-storage1"},
+		{name: "valid - max length (40 chars)", volumeMountName: "a234567890123456789012345678901234567890"},
+		{name: "invalid - exceeds max length (41 chars)", volumeMountName: "a2345678901234567890123456789012345678901", shouldError: true},
+		{name: "invalid - uppercase", volumeMountName: "Blob", shouldError: true},
+		{name: "invalid - underscore", volumeMountName: "blob_storage", shouldError: true},
+		{name: "invalid - ends with dash", volumeMountName: "blob-", shouldError: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ra := &v1.RadixApplication{
+				Name:      appName,
+				Namespace: appNamespace,
+				Spec: v1.RadixApplicationSpec{
+					Environments: []v1.Environment{{Name: "dev"}},
+					Components: []v1.RadixComponent{{
+						Name: "web",
+						VolumeMounts: []v1.RadixVolumeMount{{
+							Name:     tc.volumeMountName,
+							Path:     "/mnt/data",
+							EmptyDir: &v1.RadixEmptyDirVolumeMount{SizeLimit: resource.MustParse("1M")},
+						}},
+					}},
+				},
+			}
+
+			err := c.Create(t.Context(), ra, client.DryRunAll)
+
+			if tc.shouldError {
+				assert.ErrorContains(t, err, "volumeMounts[0].name")
 			} else {
 				assert.NoError(t, err)
 			}

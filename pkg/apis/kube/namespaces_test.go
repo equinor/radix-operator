@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -40,22 +41,38 @@ func TestGetAppNameFromNamespace(t *testing.T) {
 		},
 	}
 
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
+	getAppNameFuncs := map[string]func(namespace *corev1.Namespace, name string) (string, error){
+		"controller-runtime client": func(namespace *corev1.Namespace, name string) (string, error) {
 			var objects []client.Object
-			if tt.namespace != nil {
-				objects = append(objects, tt.namespace)
+			if namespace != nil {
+				objects = append(objects, namespace)
 			}
 			reader := fake.NewClientBuilder().WithScheme(scheme.NewScheme()).WithObjects(objects...).Build()
-
-			appName, err := kube.GetAppNameFromNamespace(context.Background(), tt.name, reader)
-			if tt.wantError != "" {
-				assert.ErrorContains(t, err, tt.wantError)
-				assert.Empty(t, appName)
-				return
+			return kube.GetAppNameFromNamespace(context.Background(), name, reader)
+		},
+		"kube client": func(namespace *corev1.Namespace, name string) (string, error) {
+			kubeClient := kubefake.NewClientset()
+			if namespace != nil {
+				if _, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{}); err != nil {
+					return "", err
+				}
 			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantName, appName)
-		})
+			return kube.GetAppNameFromNamespaceWithKubeClient(context.Background(), name, kubeClient)
+		},
+	}
+
+	for funcName, getAppName := range getAppNameFuncs {
+		for name, tt := range tests {
+			t.Run(funcName+"/"+name, func(t *testing.T) {
+				appName, err := getAppName(tt.namespace, tt.name)
+				if tt.wantError != "" {
+					assert.ErrorContains(t, err, tt.wantError)
+					assert.Empty(t, appName)
+					return
+				}
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantName, appName)
+			})
+		}
 	}
 }

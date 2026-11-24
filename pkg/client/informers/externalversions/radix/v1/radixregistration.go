@@ -41,11 +41,39 @@ import (
 )
 
 // RadixRegistrationInformer provides access to a shared informer and lister for
-// RadixRegistrations.
+// RadixRegistrations. Prefer using the type-safe variant (see [TypedRadixRegistrationInformer]).
 type RadixRegistrationInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixRegistrationLister
 }
+
+// TypedRadixRegistrationInformer provides access to a shared informer and lister for
+// RadixRegistrations, including the type-safe TypedInformer variant.
+// It is a superset of RadixRegistrationInformer.
+type TypedRadixRegistrationInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixRegistrationIndexInformer
+	Lister() radixv1.RadixRegistrationLister
+}
+
+// RadixRegistrationIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixRegistrationIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixRegistration]
+
+// RadixRegistrationHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixRegistration.
+type RadixRegistrationHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixRegistration]
+
+// RadixRegistrationDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixRegistration.
+type RadixRegistrationDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixRegistration]
+
+// RadixRegistrationFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixRegistration.
+type RadixRegistrationFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixRegistration]
+
+// RadixRegistrationIndexers is a specialization of [cache.TypedIndexers] for RadixRegistration.
+type RadixRegistrationIndexers = cache.TypedIndexers[*apisradixv1.RadixRegistration]
+
+// DeletedRadixRegistration is a specialization of [cache.DeletedObject] for RadixRegistration.
+type DeletedRadixRegistration = cache.DeletedObject[*apisradixv1.RadixRegistration]
 
 type radixRegistrationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -55,25 +83,49 @@ type radixRegistrationInformer struct {
 // NewRadixRegistrationInformer constructs a new informer for RadixRegistration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixRegistrationInformer]).
 func NewRadixRegistrationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixRegistrationInformer constructs a new informer for RadixRegistration type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixRegistrationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RadixRegistrationIndexers) RadixRegistrationIndexInformer {
+	return NewTypedRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixRegistrationInformer constructs a new informer for RadixRegistration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixRegistrationInformer]).
 func NewFilteredRadixRegistrationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixRegistrationInformer constructs a new informer for RadixRegistration type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixRegistrationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RadixRegistrationIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixRegistrationIndexInformer {
+	return NewTypedRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixRegistrationInformerWithOptions constructs a new informer for RadixRegistration type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixRegistrationInformerWithOptions]).
 func NewRadixRegistrationInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixRegistrationInformerWithOptions(client, options)
+}
+
+// NewTypedRadixRegistrationInformerWithOptions constructs a new informer for RadixRegistration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixRegistrationInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) RadixRegistrationIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixregistrations"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixRegistration](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -106,17 +158,57 @@ func NewRadixRegistrationInformerWithOptions(client versioned.Interface, options
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixRegistrationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixRegistrationInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixRegistrationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixRegistration{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixRegistrationInformer) TypedInformer() RadixRegistrationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixRegistration](f.factory.InformerFor(&apisradixv1.RadixRegistration{}, f.defaultInformer))
 }
 
 func (f *radixRegistrationInformer) Lister() radixv1.RadixRegistrationLister {
 	return radixv1.NewRadixRegistrationLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixRegistrationInformer converts an untyped informer into a TypedRadixRegistrationInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixRegistration. If that is not the case, calling type-safe methods of the returned
+// TypedRadixRegistrationInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixRegistrationInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixRegistrationInformer(informer RadixRegistrationInformer) TypedRadixRegistrationInformer {
+	if informer, ok := informer.(TypedRadixRegistrationInformer); ok {
+		return informer
+	}
+	return &radixRegistrationTypedInformerAdapter{informer}
+}
+
+type radixRegistrationTypedInformerAdapter struct {
+	RadixRegistrationInformer
+}
+
+func (a *radixRegistrationTypedInformerAdapter) TypedInformer() RadixRegistrationIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixRegistration](a.Informer())
+}
+
+// ToRadixRegistrationIndexInformer converts an untyped informer into a RadixRegistrationIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixRegistration. If that is not the case, calling type-safe methods of the returned
+// RadixRegistrationIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixRegistrationIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixRegistrationIndexInformer(informer cache.SharedIndexInformer) RadixRegistrationIndexInformer {
+	if informer, ok := informer.(RadixRegistrationIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixRegistration](informer)
 }

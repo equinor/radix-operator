@@ -22,18 +22,14 @@ const (
 	defaultBlockCacheParallelism    uint32 = 8
 )
 
-func newBlobfuse2PersistentVolumeBuilder(appName, envName string, deployComponent radixv1.RadixCommonDeployComponent, radixVolumeMount radixv1.RadixVolumeMount) *blobfuse2PersistentVolumeSpecBuilder {
+func newBlobfuse2PersistentVolumeBuilder(deployComponent radixv1.RadixCommonDeployComponent, radixVolumeMount radixv1.RadixVolumeMount) *blobfuse2PersistentVolumeSpecBuilder {
 	return &blobfuse2PersistentVolumeSpecBuilder{
-		appName:          appName,
-		envName:          envName,
 		deployComponent:  deployComponent,
 		radixVolumeMount: radixVolumeMount,
 	}
 }
 
 type blobfuse2PersistentVolumeSpecBuilder struct {
-	appName          string
-	envName          string
 	deployComponent  radixv1.RadixCommonDeployComponent
 	radixVolumeMount radixv1.RadixVolumeMount
 }

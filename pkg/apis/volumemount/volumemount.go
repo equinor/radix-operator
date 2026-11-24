@@ -7,7 +7,6 @@ import (
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	internalDeployment "github.com/equinor/radix-operator/pkg/apis/internal/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
@@ -36,19 +35,6 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 	secretRefsVolumeMounts := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName, radixDeploymentName)
 	volumeMounts = append(volumeMounts, secretRefsVolumeMounts...)
 	return volumeMounts, nil
-}
-
-// GetExistingJobAuxComponentVolumes Get existing job aux component volumes
-func GetExistingJobAuxComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, namespace, jobComponentName string) ([]corev1.Volume, error) {
-	jobAuxKubeDeploymentName := defaults.GetJobAuxKubeDeployName(jobComponentName)
-	jobAuxKubeDeployment, err := kubeUtil.KubeClient().AppsV1().Deployments(namespace).Get(ctx, jobAuxKubeDeploymentName, metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return jobAuxKubeDeployment.Spec.Template.Spec.Volumes, nil
 }
 
 // GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent Garbage collect volume-mount related secrets that are no longer in the spec
@@ -128,10 +114,6 @@ func createOrUpdateVolumeMountSecret(ctx context.Context, kubeUtil *kube.Kube, a
 }
 
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
-	if internalDeployment.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		return nil, nil
-	}
-
 	var volumeMounts []corev1.VolumeMount
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {
 		name, err := GetVolumeMountVolumeName(&volumeMount, deployComponent.GetName())

@@ -32,21 +32,21 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// RadixAlerts returns a RadixAlertInformer.
-	RadixAlerts() RadixAlertInformer
+	RadixAlerts() TypedRadixAlertInformer
 	// RadixApplications returns a RadixApplicationInformer.
-	RadixApplications() RadixApplicationInformer
+	RadixApplications() TypedRadixApplicationInformer
 	// RadixBatches returns a RadixBatchInformer.
-	RadixBatches() RadixBatchInformer
+	RadixBatches() TypedRadixBatchInformer
 	// RadixDNSAliases returns a RadixDNSAliasInformer.
-	RadixDNSAliases() RadixDNSAliasInformer
+	RadixDNSAliases() TypedRadixDNSAliasInformer
 	// RadixDeployments returns a RadixDeploymentInformer.
-	RadixDeployments() RadixDeploymentInformer
+	RadixDeployments() TypedRadixDeploymentInformer
 	// RadixEnvironments returns a RadixEnvironmentInformer.
-	RadixEnvironments() RadixEnvironmentInformer
+	RadixEnvironments() TypedRadixEnvironmentInformer
 	// RadixJobs returns a RadixJobInformer.
-	RadixJobs() RadixJobInformer
+	RadixJobs() TypedRadixJobInformer
 	// RadixRegistrations returns a RadixRegistrationInformer.
-	RadixRegistrations() RadixRegistrationInformer
+	RadixRegistrations() TypedRadixRegistrationInformer
 }
 
 type version struct {
@@ -60,42 +60,42 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// RadixAlerts returns a RadixAlertInformer.
-func (v *version) RadixAlerts() RadixAlertInformer {
+// RadixAlerts returns a TypedRadixAlertInformer.
+func (v *version) RadixAlerts() TypedRadixAlertInformer {
 	return &radixAlertInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixApplications returns a RadixApplicationInformer.
-func (v *version) RadixApplications() RadixApplicationInformer {
+// RadixApplications returns a TypedRadixApplicationInformer.
+func (v *version) RadixApplications() TypedRadixApplicationInformer {
 	return &radixApplicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixBatches returns a RadixBatchInformer.
-func (v *version) RadixBatches() RadixBatchInformer {
+// RadixBatches returns a TypedRadixBatchInformer.
+func (v *version) RadixBatches() TypedRadixBatchInformer {
 	return &radixBatchInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixDNSAliases returns a RadixDNSAliasInformer.
-func (v *version) RadixDNSAliases() RadixDNSAliasInformer {
+// RadixDNSAliases returns a TypedRadixDNSAliasInformer.
+func (v *version) RadixDNSAliases() TypedRadixDNSAliasInformer {
 	return &radixDNSAliasInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixDeployments returns a RadixDeploymentInformer.
-func (v *version) RadixDeployments() RadixDeploymentInformer {
+// RadixDeployments returns a TypedRadixDeploymentInformer.
+func (v *version) RadixDeployments() TypedRadixDeploymentInformer {
 	return &radixDeploymentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixEnvironments returns a RadixEnvironmentInformer.
-func (v *version) RadixEnvironments() RadixEnvironmentInformer {
+// RadixEnvironments returns a TypedRadixEnvironmentInformer.
+func (v *version) RadixEnvironments() TypedRadixEnvironmentInformer {
 	return &radixEnvironmentInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixJobs returns a RadixJobInformer.
-func (v *version) RadixJobs() RadixJobInformer {
+// RadixJobs returns a TypedRadixJobInformer.
+func (v *version) RadixJobs() TypedRadixJobInformer {
 	return &radixJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// RadixRegistrations returns a RadixRegistrationInformer.
-func (v *version) RadixRegistrations() RadixRegistrationInformer {
+// RadixRegistrations returns a TypedRadixRegistrationInformer.
+func (v *version) RadixRegistrations() TypedRadixRegistrationInformer {
 	return &radixRegistrationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

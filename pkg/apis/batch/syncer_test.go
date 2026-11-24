@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -55,8 +56,18 @@ func TestSyncerTestSuite(t *testing.T) {
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, cfg config.Config, options ...SyncerOption) Syncer {
 	defaultRR := utils.ARadixRegistration().BuildRR()
+	// A RadixBatch always lives in an environment namespace of the application
+	s.createNamespace(forJob.GetNamespace(), defaultRR.GetName())
 
 	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, cfg, options...)
+}
+
+// createNamespace creates the namespace with the radix-app label, unless it exists
+func (s *syncerTestSuite) createNamespace(namespace, appName string) {
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}}}
+	if _, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{}); !k8serrors.IsAlreadyExists(err) {
+		s.Require().NoError(err)
+	}
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -1185,6 +1196,7 @@ func (s *syncerTestSuite) Test_JobWithResources() {
 func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
+	s.createNamespace(namespace, appName)
 	batch := &radixv1.RadixBatch{
 		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
@@ -1228,6 +1240,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-app-dev", "any-rd"
 	jobName := "any-job"
+	s.createNamespace(namespace, appName)
 	batch := &radixv1.RadixBatch{
 		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{

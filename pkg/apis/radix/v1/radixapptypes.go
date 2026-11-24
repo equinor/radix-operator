@@ -1182,6 +1182,7 @@ type RadixVolumeMount struct {
 	// Must be unique for the component.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=40
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
 	// Path defines in which directory the external storage is mounted.

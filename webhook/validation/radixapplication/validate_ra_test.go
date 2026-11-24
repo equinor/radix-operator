@@ -1428,7 +1428,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container: "any-container",
@@ -1445,7 +1445,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Protocol:  radixv1.BlobFuse2ProtocolFuse2,
@@ -1463,7 +1463,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Protocol:  "invalid",
@@ -1481,7 +1481,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name:      "some_name",
+						Name:      "some-name",
 						Path:      "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{},
 					},
@@ -1496,7 +1496,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:      "any-container",
@@ -1513,7 +1513,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:      "any-container",
@@ -1530,7 +1530,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:      "any-container",
@@ -1547,7 +1547,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:      "any-container",
@@ -1564,7 +1564,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
@@ -1585,7 +1585,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
@@ -1606,7 +1606,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
@@ -1627,7 +1627,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
@@ -1648,7 +1648,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
 							Container:        "any-container",
@@ -1744,7 +1744,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name: "some_name",
+						Name: "some-name",
 						Path: "some_path",
 						EmptyDir: &radixv1.RadixEmptyDirVolumeMount{
 							SizeLimit: resource.MustParse("50M"),
@@ -1761,7 +1761,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			volumeMounts: func() []radixv1.RadixVolumeMount {
 				volumeMounts := []radixv1.RadixVolumeMount{
 					{
-						Name:     "some_name",
+						Name:     "some-name",
 						Path:     "some_path",
 						EmptyDir: &radixv1.RadixEmptyDirVolumeMount{},
 					},

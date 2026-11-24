@@ -54,8 +54,6 @@ config:
     alertControllerThreads: 21
     kubeClientRateLimitBurst: 500
     kubeClientRateLimitQPS: 500
-    # Short grace period to observe volume garbage collection
-    volumeGarbageCollectionGracePeriod: 5s
     
     jobSchedulerImage:
       tag: "{{IMAGE_TAG}}"

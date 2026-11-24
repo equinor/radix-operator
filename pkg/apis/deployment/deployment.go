@@ -18,6 +18,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -105,14 +106,6 @@ func (deploy *Deployment) OnSync(ctx context.Context) error {
 	return metrics.RequestedResources(deploy.config, deploy.registration, deploy.radixDeployment)
 }
 
-// garbageCollectVolumes deletes PersistentVolumeClaims and PersistentVolumes that are no longer needed.
-func (deploy *Deployment) garbageCollectVolumes(ctx context.Context) error {
-	if err := volumemount.GarbageCollectVolumes(ctx, deploy.kubeutil, deploy.radixDeployment, time.Now(), deploy.config.Operator.VolumeGarbageCollectionGracePeriod); err != nil {
-		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
-	}
-	return nil
-}
-
 func (deploy *Deployment) syncStatus(ctx context.Context, reconcileErr error) error {
 	err := deploy.updateStatus(ctx, func(currStatus *v1.RadixDeployStatus) {
 		currStatus.Reconciled = metav1.Now()
@@ -193,15 +186,14 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 	var errs []error
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		ctx := log.Ctx(ctx).With().Str("component", component.Name).Logger().WithContext(ctx)
-		if err := deploy.syncDeploymentForRadixComponent(ctx, &component); err != nil {
+		if err := deploy.syncComponent(ctx, &component); err != nil {
 			errs = append(errs, fmt.Errorf("failed to sync component %s: %w", component.Name, err))
 		}
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		ctx := log.Ctx(ctx).With().Str("jobComponent", jobComponent.Name).Logger().WithContext(ctx)
-		jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config, &jobComponent, deploy.radixDeployment)
-		if err := deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent); err != nil {
-			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobSchedulerComponent.GetName(), err))
+		if err := deploy.syncJobComponent(ctx, &jobComponent); err != nil {
+			errs = append(errs, fmt.Errorf("failed to sync job %s: %w", jobComponent.Name, err))
 		}
 	}
 	// If any error occurred when syncing of components
@@ -217,8 +209,7 @@ func (deploy *Deployment) syncDeployment(ctx context.Context) error {
 		return fmt.Errorf("failed to sync auxiliary resource : %w", err)
 	}
 
-	// Runs last, and only when everything else is synced, so workloads that failed to sync keep their current volumes
-	return deploy.garbageCollectVolumes(ctx)
+	return nil
 }
 
 func (deploy *Deployment) syncAuxiliaryResources(ctx context.Context) error {
@@ -340,6 +331,10 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
+	if err := volumemount.GarbageCollectVolumesNoLongerInSpec(ctx, deploy.kubeclient, deploy.radixDeployment); err != nil {
+		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
+	}
+
 	return nil
 }
 
@@ -402,7 +397,29 @@ func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(ctx context.Contex
 	return radixDeploymentsReferencedByJobs, nil
 }
 
-func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, component v1.RadixCommonDeployComponent) error {
+// syncComponent reconciles the volumes of the component, and syncs its Deployment and related resources
+func (deploy *Deployment) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
+	volumes, volumeMounts, err := volumemount.ReconcileComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment, component)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile volumes: %w", err)
+	}
+	return deploy.syncDeploymentForRadixComponent(ctx, component, volumes, volumeMounts)
+}
+
+// syncJobComponent reconciles the volumes of the job, which are mounted by the job-aux Deployment,
+// and syncs the job scheduler Deployment and related resources
+func (deploy *Deployment) syncJobComponent(ctx context.Context, jobComponent *v1.RadixDeployJobComponent) error {
+	volumes, volumeMounts, err := volumemount.ReconcileComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment, jobComponent)
+	if err != nil {
+		return fmt.Errorf("failed to reconcile volumes: %w", err)
+	}
+	jobSchedulerComponent := internal.NewJobSchedulerComponent(deploy.config, jobComponent, deploy.radixDeployment)
+	return deploy.syncDeploymentForRadixComponent(ctx, jobSchedulerComponent, volumes, volumeMounts)
+}
+
+// syncDeploymentForRadixComponent syncs the Deployment and related resources of the component.
+// For a job scheduler, volumes and volumeMounts are set on the job-aux Deployment.
+func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, component v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(ctx, component)
 	if err != nil {
 		return err
@@ -413,7 +430,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(ctx context.Context, c
 		return fmt.Errorf("failed to create service account: %w", err)
 	}
 
-	err = deploy.reconcileDeployComponent(ctx, component)
+	err = deploy.reconcileDeployComponent(ctx, component, volumes, volumeMounts)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}

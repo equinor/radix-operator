@@ -1759,6 +1759,7 @@ spec:
                                     Must be unique for the component.
                                   maxLength: 40
                                   minLength: 1
+                                  pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                                   type: string
                                 path:
                                   description: Path defines in which directory the
@@ -3059,6 +3060,7 @@ spec:
                               Must be unique for the component.
                             maxLength: 40
                             minLength: 1
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           path:
                             description: Path defines in which directory the external
@@ -4118,6 +4120,7 @@ spec:
                                     Must be unique for the component.
                                   maxLength: 40
                                   minLength: 1
+                                  pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                                   type: string
                                 path:
                                   description: Path defines in which directory the
@@ -4717,6 +4720,7 @@ spec:
                               Must be unique for the component.
                             maxLength: 40
                             minLength: 1
+                            pattern: ^(([a-z0-9][-a-z0-9]*)?[a-z0-9])?$
                             type: string
                           path:
                             description: Path defines in which directory the external

@@ -41,11 +41,39 @@ import (
 )
 
 // RadixAlertInformer provides access to a shared informer and lister for
-// RadixAlerts.
+// RadixAlerts. Prefer using the type-safe variant (see [TypedRadixAlertInformer]).
 type RadixAlertInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixAlertLister
 }
+
+// TypedRadixAlertInformer provides access to a shared informer and lister for
+// RadixAlerts, including the type-safe TypedInformer variant.
+// It is a superset of RadixAlertInformer.
+type TypedRadixAlertInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixAlertIndexInformer
+	Lister() radixv1.RadixAlertLister
+}
+
+// RadixAlertIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixAlertIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixAlert]
+
+// RadixAlertHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixAlert.
+type RadixAlertHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixAlert]
+
+// RadixAlertDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixAlert.
+type RadixAlertDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixAlert]
+
+// RadixAlertFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixAlert.
+type RadixAlertFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixAlert]
+
+// RadixAlertIndexers is a specialization of [cache.TypedIndexers] for RadixAlert.
+type RadixAlertIndexers = cache.TypedIndexers[*apisradixv1.RadixAlert]
+
+// DeletedRadixAlert is a specialization of [cache.DeletedObject] for RadixAlert.
+type DeletedRadixAlert = cache.DeletedObject[*apisradixv1.RadixAlert]
 
 type radixAlertInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -56,25 +84,49 @@ type radixAlertInformer struct {
 // NewRadixAlertInformer constructs a new informer for RadixAlert type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixAlertInformer]).
 func NewRadixAlertInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixAlertInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixAlertInformer constructs a new informer for RadixAlert type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixAlertInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixAlertIndexers) RadixAlertIndexInformer {
+	return NewTypedRadixAlertInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixAlertInformer constructs a new informer for RadixAlert type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixAlertInformer]).
 func NewFilteredRadixAlertInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixAlertInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixAlertInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixAlertInformer constructs a new informer for RadixAlert type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixAlertInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixAlertIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixAlertIndexInformer {
+	return NewTypedRadixAlertInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixAlertInformerWithOptions constructs a new informer for RadixAlert type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixAlertInformerWithOptions]).
 func NewRadixAlertInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixAlertInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedRadixAlertInformerWithOptions constructs a new informer for RadixAlert type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixAlertInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) RadixAlertIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixalerts"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixAlert](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -107,17 +159,57 @@ func NewRadixAlertInformerWithOptions(client versioned.Interface, namespace stri
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixAlertInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixAlertInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixAlertInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixAlertInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixAlert{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixAlertInformer) TypedInformer() RadixAlertIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixAlert](f.factory.InformerFor(&apisradixv1.RadixAlert{}, f.defaultInformer))
 }
 
 func (f *radixAlertInformer) Lister() radixv1.RadixAlertLister {
 	return radixv1.NewRadixAlertLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixAlertInformer converts an untyped informer into a TypedRadixAlertInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixAlert. If that is not the case, calling type-safe methods of the returned
+// TypedRadixAlertInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixAlertInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixAlertInformer(informer RadixAlertInformer) TypedRadixAlertInformer {
+	if informer, ok := informer.(TypedRadixAlertInformer); ok {
+		return informer
+	}
+	return &radixAlertTypedInformerAdapter{informer}
+}
+
+type radixAlertTypedInformerAdapter struct {
+	RadixAlertInformer
+}
+
+func (a *radixAlertTypedInformerAdapter) TypedInformer() RadixAlertIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixAlert](a.Informer())
+}
+
+// ToRadixAlertIndexInformer converts an untyped informer into a RadixAlertIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixAlert. If that is not the case, calling type-safe methods of the returned
+// RadixAlertIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixAlertIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixAlertIndexInformer(informer cache.SharedIndexInformer) RadixAlertIndexInformer {
+	if informer, ok := informer.(RadixAlertIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixAlert](informer)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/random"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -61,7 +63,8 @@ func TestVolumeMountIsMountedByCSIDriver(t *testing.T) {
 	assert.Equal(t, corev1.VolumeBound, pv.Status.Phase)
 	require.NotNil(t, pv.Spec.ClaimRef)
 	assert.Equal(t, pvc.UID, pv.Spec.ClaimRef.UID, "the PV should be bound to the PVC")
-	assert.True(t, strings.HasPrefix(pvc.Name, "pvc-csi-blobfuse2-fuse2-web-blob-container1-"), "new PVCs should be named after a hash of the spec, got %s", pvc.Name)
+	assert.True(t, strings.HasPrefix(pvc.Name, "pvc-web-blob-"), "new PVCs should be named pvc-<component>-<volumeMount>-<ulid>, got %s", pvc.Name)
+	assert.True(t, strings.HasPrefix(pv.Name, "pv-"+appName+"-"), "new PVs should be named pv-<app>-<ulid>, got %s", pv.Name)
 
 	info := readVolumeInfoFromPodLogs(t, envNamespace, pod.Name)
 	assert.Equal(t, pv.Spec.CSI.VolumeHandle, info.VolumeID, "the driver should mount the volume handle of the PV")
@@ -72,7 +75,8 @@ func TestVolumeMountIsMountedByCSIDriver(t *testing.T) {
 }
 
 // TestVolumeMountSpecChange changes the storage spec of a component, and verifies that a new PV/PVC pair is
-// created and used by the rolled out Pod, and that the old pair is deleted after the rollout.
+// created and used by the rolled out Pod, and that the old pair is deleted when the RadixDeployment syncs.
+// Kubernetes keeps the old pair while the old Pod uses it, and removes it when the Pod is gone, without another sync.
 func TestVolumeMountSpecChange(t *testing.T) {
 	t.Parallel()
 	c := getClient(t)
@@ -92,12 +96,7 @@ func TestVolumeMountSpecChange(t *testing.T) {
 
 	deployment := &appsv1.Deployment{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: volumeTestComponentName}, deployment))
-	claim2 := ""
-	for _, volume := range deployment.Spec.Template.Spec.Volumes {
-		if volume.PersistentVolumeClaim != nil {
-			claim2 = volume.PersistentVolumeClaim.ClaimName
-		}
-	}
+	claim2 := podClaimName(&corev1.Pod{Spec: deployment.Spec.Template.Spec})
 	require.NotEmpty(t, claim2)
 	require.NotEqual(t, claim1, claim2, "a changed spec should use a new PVC")
 
@@ -105,60 +104,109 @@ func TestVolumeMountSpecChange(t *testing.T) {
 	info := readVolumeInfoFromPodLogs(t, envNamespace, pod2.Name)
 	assert.Equal(t, "container2", info.VolumeContext["containerName"])
 
-	// Garbage collection runs when the RadixDeployment syncs, and keeps the old pair while a Pod mounts it.
-	// Trigger syncs until the old pair is deleted after the rollout.
-	err := wait.PollUntilContextTimeout(t.Context(), 5*time.Second, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
-		patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"e2e/resync":%q}}}`, time.Now().Format(time.RFC3339Nano))
-		if err := c.Patch(ctx, &v1.RadixDeployment{Namespace: envNamespace, Name: rd2.Name}, client.RawPatch(types.MergePatchType, patch)); err != nil {
-			return false, nil
-		}
-		pvcErr := c.Get(ctx, client.ObjectKey{Namespace: envNamespace, Name: claim1}, &corev1.PersistentVolumeClaim{})
-		pvErr := c.Get(ctx, client.ObjectKey{Name: pv1Name}, &corev1.PersistentVolume{})
-		return apierrors.IsNotFound(pvcErr) && apierrors.IsNotFound(pvErr), nil
-	})
-	if err != nil {
-		logRadixOperatorLogs(t, c, "PersistentVolume")
-	}
-	require.NoError(t, err, "the old PVC %s and PV %s should be deleted after the rollout", claim1, pv1Name)
+	waitForVolumeResourcesDeleted(t, c, envNamespace, claim1, pv1Name)
 
 	pvc2 := &corev1.PersistentVolumeClaim{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: claim2}, pvc2), "the PVC in use should be kept")
 	assert.Equal(t, corev1.ClaimBound, pvc2.Status.Phase)
+	assert.Nil(t, pvc2.DeletionTimestamp, "the PVC in use should not be deleted")
 }
 
-// TestVolumesAreDeletedWithApplication deletes an application, and verifies that the PersistentVolumes of its
-// environment namespace are deleted. PersistentVolumes are cluster scoped, and are not deleted with the namespace.
-func TestVolumesAreDeletedWithApplication(t *testing.T) {
+// TestVolumesOfRemovedComponentAreDeleted removes a component with a BlobFuse2 volume mount from the RadixDeployment,
+// and verifies that its PV/PVC pair is deleted.
+func TestVolumesOfRemovedComponentAreDeleted(t *testing.T) {
 	t.Parallel()
 	c := getClient(t)
-	const appName = "volume-app-delete-test"
+	const appName = "volume-removed-component-test"
 
 	envNamespace := setupVolumeTestApp(t, c, appName, "container1")
-	rd := createVolumeTestRadixDeployment(t, c, appName, envNamespace, "rd-1", volumeTestVolumeMount("container1"))
-	waitForActiveRadixDeployment(t, c, envNamespace, rd.Name)
+	rd1 := createVolumeTestRadixDeployment(t, c, appName, envNamespace, "rd-1", volumeTestVolumeMount("container1"))
+	waitForActiveRadixDeployment(t, c, envNamespace, rd1.Name)
 	pod := waitForComponentPodWithClaim(t, c, envNamespace, "")
 	pvc := &corev1.PersistentVolumeClaim{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: podClaimName(pod)}, pvc))
-	pvName := pvc.Spec.VolumeName
 
-	// Deleting the RadixRegistration deletes the RadixEnvironment, which owns the environment namespace
-	require.NoError(t, c.Delete(t.Context(), &v1.RadixRegistration{Name: appName}))
+	otherComponent := volumeTestComponent(nil)
+	otherComponent.Name = "other"
+	rd2 := createVolumeTestRadixDeploymentWithSpec(t, c, appName, envNamespace, "rd-2", []v1.RadixDeployComponent{otherComponent}, nil)
+	waitForActiveRadixDeployment(t, c, envNamespace, rd2.Name)
 
+	waitForVolumeResourcesDeleted(t, c, envNamespace, pvc.Name, pvc.Spec.VolumeName)
+}
+
+// TestRunningJobKeepsVolumeDeletedByRadixDeploymentSync starts a job from a RadixBatch, changes the storage spec of the job
+// in a new RadixDeployment, and verifies that the RadixDeployment sync deletes the PV/PVC of the batch, that Kubernetes keeps
+// them in Terminating state while the job Pod is running, and that they are removed when the job is stopped.
+func TestRunningJobKeepsVolumeDeletedByRadixDeploymentSync(t *testing.T) {
+	t.Parallel()
+	c := getClient(t)
+	const appName, jobName, batchName = "volume-batch-test", "compute", "batch-1"
+
+	envNamespace := setupVolumeTestApp(t, c, appName, "container1")
+	rd1 := createVolumeTestRadixDeploymentWithSpec(t, c, appName, envNamespace, "rd-1", nil, []v1.RadixDeployJobComponent{volumeTestJobComponent(jobName, "container1")})
+	waitForActiveRadixDeployment(t, c, envNamespace, rd1.Name)
+
+	// Labels as set by the job scheduler; the operator only syncs RadixBatches with the radix-app label
+	batch := &v1.RadixBatch{
+		Name: batchName, Namespace: envNamespace,
+		Labels: radixlabels.Merge(radixlabels.ForApplicationName(appName), radixlabels.ForComponentName(jobName), radixlabels.ForBatchType(kube.RadixBatchTypeJob)),
+		Spec: v1.RadixBatchSpec{
+			RadixDeploymentJobRef: v1.RadixDeploymentJobComponentSelector{LocalObjectReference: v1.LocalObjectReference{Name: rd1.Name}, Job: jobName},
+			Jobs:                  []v1.RadixBatchJob{{Name: "job1"}},
+		},
+	}
+	require.NoError(t, c.Create(t.Context(), batch), "should create RadixBatch")
+	jobPod := waitForBatchPodReady(t, c, envNamespace, batchName)
+	claim1 := podClaimName(jobPod)
+	require.NotEmpty(t, claim1, "the job pod should use a PersistentVolumeClaim")
+	pvc1 := &corev1.PersistentVolumeClaim{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: claim1}, pvc1))
+	pv1Name := pvc1.Spec.VolumeName
+	info := readVolumeInfoFromPodLogs(t, envNamespace, jobPod.Name)
+	assert.Equal(t, "container1", info.VolumeContext["containerName"])
+	auxDeployment := &appsv1.Deployment{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: defaults.GetJobAuxKubeDeployName(jobName)}, auxDeployment))
+	assert.Equal(t, claim1, podClaimName(&corev1.Pod{Spec: auxDeployment.Spec.Template.Spec}), "the job-aux deployment should use the claim of the job")
+	require.Len(t, auxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts, 1, "the job-aux container should mount the job volume, as a canary for the jobs")
+	assert.Equal(t, volumeTestMountPath, auxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
+
+	rd2 := createVolumeTestRadixDeploymentWithSpec(t, c, appName, envNamespace, "rd-2", nil, []v1.RadixDeployJobComponent{volumeTestJobComponent(jobName, "container2")})
+	waitForActiveRadixDeployment(t, c, envNamespace, rd2.Name)
+
+	// The RadixDeployment sync deletes the PVC of the batch, as it does not match the job spec of the active RadixDeployment
 	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
-		nsErr := c.Get(ctx, client.ObjectKey{Name: envNamespace}, &corev1.Namespace{})
-		pvErr := c.Get(ctx, client.ObjectKey{Name: pvName}, &corev1.PersistentVolume{})
-		return apierrors.IsNotFound(nsErr) && apierrors.IsNotFound(pvErr), nil
+		pvc := &corev1.PersistentVolumeClaim{}
+		if err := c.Get(ctx, client.ObjectKey{Namespace: envNamespace, Name: claim1}, pvc); err != nil {
+			return false, nil
+		}
+		return pvc.DeletionTimestamp != nil, nil
 	})
 	if err != nil {
 		logRadixOperatorLogs(t, c, "PersistentVolume")
 	}
-	require.NoError(t, err, "the namespace %s and PV %s should be deleted", envNamespace, pvName)
+	require.NoError(t, err, "the PVC %s of the batch should be Terminating", claim1)
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Name: pv1Name}, &corev1.PersistentVolume{}), "the PV of the running job should be kept")
+	runningPod := &corev1.Pod{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: jobPod.Name}, runningPod))
+	assert.True(t, isPodReady(runningPod), "the job pod should keep running with the Terminating PVC")
+	assert.Nil(t, runningPod.DeletionTimestamp)
+
+	// Stopping the job deletes the Kubernetes Job and its Pod, and Kubernetes then removes the PVC and PV
+	require.NoError(t, retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current := &v1.RadixBatch{}
+		if err := c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: batchName}, current); err != nil {
+			return err
+		}
+		current.Spec.Jobs[0].Stop = new(true)
+		return c.Update(t.Context(), current)
+	}), "should stop the batch job")
+	waitForVolumeResourcesDeleted(t, c, envNamespace, claim1, pv1Name)
 }
 
 // TestLegacyVolumesAreReusedWhenMatching creates PV/PVC pairs as created by previous operator versions, before the
 // component is deployed: one that matches the desired spec, and one for an older spec. It verifies that the operator
-// reuses the matching pair as is, without creating a new pair or changing it, that the workload is not rolled out
-// when the RadixDeployment syncs again, and that the pair for the older spec is garbage collected.
+// reuses the matching pair as is, without creating a new pair or changing it, that the pair for the older spec is deleted,
+// and that the workload is not rolled out when the RadixDeployment syncs again.
 func TestLegacyVolumesAreReusedWhenMatching(t *testing.T) {
 	t.Parallel()
 	c := getClient(t)
@@ -181,15 +229,15 @@ func TestLegacyVolumesAreReusedWhenMatching(t *testing.T) {
 	waitForActiveRadixDeployment(t, c, envNamespace, rd.Name)
 	pod := waitForComponentPodWithClaim(t, c, envNamespace, legacyPvc.Name)
 
+	// The pair for the older spec is not used by any Pod, and is removed after the first sync
+	waitForVolumeResourcesDeleted(t, c, envNamespace, oldSpecPvc.Name, oldSpecPv.Name)
 	pvcs := &corev1.PersistentVolumeClaimList{}
 	require.NoError(t, c.List(t.Context(), pvcs, client.InNamespace(envNamespace)))
 	var pvcNames []string
 	for _, pvc := range pvcs.Items {
 		pvcNames = append(pvcNames, pvc.Name)
 	}
-	// The pair for the older spec may already be garbage collected
-	assert.Contains(t, pvcNames, legacyPvc.Name)
-	assert.Subset(t, []string{oldSpecPvc.Name, legacyPvc.Name}, pvcNames, "no new PVC should be created")
+	assert.Equal(t, []string{legacyPvc.Name}, pvcNames, "no new PVC should be created")
 
 	currentLegacyPv := &corev1.PersistentVolume{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Name: legacyPv.Name}, currentLegacyPv))
@@ -203,26 +251,74 @@ func TestLegacyVolumesAreReusedWhenMatching(t *testing.T) {
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: volumeTestComponentName}, deployment))
 	generation := deployment.Generation
 
-	// Sync the RadixDeployment again until garbage collection has deleted the pair for the older spec
-	err := wait.PollUntilContextTimeout(t.Context(), 5*time.Second, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
-		patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"e2e/resync":%q}}}`, time.Now().Format(time.RFC3339Nano))
-		if err := c.Patch(ctx, &v1.RadixDeployment{Namespace: envNamespace, Name: rd.Name}, client.RawPatch(types.MergePatchType, patch)); err != nil {
-			return false, nil
-		}
-		pvcErr := c.Get(ctx, client.ObjectKey{Namespace: envNamespace, Name: oldSpecPvc.Name}, &corev1.PersistentVolumeClaim{})
-		pvErr := c.Get(ctx, client.ObjectKey{Name: oldSpecPv.Name}, &corev1.PersistentVolume{})
+	resyncRadixDeployment(t, c, envNamespace, rd.Name)
+
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: volumeTestComponentName}, deployment))
+	assert.Equal(t, generation, deployment.Generation, "the deployment should not be rolled out when the RadixDeployment syncs again")
+	assert.Equal(t, legacyPvc.Name, podClaimName(&corev1.Pod{Spec: deployment.Spec.Template.Spec}))
+	currentLegacyPvc := &corev1.PersistentVolumeClaim{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: legacyPvc.Name}, currentLegacyPvc), "the legacy PVC in use should be kept")
+	assert.Nil(t, currentLegacyPvc.DeletionTimestamp, "the legacy PVC in use should not be deleted")
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Name: legacyPv.Name}, currentLegacyPv), "the legacy PV in use should be kept")
+	assert.Nil(t, currentLegacyPv.DeletionTimestamp, "the legacy PV in use should not be deleted")
+}
+
+// waitForVolumeResourcesDeleted waits until the PVC and the PV are gone
+func waitForVolumeResourcesDeleted(t *testing.T, c client.Client, namespace, pvcName, pvName string) {
+	t.Helper()
+	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
+		pvcErr := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: pvcName}, &corev1.PersistentVolumeClaim{})
+		pvErr := c.Get(ctx, client.ObjectKey{Name: pvName}, &corev1.PersistentVolume{})
 		return apierrors.IsNotFound(pvcErr) && apierrors.IsNotFound(pvErr), nil
 	})
 	if err != nil {
 		logRadixOperatorLogs(t, c, "PersistentVolume")
 	}
-	require.NoError(t, err, "the legacy pair for the older spec should be deleted")
+	require.NoError(t, err, "the PVC %s and PV %s should be deleted", pvcName, pvName)
+}
 
-	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: volumeTestComponentName}, deployment))
-	assert.Equal(t, generation, deployment.Generation, "the deployment should not be rolled out when the RadixDeployment syncs again")
-	assert.Equal(t, legacyPvc.Name, podClaimName(&corev1.Pod{Spec: deployment.Spec.Template.Spec}))
-	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: legacyPvc.Name}, &corev1.PersistentVolumeClaim{}), "the legacy PVC in use should be kept")
-	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Name: legacyPv.Name}, &corev1.PersistentVolume{}), "the legacy PV in use should be kept")
+// resyncRadixDeployment triggers a sync of the RadixDeployment, and waits until it has been reconciled
+func resyncRadixDeployment(t *testing.T, c client.Client, namespace, name string) {
+	t.Helper()
+	rd := &v1.RadixDeployment{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: namespace, Name: name}, rd))
+	lastReconciled := rd.Status.Reconciled
+	// Reconciled has a precision of seconds, so the sync is triggered until it changes
+	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
+		patch := fmt.Appendf(nil, `{"metadata":{"annotations":{"e2e/resync":%q}}}`, time.Now().Format(time.RFC3339Nano))
+		if err := c.Patch(ctx, &v1.RadixDeployment{Namespace: namespace, Name: name}, client.RawPatch(types.MergePatchType, patch)); err != nil {
+			return false, nil
+		}
+		current := &v1.RadixDeployment{}
+		if err := c.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, current); err != nil {
+			return false, nil
+		}
+		return !current.Status.Reconciled.Equal(&lastReconciled) && current.Status.ReconcileStatus == v1.RadixDeploymentReconcileSucceeded, nil
+	})
+	require.NoError(t, err, "RadixDeployment %s should be reconciled again", name)
+}
+
+// waitForBatchPodReady waits for a single running and ready Pod of the RadixBatch
+func waitForBatchPodReady(t *testing.T, c client.Client, namespace, batchName string) *corev1.Pod {
+	t.Helper()
+	var readyPod *corev1.Pod
+	err := wait.PollUntilContextTimeout(t.Context(), volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
+		pods := &corev1.PodList{}
+		if err := c.List(ctx, pods, client.InNamespace(namespace), client.MatchingLabels{kube.RadixBatchNameLabel: batchName}); err != nil {
+			return false, nil
+		}
+		if len(pods.Items) != 1 || !isPodReady(&pods.Items[0]) {
+			return false, nil
+		}
+		readyPod = &pods.Items[0]
+		return true, nil
+	})
+	if err != nil {
+		logRadixOperatorLogs(t, c, batchName)
+		logPodLogs(t, "fake-blob-csi", "app=fake-blob-csi-node", "")
+	}
+	require.NoError(t, err, "a single ready pod for RadixBatch %s should exist", batchName)
+	return readyPod
 }
 
 // createLegacyVolumePair creates a PV and PVC for the BlobFuse2 volume mount "blob" of the component, with a block cache disk,
@@ -340,7 +436,46 @@ func volumeTestVolumeMount(container string) v1.RadixVolumeMount {
 	}
 }
 
+// volumeTestComponent returns the component, which prints the volume info written by the fake CSI driver,
+// so the test can read it from the Pod logs
+func volumeTestComponent(volumeMounts []v1.RadixVolumeMount) v1.RadixDeployComponent {
+	return v1.RadixDeployComponent{
+		Name:         volumeTestComponentName,
+		Image:        volumeTestImage,
+		Replicas:     new(1),
+		RunAsUser:    new(int64(101)),
+		Runtime:      volumeTestRuntime(),
+		Command:      volumeTestCommand(volumeMounts),
+		VolumeMounts: volumeMounts,
+	}
+}
+
+// volumeTestJobComponent returns a job with a BlobFuse2 volume mount, which prints the volume info written by the fake CSI driver
+func volumeTestJobComponent(name, container string) v1.RadixDeployJobComponent {
+	volumeMounts := []v1.RadixVolumeMount{volumeTestVolumeMount(container)}
+	return v1.RadixDeployJobComponent{
+		Name:         name,
+		Image:        volumeTestImage,
+		RunAsUser:    new(int64(101)),
+		Runtime:      volumeTestRuntime(),
+		Command:      volumeTestCommand(volumeMounts),
+		VolumeMounts: volumeMounts,
+	}
+}
+
+func volumeTestCommand(volumeMounts []v1.RadixVolumeMount) []string {
+	if len(volumeMounts) == 0 {
+		return []string{"sh", "-c", "sleep 100000"}
+	}
+	return []string{"sh", "-c", fmt.Sprintf("cat %s/%s && echo && sleep 100000", volumeTestMountPath, internal.FakeBlobCSIVolumeInfoFileName)}
+}
+
 func createVolumeTestRadixDeployment(t *testing.T, c client.Client, appName, envNamespace, rdName string, volumeMount v1.RadixVolumeMount) *v1.RadixDeployment {
+	t.Helper()
+	return createVolumeTestRadixDeploymentWithSpec(t, c, appName, envNamespace, rdName, []v1.RadixDeployComponent{volumeTestComponent([]v1.RadixVolumeMount{volumeMount})}, nil)
+}
+
+func createVolumeTestRadixDeploymentWithSpec(t *testing.T, c client.Client, appName, envNamespace, rdName string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) *v1.RadixDeployment {
 	t.Helper()
 	rd := &v1.RadixDeployment{
 		Name: rdName, Namespace: envNamespace,
@@ -348,16 +483,8 @@ func createVolumeTestRadixDeployment(t *testing.T, c client.Client, appName, env
 		Spec: v1.RadixDeploymentSpec{
 			AppName:     appName, //nolint:staticcheck // required by the CRD
 			Environment: volumeTestEnvName,
-			Components: []v1.RadixDeployComponent{{
-				Name:      volumeTestComponentName,
-				Image:     volumeTestImage,
-				Replicas:  new(1),
-				RunAsUser: new(int64(101)),
-				Runtime:   volumeTestRuntime(),
-				// Print the volume info written by the fake CSI driver, so the test can read it from the Pod logs
-				Command:      []string{"sh", "-c", fmt.Sprintf("cat %s/%s && echo && sleep 100000", volumeTestMountPath, internal.FakeBlobCSIVolumeInfoFileName)},
-				VolumeMounts: []v1.RadixVolumeMount{volumeMount},
-			}},
+			Components:  components,
+			Jobs:        jobs,
 		},
 	}
 	require.NoError(t, c.Create(t.Context(), rd), "should create RadixDeployment %s", rdName)

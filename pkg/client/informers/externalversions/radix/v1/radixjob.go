@@ -41,11 +41,39 @@ import (
 )
 
 // RadixJobInformer provides access to a shared informer and lister for
-// RadixJobs.
+// RadixJobs. Prefer using the type-safe variant (see [TypedRadixJobInformer]).
 type RadixJobInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixJobLister
 }
+
+// TypedRadixJobInformer provides access to a shared informer and lister for
+// RadixJobs, including the type-safe TypedInformer variant.
+// It is a superset of RadixJobInformer.
+type TypedRadixJobInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixJobIndexInformer
+	Lister() radixv1.RadixJobLister
+}
+
+// RadixJobIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixJobIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixJob]
+
+// RadixJobHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixJob.
+type RadixJobHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixJob]
+
+// RadixJobDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixJob.
+type RadixJobDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixJob]
+
+// RadixJobFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixJob.
+type RadixJobFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixJob]
+
+// RadixJobIndexers is a specialization of [cache.TypedIndexers] for RadixJob.
+type RadixJobIndexers = cache.TypedIndexers[*apisradixv1.RadixJob]
+
+// DeletedRadixJob is a specialization of [cache.DeletedObject] for RadixJob.
+type DeletedRadixJob = cache.DeletedObject[*apisradixv1.RadixJob]
 
 type radixJobInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -56,25 +84,49 @@ type radixJobInformer struct {
 // NewRadixJobInformer constructs a new informer for RadixJob type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixJobInformer]).
 func NewRadixJobInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixJobInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixJobInformer constructs a new informer for RadixJob type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixJobInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixJobIndexers) RadixJobIndexInformer {
+	return NewTypedRadixJobInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixJobInformer constructs a new informer for RadixJob type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixJobInformer]).
 func NewFilteredRadixJobInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixJobInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixJobInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixJobInformer constructs a new informer for RadixJob type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixJobInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixJobIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixJobIndexInformer {
+	return NewTypedRadixJobInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixJobInformerWithOptions constructs a new informer for RadixJob type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixJobInformerWithOptions]).
 func NewRadixJobInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixJobInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedRadixJobInformerWithOptions constructs a new informer for RadixJob type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixJobInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) RadixJobIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixjobs"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixJob](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -107,17 +159,57 @@ func NewRadixJobInformerWithOptions(client versioned.Interface, namespace string
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixJobInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixJobInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixJobInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixJobInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixJob{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixJobInformer) TypedInformer() RadixJobIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixJob](f.factory.InformerFor(&apisradixv1.RadixJob{}, f.defaultInformer))
 }
 
 func (f *radixJobInformer) Lister() radixv1.RadixJobLister {
 	return radixv1.NewRadixJobLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixJobInformer converts an untyped informer into a TypedRadixJobInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixJob. If that is not the case, calling type-safe methods of the returned
+// TypedRadixJobInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixJobInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixJobInformer(informer RadixJobInformer) TypedRadixJobInformer {
+	if informer, ok := informer.(TypedRadixJobInformer); ok {
+		return informer
+	}
+	return &radixJobTypedInformerAdapter{informer}
+}
+
+type radixJobTypedInformerAdapter struct {
+	RadixJobInformer
+}
+
+func (a *radixJobTypedInformerAdapter) TypedInformer() RadixJobIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixJob](a.Informer())
+}
+
+// ToRadixJobIndexInformer converts an untyped informer into a RadixJobIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixJob. If that is not the case, calling type-safe methods of the returned
+// RadixJobIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixJobIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixJobIndexInformer(informer cache.SharedIndexInformer) RadixJobIndexInformer {
+	if informer, ok := informer.(RadixJobIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixJob](informer)
 }

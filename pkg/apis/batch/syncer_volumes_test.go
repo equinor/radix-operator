@@ -3,15 +3,12 @@ package batch
 
 import (
 	"context"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/config"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
-	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -60,6 +57,7 @@ func volumesTestBatch(rdName string) *radixv1.RadixBatch {
 }
 
 func (s *syncerTestSuite) createVolumesTestResources(batch *radixv1.RadixBatch, rds ...*radixv1.RadixDeployment) *radixv1.RadixBatch {
+	s.createNamespace(volumesTestNamespace, volumesTestAppName)
 	for _, rd := range rds {
 		_, err := s.radixClient.RadixV1().RadixDeployments(volumesTestNamespace).Create(context.Background(), rd, metav1.CreateOptions{})
 		s.Require().NoError(err)
@@ -141,50 +139,6 @@ func (s *syncerTestSuite) Test_Volumes_BatchForOlderRdGetsStorageOfThatRd() {
 	s.Equal("oldcontainer", pv.Spec.CSI.VolumeAttributes["containerName"])
 }
 
-func (s *syncerTestSuite) Test_Volumes_JobSharesClaimOfAuxDeploymentWhenSpecMatches() {
-	rd := volumesTestRd("any-rd", "container1")
-	batch := s.createVolumesTestResources(volumesTestBatch(rd.Name), rd)
-
-	// Create the hash-named pair, and a copy of it with other names, like a pair created by a previous operator version
-	_, _, err := volumemount.EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, &rd.Spec.Jobs[0], nil)
-	s.Require().NoError(err)
-	pvcs, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Require().Len(pvcs.Items, 1)
-	hashPvc := pvcs.Items[0]
-	hashPv, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), hashPvc.Spec.VolumeName, metav1.GetOptions{})
-	s.Require().NoError(err)
-	legacyPv := hashPv.DeepCopy()
-	legacyPv.ObjectMeta = metav1.ObjectMeta{Name: "pv-legacy", Labels: hashPv.Labels, CreationTimestamp: metav1.NewTime(time.Now())}
-	legacyPv.Spec.ClaimRef.Name = "pvc-legacy"
-	legacyPv.Spec.CSI.VolumeHandle = "legacy-handle"
-	_, err = s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), legacyPv, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	legacyPvc := hashPvc.DeepCopy()
-	legacyPvc.ObjectMeta = metav1.ObjectMeta{Name: "pvc-legacy", Namespace: volumesTestNamespace, Labels: hashPvc.Labels, CreationTimestamp: metav1.NewTime(time.Now())}
-	legacyPvc.Spec.VolumeName = legacyPv.Name
-	_, err = s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).Create(context.Background(), legacyPvc, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	auxDeployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: defaults.GetJobAuxKubeDeployName(volumesTestJobComponent), Namespace: volumesTestNamespace},
-		Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Volumes: []corev1.Volume{
-			{Name: "any", VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: legacyPvc.Name}}},
-		}}}},
-	}
-	_, err = s.kubeClient.AppsV1().Deployments(volumesTestNamespace).Create(context.Background(), auxDeployment, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	sut := s.createSyncer(batch, config.Config{})
-	s.Require().NoError(sut.OnSync(context.Background()))
-
-	job := s.getSingleKubeJob()
-	s.Equal(legacyPvc.Name, blobClaimName(job), "the claim used by the aux deployment must be preferred")
-	pvcs, err = s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().NoError(err)
-	s.Len(pvcs.Items, 2, "no new PVC must be created")
-}
-
 func (s *syncerTestSuite) Test_Volumes_NotEnsuredWhenNoJobIsCreated() {
 	rd := volumesTestRd("any-rd", "container1")
 	batch := volumesTestBatch(rd.Name)
@@ -240,21 +194,25 @@ func (s *syncerTestSuite) pvcExists(name string) bool {
 	return err == nil
 }
 
-func (s *syncerTestSuite) Test_Volumes_GarbageCollectedWhenBatchCompletes() {
+func (s *syncerTestSuite) Test_Volumes_NeverDeleted() {
 	olderRd := volumesTestRd("older-rd", "oldcontainer")
 	activeRd := volumesTestRd("active-rd", "newcontainer")
 	activeRd.Status.Condition = radixv1.DeploymentActive
 	batch := s.createVolumesTestResources(volumesTestBatch(olderRd.Name), olderRd, activeRd)
+	_, _, err := volumemount.EnsureComponentVolumes(context.Background(), s.kubeUtil, activeRd, &activeRd.Spec.Jobs[0])
+	s.Require().NoError(err)
+	activePvcs, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(activePvcs.Items, 1)
+	activeClaimName := activePvcs.Items[0].Name
 	s.createOrphanPvc("pvc-orphan")
 
-	// The batch is active: garbage collection does not run, and the storage of the batch is created
 	s.Require().NoError(s.createSyncer(batch, config.Config{}).OnSync(context.Background()))
 	batchClaimName := blobClaimName(s.getSingleKubeJob())
-	s.True(s.pvcExists("pvc-orphan"), "garbage collection must not run while the batch is not completed")
-	s.True(s.pvcExists(batchClaimName))
+	s.NotEqual(activeClaimName, batchClaimName, "the batch must get the storage of the RadixDeployment it references")
 
 	// Stopping the job deletes the Kubernetes Job, and completes the batch
-	batch, err := s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Get(context.Background(), batch.Name, metav1.GetOptions{})
+	batch, err = s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Get(context.Background(), batch.Name, metav1.GetOptions{})
 	s.Require().NoError(err)
 	batch.Spec.Jobs[0].Stop = new(true)
 	batch, err = s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Update(context.Background(), batch, metav1.UpdateOptions{})
@@ -264,20 +222,7 @@ func (s *syncerTestSuite) Test_Volumes_GarbageCollectedWhenBatchCompletes() {
 	s.Require().NoError(err)
 	s.Require().Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
 
-	s.False(s.pvcExists("pvc-orphan"))
-	s.False(s.pvcExists(batchClaimName), "storage only used by the completed batch must be deleted")
-}
-
-func (s *syncerTestSuite) Test_Volumes_GarbageCollectionSkippedWithoutActiveRd() {
-	rd := volumesTestRd("any-rd", "container1")
-	batch := volumesTestBatch(rd.Name)
-	batch.Spec.Jobs[0].Stop = new(true)
-	batch = s.createVolumesTestResources(batch, rd)
-	s.createOrphanPvc("pvc-orphan")
-
-	s.Require().NoError(s.createSyncer(batch, config.Config{}).OnSync(context.Background()))
-	batch, err := s.radixClient.RadixV1().RadixBatches(volumesTestNamespace).Get(context.Background(), batch.Name, metav1.GetOptions{})
-	s.Require().NoError(err)
-	s.Require().Equal(radixv1.BatchConditionTypeCompleted, batch.Status.Condition.Type)
-	s.True(s.pvcExists("pvc-orphan"))
+	for _, name := range []string{activeClaimName, batchClaimName, "pvc-orphan"} {
+		s.True(s.pvcExists(name), "the RadixBatch sync must not delete PVC %s", name)
+	}
 }

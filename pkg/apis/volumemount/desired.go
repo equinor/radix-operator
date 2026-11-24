@@ -1,24 +1,19 @@
 package volumemount
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	"github.com/oklog/ulid/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	pvcNameHashLength          = 10
-	pvNameHashLength           = 20
-	volumeHandleHashLength     = 20
 	blockCachePathMountOption  = "--block-cache-path"
 	mountOptionKeyValSeparator = "="
 )
@@ -28,32 +23,35 @@ var (
 )
 
 // desiredVolumeResources holds the desired PersistentVolume and PersistentVolumeClaim for a BlobFuse2 volume mount.
-// Names are deterministic, derived from a hash of the desired spec and labels.
+// Each build gets new unique names, so a new pair never conflicts with an existing pair, e.g. one that is still terminating.
 type desiredVolumeResources struct {
 	pv  *corev1.PersistentVolume
 	pvc *corev1.PersistentVolumeClaim
 }
 
-func buildDesiredVolumeResources(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, radixVolumeMount radixv1.RadixVolumeMount) (*desiredVolumeResources, error) {
+// buildDesiredVolumeResources builds the desired PV and PVC for the BlobFuse2 volume mount of the component in the RadixDeployment, for the application appName.
+// The PV, the PVC and the CSI volume handle get the same new ULID as unique part of their names.
+func buildDesiredVolumeResources(appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, radixVolumeMount radixv1.RadixVolumeMount) (*desiredVolumeResources, error) {
 	if !radixVolumeMount.HasBlobFuse2() {
 		return nil, fmt.Errorf("volume mount %s in component %s is not a BlobFuse2 volume mount", radixVolumeMount.Name, component.GetName())
 	}
-	volumeName, err := GetVolumeMountVolumeName(&radixVolumeMount, component.GetName())
-	if err != nil {
-		return nil, err
-	}
 
-	appName, envName, namespace := rd.Spec.AppName, rd.Spec.Environment, rd.GetNamespace() //nolint:staticcheck
-	specBuilder := newBlobfuse2PersistentVolumeBuilder(appName, envName, component, radixVolumeMount)
+	envName, namespace := rd.Spec.Environment, rd.GetNamespace()
+	uniquePart := strings.ToLower(ulid.Make().String())
+	pvName := fmt.Sprintf(csiPersistentVolumeNameTemplate, appName, uniquePart)
+	pvcName := fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, component.GetName(), radixVolumeMount.Name, uniquePart)
+	volumeHandle := buildVolumeHandle(appName, envName, component.GetName(), radixVolumeMount.Name, uniquePart)
 
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:   pvName,
 			Labels: radixlabels.ForBlobCSIAzurePersistentVolume(appName, namespace, component.GetName(), radixVolumeMount),
 		},
-		Spec: specBuilder.BuildSpec("", namespace, ""),
+		Spec: newBlobfuse2PersistentVolumeBuilder(component, radixVolumeMount).BuildSpec(pvcName, namespace, volumeHandle),
 	}
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:      pvcName,
 			Namespace: namespace,
 			Labels:    radixlabels.ForBlobCSIAzurePersistentVolumeClaim(appName, component.GetName(), radixVolumeMount),
 		},
@@ -64,66 +62,11 @@ func buildDesiredVolumeResources(rd *radixv1.RadixDeployment, component radixv1.
 			},
 			StorageClassName: new(""), // use "" to avoid to use the "default" storage class
 			VolumeMode:       new(corev1.PersistentVolumeFilesystem),
+			VolumeName:       pvName,
 		},
 	}
 
-	hash, err := hashDesiredVolumeResources(namespace, pv, pvc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compute hash for volume mount %s in component %s: %w", radixVolumeMount.Name, component.GetName(), err)
-	}
-
-	pvName := fmt.Sprintf(csiPersistentVolumeNameTemplate, hash[:pvNameHashLength])
-	pvcName := fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, hash[:pvcNameHashLength])
-	volumeHandle := buildVolumeHandle(appName, envName, component.GetName(), radixVolumeMount.Name, hash[:volumeHandleHashLength])
-
-	pv.SetName(pvName)
-	pv.Spec = specBuilder.BuildSpec(pvcName, namespace, volumeHandle)
-	pvc.SetName(pvcName)
-	pvc.Spec.VolumeName = pvName
-
 	return &desiredVolumeResources{pv: pv, pvc: pvc}, nil
-}
-
-// hashDesiredVolumeResources returns a hex encoded sha256 of a canonical encoding of the desired PV and PVC.
-// Fields that are derived from names or random values are left out, and lists are sorted,
-// so the same desired spec always gives the same hash.
-func hashDesiredVolumeResources(namespace string, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) (string, error) {
-	pvSpec := pv.Spec.DeepCopy()
-	if pvSpec.ClaimRef != nil {
-		pvSpec.ClaimRef.Name = ""
-		pvSpec.ClaimRef.UID = ""
-		pvSpec.ClaimRef.ResourceVersion = ""
-	}
-	if pvSpec.CSI != nil {
-		pvSpec.CSI.VolumeHandle = ""
-	}
-	pvSpec.MountOptions = normalizeMountOptions(pvSpec.MountOptions)
-	pvSpec.AccessModes = sortedAccessModes(pvSpec.AccessModes)
-
-	pvcSpec := pvc.Spec.DeepCopy()
-	pvcSpec.VolumeName = ""
-	pvcSpec.AccessModes = sortedAccessModes(pvcSpec.AccessModes)
-
-	// encoding/json sorts map keys and keeps struct field order, which makes the encoding canonical
-	canonical := struct {
-		Namespace string                            `json:"namespace"`
-		PVLabels  map[string]string                 `json:"pvLabels"`
-		PVSpec    *corev1.PersistentVolumeSpec      `json:"pvSpec"`
-		PVCLabels map[string]string                 `json:"pvcLabels"`
-		PVCSpec   *corev1.PersistentVolumeClaimSpec `json:"pvcSpec"`
-	}{
-		Namespace: namespace,
-		PVLabels:  pv.GetLabels(),
-		PVSpec:    pvSpec,
-		PVCLabels: pvc.GetLabels(),
-		PVCSpec:   pvcSpec,
-	}
-	data, err := json.Marshal(canonical)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
 }
 
 // normalizeMountOptions returns sorted mount options, where options with values derived from names (like the block cache path) only keep the option name

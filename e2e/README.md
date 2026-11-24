@@ -116,8 +116,6 @@ BlobFuse2 volume mounts are backed by PersistentVolumes for the `blob.csi.azure.
 - The driver writes `fake-blob-csi.json` to the root of each volume, with the volume handle, volume attributes and mount options it received, so tests can verify them (e.g. by printing the file from the Pod and reading the Pod logs).
 - The driver does not support staging, so the volume mount credentials secret is not used.
 
-The Helm values set `volumeGarbageCollectionGracePeriod: 5s`, so tests can observe garbage collection of PersistentVolumeClaims and PersistentVolumes.
-
 ## Configuration
 
 ### Prometheus Operator CRDs

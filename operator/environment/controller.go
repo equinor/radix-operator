@@ -14,7 +14,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/rs/zerolog/log"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -80,10 +79,9 @@ func NewController(ctx context.Context,
 				logger.Error().Msg("RadixEnvironment object cast failed during deleted event received")
 				return
 			}
-			logger.Debug().Msgf("RadixEnvironment object deleted event received for %s (revision %s)", radixEnvironment.GetName(), radixEnvironment.GetResourceVersion())
-			// The handler cleans up resources that are not deleted with the environment namespace
-			if err := controller.Enqueue(radixEnvironment); err != nil {
-				logger.Error().Err(err).Msg("Failed to enqueue object received from RadixEnvironment informer DeleteFunc")
+			key, err := cache.MetaNamespaceKeyFunc(radixEnvironment)
+			if err == nil {
+				logger.Debug().Msgf("RadixEnvironment object deleted event received for %s (revision %s). Do nothing", key, radixEnvironment.GetResourceVersion())
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -96,12 +94,6 @@ func NewController(ctx context.Context,
 		DeleteFunc: func(obj any) {
 			// attempt to sync environment if it is the owner of this namespace
 			controller.HandleObject(ctx, obj, v1.KindRadixEnvironment, getOwner)
-			// When the environment no longer exists, the handler cleans up resources that are not deleted with the namespace
-			if namespace, ok := getDeletedEnvironmentNamespace(obj); ok {
-				if err := controller.Enqueue(namespace); err != nil {
-					logger.Error().Err(err).Msg("Failed to enqueue deleted environment namespace")
-				}
-			}
 		},
 	}); err != nil {
 		panic(err)
@@ -238,19 +230,4 @@ func getMissingEnvironmentNames(source []v1.Environment, target []v1.Environment
 		}
 	}
 	return droppedNames
-}
-
-// getDeletedEnvironmentNamespace returns the namespace from a namespace informer delete event, if it is a Radix environment namespace.
-// The name of an environment namespace is the name of its RadixEnvironment.
-func getDeletedEnvironmentNamespace(obj any) (*corev1.Namespace, bool) {
-	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-		obj = tombstone.Obj
-	}
-	namespace, ok := obj.(*corev1.Namespace)
-	if !ok {
-		return nil, false
-	}
-	_, hasAppLabel := namespace.Labels[kube.RadixAppLabel]
-	envName, hasEnvLabel := namespace.Labels[kube.RadixEnvLabel]
-	return namespace, hasAppLabel && hasEnvLabel && envName != utils.AppNamespaceEnvName
 }
