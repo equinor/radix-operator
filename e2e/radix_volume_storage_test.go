@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -193,7 +194,8 @@ func TestVolumeOfUnfinishedJobIsKeptUntilJobIsStopped(t *testing.T) {
 	assert.True(t, isPodReady(runningPod), "the job pod should keep running")
 	assert.Nil(t, runningPod.DeletionTimestamp)
 
-	// Stopping the job deletes the Kubernetes Job and its Pod, and the next RadixDeployment sync deletes the PVC and PV
+	// Stopping the job deletes the Kubernetes Job and its Pod. Once the previous revision of the job-aux Deployment is gone too,
+	// the next RadixDeployment sync deletes the PVC and PV
 	require.NoError(t, retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		current := &v1.RadixBatch{}
 		if err := c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: batchName}, current); err != nil {
@@ -202,7 +204,29 @@ func TestVolumeOfUnfinishedJobIsKeptUntilJobIsStopped(t *testing.T) {
 		current.Spec.Jobs[0].Stop = new(true)
 		return c.Update(t.Context(), current)
 	}), "should stop the batch job")
+	// TODO: Remove when the job-aux Deployment is architecture agnostic, see deleteReplicaSetsUsingClaim
+	deleteReplicaSetsUsingClaim(t, c, envNamespace, claim1)
 	waitForVolumeResourcesDeleted(t, c, envNamespace, rd2.Name, claim1, pv1Name)
+}
+
+// deleteReplicaSetsUsingClaim deletes the ReplicaSets in the namespace whose Pod template uses the PVC.
+// The job-aux Deployment requires an amd64 node, so its Pods never start on a kind node with another architecture,
+// e.g. arm64 on macOS. Its rollout then never completes, and the ReplicaSet of the previous revision keeps its replicas
+// and protects the PVC of the previous job spec. Deleting the ReplicaSet simulates that the previous revision is scaled down.
+//
+// TODO: Temporary workaround. Remove this function and its call when the job-aux Deployment is architecture agnostic
+// (handled in a separate PR), as the job-aux rollout then completes on any kind node.
+func deleteReplicaSetsUsingClaim(t *testing.T, c client.Client, namespace, claimName string) {
+	t.Helper()
+	replicaSets := &appsv1.ReplicaSetList{}
+	require.NoError(t, c.List(t.Context(), replicaSets, client.InNamespace(namespace)))
+	for _, replicaSet := range replicaSets.Items {
+		if podClaimName(&corev1.Pod{Spec: replicaSet.Spec.Template.Spec}) != claimName {
+			continue
+		}
+		err := c.Delete(t.Context(), &replicaSet, client.PropagationPolicy(metav1.DeletePropagationBackground))
+		require.NoError(t, client.IgnoreNotFound(err), "should delete ReplicaSet %s", replicaSet.Name)
+	}
 }
 
 // TestLegacyVolumesAreReusedWhenMatching creates PV/PVC pairs as created by previous operator versions, before the
