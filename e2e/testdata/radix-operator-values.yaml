@@ -54,7 +54,7 @@ config:
     alertControllerThreads: 21
     kubeClientRateLimitBurst: 500
     kubeClientRateLimitQPS: 500
-    
+
     jobSchedulerImage:
       tag: "{{IMAGE_TAG}}"
     azureKeyVaultTenantID: 01234567-8901-2345-6789-012345678901
@@ -62,7 +62,10 @@ config:
       name: some-name
       namespace: some-namespace
     certificateAutomation:
-      gatewayClusterIssuer: some-cluster-issuer
+      defaultIssuer: "some-cluster-issuer" # Optional. If set, must match a key in issuers
+      issuers:
+        some-cluster-issuer:
+          clusterIssuerName: some-cluster-issuer
 
   # Mirrors the radix-flux override; "{{ARCH}}" is replaced with the host architecture at install time.
   runtime:
@@ -83,12 +86,12 @@ config:
                         values:
                           - "{{ARCH}}"
           initContainers:
-          - name: clone-config
-            imagePullPolicy: IfNotPresent
+            - name: clone-config
+              imagePullPolicy: IfNotPresent
           containers:
-          - name: radix-pipeline
-            image: local-kind-repo/pipeline-runner:{{IMAGE_TAG}}
-            imagePullPolicy: IfNotPresent
+            - name: radix-pipeline
+              image: local-kind-repo/pipeline-runner:{{IMAGE_TAG}}
+              imagePullPolicy: IfNotPresent
     oauth2ProxyTemplate:
       overlay:
         spec:
