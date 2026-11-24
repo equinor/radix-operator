@@ -539,7 +539,9 @@ func TestRadixApplicationVolumeMountNameValidation(t *testing.T) {
 				},
 			}
 
-			err := c.Create(t.Context(), ra, client.DryRunAll)
+			err := createWhenWebhookCacheIsSynced(t, "no corresponding radix application found", func(ctx context.Context) error {
+				return c.Create(ctx, ra, client.DryRunAll)
+			})
 
 			if tc.shouldError {
 				assert.ErrorContains(t, err, "volumeMounts[0].name")
