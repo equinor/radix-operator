@@ -189,7 +189,7 @@ func Test_BlobFuse2_JobVolumesAreReconciledForJobAuxDeployment(t *testing.T) {
 	assert.Equal(t, jobName, pvc.Labels[kube.RadixComponentLabel])
 
 	// The batch syncer ensures volumes for the job in the RadixDeployment, and must get the same claim
-	batchVolumes, _, err := volumemount.EnsureComponentVolumes(context.Background(), kubeUtil, rd1, rd1.GetJobComponentByName(jobName))
+	batchVolumes, _, err := volumemount.EnsureComponentVolumes(context.Background(), kubeUtil, appName, rd1, rd1.GetJobComponentByName(jobName))
 	require.NoError(t, err)
 	assert.Equal(t, []string{claim1}, pvcClaimNames(batchVolumes), "the RadixDeployment and RadixBatch syncers must use the same claim")
 	assert.Equal(t, []string{claim1}, listPvcNames())

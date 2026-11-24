@@ -199,7 +199,7 @@ func (s *syncerTestSuite) Test_Volumes_NeverDeleted() {
 	activeRd := volumesTestRd("active-rd", "newcontainer")
 	activeRd.Status.Condition = radixv1.DeploymentActive
 	batch := s.createVolumesTestResources(volumesTestBatch(olderRd.Name), olderRd, activeRd)
-	_, _, err := volumemount.EnsureComponentVolumes(context.Background(), s.kubeUtil, activeRd, &activeRd.Spec.Jobs[0])
+	_, _, err := volumemount.EnsureComponentVolumes(context.Background(), s.kubeUtil, volumesTestAppName, activeRd, &activeRd.Spec.Jobs[0])
 	s.Require().NoError(err)
 	activePvcs, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)

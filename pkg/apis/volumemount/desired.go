@@ -47,7 +47,7 @@ func buildDesiredVolumeResources(appName string, rd *radixv1.RadixDeployment, co
 			Name:   pvName,
 			Labels: radixlabels.ForBlobCSIAzurePersistentVolume(appName, namespace, component.GetName(), radixVolumeMount),
 		},
-		Spec: newBlobfuse2PersistentVolumeBuilder(component, radixVolumeMount).BuildSpec(pvcName, namespace, volumeHandle),
+		Spec: newBlobfuse2PersistentVolumeBuilder(component, radixVolumeMount).buildSpec(pvcName, namespace, volumeHandle),
 	}
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -90,6 +90,7 @@ func sortedAccessModes(accessModes []corev1.PersistentVolumeAccessMode) []corev1
 	return slices.Sorted(slices.Values(accessModes))
 }
 
+// getVolumeMountAccessMode returns the access mode of the PV and PVC. The supported values are the ones allowed by the RadixApplication schema.
 func getVolumeMountAccessMode(radixVolumeMount radixv1.RadixVolumeMount) corev1.PersistentVolumeAccessMode {
 	var accessMode string
 	if radixVolumeMount.BlobFuse2 != nil {
@@ -100,8 +101,6 @@ func getVolumeMountAccessMode(radixVolumeMount radixv1.RadixVolumeMount) corev1.
 		return corev1.ReadWriteOnce
 	case strings.ToLower(string(corev1.ReadWriteMany)):
 		return corev1.ReadWriteMany
-	case strings.ToLower(string(corev1.ReadWriteOncePod)):
-		return corev1.ReadWriteOncePod
 	}
 	return corev1.ReadOnlyMany // default access mode
 }

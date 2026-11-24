@@ -13,13 +13,13 @@ Azure Key Vault `secretRefs` are also mounted as CSI volumes through this packag
 
 ## Files
 
-| File                                                       | Purpose                                                                                                                           |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [reconcile.go](./reconcile.go)                             | `ReconcileComponentVolumes`, `EnsureComponentVolumes` and `GarbageCollectVolumesNoLongerInSpec`: reuse, create and delete PV/PVCs |
-| [desired.go](./desired.go)                                 | Build the desired PV/PVC for a volume mount, with new unique names                                                                |
-| [match.go](./match.go)                                     | Decide whether an existing PV/PVC pair matches the desired PV/PVC                                                                 |
-| [persistentvolumebuilder.go](./persistentvolumebuilder.go) | BlobFuse2 PV spec: CSI attributes and mount options (cache modes and so on)                                                       |
-| [volumemount.go](./volumemount.go)                         | Container volume mounts, volume names, Key Vault volumes, credential secrets                                                      |
+| File                                                       | Purpose                                                                                                                                                                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [reconcile.go](./reconcile.go)                             | `ReconcileComponentVolumes`, `EnsureComponentVolumes` and `GarbageCollectVolumesNoLongerInSpec`: reuse, create and delete PV/PVCs. `componentStorage` holds the arguments of one component reconcile |
+| [desired.go](./desired.go)                                 | Build the desired PV/PVC for a volume mount, with new unique names                                                                                                                                   |
+| [match.go](./match.go)                                     | Decide whether an existing PV/PVC pair matches the desired PV/PVC                                                                                                                                    |
+| [persistentvolumebuilder.go](./persistentvolumebuilder.go) | BlobFuse2 PV spec: CSI attributes and mount options (cache modes and so on)                                                                                                                          |
+| [volumemount.go](./volumemount.go)                         | Container volume mounts, volume names, Key Vault volumes, credential secrets                                                                                                                         |
 
 ## How it works
 
@@ -37,7 +37,7 @@ The design relies on Kubernetes storage object protection: a PVC that is used by
 
 `ReconcileComponentVolumes` and `EnsureComponentVolumes` share the same logic:
 
-1. The application name is read from the `radix-app` label of the namespace of the RadixDeployment.
+1. The caller passes in the application name (the RadixRegistration name). The deprecated `spec.appName` of the RadixDeployment is not used.
 2. The current PVCs of the component are listed once (label selector `radix-app` + `radix-component`, with a `radix-volume-mount-name` label) and grouped by the `radix-volume-mount-name` label.
 3. For each BlobFuse2 volume mount, a current PVC is reused if it matches the desired spec (`buildDesiredVolumeResources`). It must:
    - not be terminating or `Lost`;

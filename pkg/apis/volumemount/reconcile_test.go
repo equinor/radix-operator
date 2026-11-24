@@ -77,7 +77,7 @@ func blobFuse2VolumeMount(name, container string, modify ...func(*radixv1.RadixB
 func (s *testSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, vm radixv1.RadixVolumeMount, pvcSuffix string, created time.Time) (*corev1.PersistentVolume, *corev1.PersistentVolumeClaim) {
 	desired, err := buildDesiredVolumeResources(ensureTestAppName, rd, component, vm)
 	s.Require().NoError(err)
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 
 	pvcName := fmt.Sprintf("pvc-%s-%s", volumeName, pvcSuffix)
@@ -88,7 +88,7 @@ func (s *testSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radi
 	pv.SetName(pvName)
 	pv.SetCreationTimestamp(metav1.NewTime(created))
 	pv.Labels["any-other-label"] = "any-value"
-	pv.Spec = builder.BuildSpec(pvcName, rd.Namespace, buildVolumeHandle(ensureTestAppName, rd.Spec.Environment, component.GetName(), vm.Name, uuid.New().String()))
+	pv.Spec = builder.buildSpec(pvcName, rd.Namespace, buildVolumeHandle(ensureTestAppName, rd.Spec.Environment, component.GetName(), vm.Name, uuid.New().String()))
 	for i, option := range pv.Spec.MountOptions {
 		if normalizeMountOption(option) == blockCachePathMountOption {
 			pv.Spec.MountOptions[i] = fmt.Sprintf("%s=/mnt/%s#blockcache", blockCachePathMountOption, uuid.New().String())
@@ -174,10 +174,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIs
 			_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 			pvsBefore, pvcsBefore := s.listPvAndPvcNames()
 
-			volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+			volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 			s.Require().NoError(err)
 
-			volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+			volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 			s.Require().NoError(err)
 			s.Equal(legacyPvc.Name, claimNameOf(volumes, volumeName))
 			s.Require().Len(volumeMounts, 1)
@@ -192,13 +192,13 @@ func (s *reconcileComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIs
 func (s *reconcileComponentVolumesTestSuite) Test_OldestMatchingClaimIsSelected() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 	now := time.Now()
 	_, _ = s.createLegacyPair(rd, component, vm, "bbbbb", now.Add(-1*time.Hour))
 	_, oldestPvc := s.createLegacyPair(rd, component, vm, "aaaab", now.Add(-2*time.Hour))
 
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 	s.Equal(oldestPvc.Name, claimNameOf(volumes, volumeName))
 }
@@ -231,10 +231,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 
 			changedVm := blobFuse2VolumeMount("vol", "container", modify)
 			changedRd, changedComponent := newEnsureTestRd(changedVm)
-			changedVolumeName, err := GetVolumeMountVolumeName(&changedVm, changedComponent.GetName())
+			changedVolumeName, err := getVolumeMountVolumeName(&changedVm, changedComponent.GetName())
 			s.Require().NoError(err)
 
-			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent)
+			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent)
 			s.Require().NoError(err)
 
 			claimName := claimNameOf(volumes, changedVolumeName)
@@ -249,7 +249,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 			s.True(s.pvcExists(legacyPvc.Name), "EnsureComponentVolumes must not delete the current PVC")
 			s.True(s.pvExists(legacyPv.Name), "EnsureComponentVolumes must not delete the current PV")
 
-			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent)
+			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent)
 			s.Require().NoError(err)
 			s.Equal(claimName, claimNameOf(volumes, changedVolumeName), "the new pair must be reused")
 			s.False(s.pvcExists(legacyPvc.Name), "ReconcileComponentVolumes must delete the PVC that does not match")
@@ -271,10 +271,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_SettingThatDoesNotChangeSpecRe
 		b.Protocol = radixv1.BlobFuse2ProtocolFuse2
 	})
 	changedRd, changedComponent := newEnsureTestRd(changedVm)
-	volumeName, err := GetVolumeMountVolumeName(&changedVm, changedComponent.GetName())
+	volumeName, err := getVolumeMountVolumeName(&changedVm, changedComponent.GetName())
 	s.Require().NoError(err)
 
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, changedRd, changedComponent)
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent)
 	s.Require().NoError(err)
 	s.Equal(legacyPvc.Name, claimNameOf(volumes, volumeName))
 }
@@ -283,11 +283,11 @@ func (s *reconcileComponentVolumesTestSuite) Test_RepeatedCallsCreateExactlyOneP
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
 
-	volumes1, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes1, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
-	volumes2, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes2, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
-	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 	s.Equal(volumes1, volumes2)
 	s.Equal(volumes1, volumes3)
@@ -306,10 +306,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairWithStaleClaimRefIsReplace
 	_, err := s.kubeClient.CoreV1().PersistentVolumes().Update(context.Background(), stalePv, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 	claimName := claimNameOf(volumes, volumeName)
 	s.NotEqual(stalePvc.Name, claimName)
@@ -323,7 +323,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated
 	rd, component := newEnsureTestRd(vm)
 	legacyPv, _ := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 
-	_, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	_, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 	pv, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), legacyPv.Name, metav1.GetOptions{})
 	s.Require().NoError(err)
@@ -339,9 +339,9 @@ func (s *reconcileComponentVolumesTestSuite) Test_PvcBeingDeletedIsNotReused() {
 	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Update(context.Background(), legacyPvc, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 	claimName := claimNameOf(volumes, volumeName)
 	s.NotEqual(legacyPvc.Name, claimName)
@@ -356,12 +356,12 @@ func (s *reconcileComponentVolumesTestSuite) Test_VolumesAndMountsAreConsistentA
 	}
 	rd, component := newEnsureTestRd(vms...)
 
-	volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 	s.Require().Len(volumes, 3)
 	s.Require().Len(volumeMounts, 3)
 	for i, vm := range vms {
-		volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+		volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 		s.Require().NoError(err)
 		s.Equal(volumeName, volumes[i].Name)
 		s.Equal(volumeName, volumeMounts[i].Name)
@@ -390,9 +390,9 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenCompon
 
 			otherRd, otherComponent := newEnsureTestRd(test.vm)
 			otherComponent.Name = test.componentName
-			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, otherRd, otherComponent)
+			volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, otherRd, otherComponent)
 			s.Require().NoError(err)
-			volumeName, err := GetVolumeMountVolumeName(&test.vm, otherComponent.GetName())
+			volumeName, err := getVolumeMountVolumeName(&test.vm, otherComponent.GetName())
 			s.Require().NoError(err)
 			claimName := claimNameOf(volumes, volumeName)
 			s.NotEmpty(claimName)
@@ -421,10 +421,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsSelectedPairAndD
 	_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), releasedPv, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 
-	volumeName, err := GetVolumeMountVolumeName(&vm, component.GetName())
+	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
 	s.Require().NoError(err)
 	s.Equal(keptPvc.Name, claimNameOf(volumes, volumeName), "the oldest matching pair must be reused")
 	s.True(s.pvcExists(keptPvc.Name))
@@ -447,7 +447,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileDeletesNothingWhenEns
 		return true, nil, errors.New("any create error")
 	})
 
-	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, rd, component)
+	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().Error(err)
 	s.True(s.pvcExists(oldSpecPvc.Name))
 	s.True(s.pvExists(oldSpecPv.Name))
@@ -487,7 +487,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 		s.Require().NoError(err)
 	}
 
-	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, rd))
+	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd))
 
 	s.True(s.pvcExists(componentPvc.Name))
 	s.True(s.pvExists(componentPv.Name))

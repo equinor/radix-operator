@@ -23,8 +23,8 @@ const (
 	volumeNameMaxLength                     = 63
 )
 
-// GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
-func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
+// getRadixDeployComponentVolumeMounts gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
+func getRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
 	volumeMounts := make([]corev1.VolumeMount, 0)
 	componentVolumeMounts, err := getRadixComponentVolumeMounts(deployComponent)
@@ -43,15 +43,16 @@ func GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(ctx context.Con
 	if err != nil {
 		return err
 	}
+
 	for _, secret := range secrets {
 		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
 			continue
 		}
-		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.Name); err != nil && !k8serrors.IsNotFound(err) {
+		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.GetName()); err != nil && !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
-	return garbageCollectSecrets(ctx, kubeUtil, namespace, secrets, excludeSecretNames)
+	return nil
 }
 
 // CreateOrUpdateVolumeMountSecrets creates or updates secrets for volume mounts
@@ -116,7 +117,7 @@ func createOrUpdateVolumeMountSecret(ctx context.Context, kubeUtil *kube.Kube, a
 func getRadixComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.VolumeMount, error) {
 	var volumeMounts []corev1.VolumeMount
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {
-		name, err := GetVolumeMountVolumeName(&volumeMount, deployComponent.GetName())
+		name, err := getVolumeMountVolumeName(&volumeMount, deployComponent.GetName())
 		if err != nil {
 			return nil, err
 		}
@@ -242,8 +243,8 @@ func getComponentVolumeMountEmptyDirVolumeSource(spec *radixv1.RadixEmptyDirVolu
 	}
 }
 
-// GetVolumeMountVolumeName Gets the volume name for a volume mount
-func GetVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
+// getVolumeMountVolumeName gets the volume name for a volume mount
+func getVolumeMountVolumeName(volumeMount *radixv1.RadixVolumeMount, componentName string) (string, error) {
 	// TODO: Why does the name of the volume include info about the driver, external container etc? Can we make a static name instead, like done in the last line?
 	switch {
 	case volumeMount.HasBlobFuse2():
@@ -258,7 +259,7 @@ func trimVolumeNameToValidLength(volumeName string) string {
 	}
 
 	randString := strings.ToLower(random.RandStringStrSeed(nameRandPartLength, volumeName))
-	return fmt.Sprintf("%s-%s", volumeName[:63-nameRandPartLength-1], randString)
+	return fmt.Sprintf("%s-%s", volumeName[:volumeNameMaxLength-nameRandPartLength-1], randString)
 }
 
 func getLabelSelectorForCsiAzureVolumeMountSecret(component radixv1.RadixCommonDeployComponent) string {
@@ -272,16 +273,4 @@ func listSecretsForVolumeMounts(ctx context.Context, kubeUtil *kube.Kube, namesp
 		return nil, err
 	}
 	return csiSecrets, nil
-}
-
-func garbageCollectSecrets(ctx context.Context, kubeUtil *kube.Kube, namespace string, secrets []*corev1.Secret, excludeSecretNames []string) error {
-	for _, secret := range secrets {
-		if slice.Any(excludeSecretNames, func(s string) bool { return s == secret.Name }) {
-			continue
-		}
-		if err := kubeUtil.DeleteSecret(ctx, namespace, secret.GetName()); err != nil && !k8serrors.IsNotFound(err) {
-			return err
-		}
-	}
-	return nil
 }

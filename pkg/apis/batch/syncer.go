@@ -101,7 +101,7 @@ func (s *syncer) reconcile(ctx context.Context) error {
 	// The RadixDeployment referenced by the batch may be an older, inactive RadixDeployment; its jobs get the storage defined in it.
 	// Ensuring volumes never deletes anything, storage that is no longer needed is deleted when the RadixDeployment syncs.
 	jobVolumesGetter := sync.OnceValues(func() (*jobVolumes, error) {
-		volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, rd, jobComponent)
+		volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, s.registration.Name, rd, jobComponent)
 		if err != nil {
 			return nil, err
 		}

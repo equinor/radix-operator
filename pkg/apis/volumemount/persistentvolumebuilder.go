@@ -2,13 +2,11 @@ package volumemount
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -34,15 +32,15 @@ type blobfuse2PersistentVolumeSpecBuilder struct {
 	radixVolumeMount radixv1.RadixVolumeMount
 }
 
-// BuildSpec builds the PersistentVolumeSpec. volumeHandle must uniquely identify the volume in the cluster,
+// buildSpec builds the PersistentVolumeSpec. volumeHandle must uniquely identify the volume in the cluster,
 // and is also used to derive the block cache path.
-func (b *blobfuse2PersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace, volumeHandle string) corev1.PersistentVolumeSpec {
+func (b *blobfuse2PersistentVolumeSpecBuilder) buildSpec(pvcName, pvcNamespace, volumeHandle string) corev1.PersistentVolumeSpec {
 	spec := corev1.PersistentVolumeSpec{
 		StorageClassName:              "",
 		PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
 		MountOptions:                  b.mountOptions(volumeHandle),
-		Capacity:                      corev1.ResourceList{corev1.ResourceStorage: b.getResourceStorage()},
-		AccessModes:                   []corev1.PersistentVolumeAccessMode{b.getAccessMode()},
+		Capacity:                      corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacityOrDefault(b.radixVolumeMount)},
+		AccessModes:                   []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(b.radixVolumeMount)},
 		ClaimRef: &corev1.ObjectReference{
 			APIVersion: "v1",
 			Kind:       k8s.KindPersistentVolumeClaim,
@@ -62,25 +60,6 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) BuildSpec(pvcName, pvcNamespace, 
 	}
 
 	return spec
-}
-
-func (b *blobfuse2PersistentVolumeSpecBuilder) getAccessMode() corev1.PersistentVolumeAccessMode {
-	switch strings.ToLower(b.radixVolumeMount.BlobFuse2.AccessMode) {
-	case strings.ToLower(string(corev1.ReadWriteOnce)):
-		return corev1.ReadWriteOnce
-	case strings.ToLower(string(corev1.ReadWriteMany)):
-		return corev1.ReadWriteMany
-	default:
-		return corev1.ReadOnlyMany
-	}
-}
-
-func (b *blobfuse2PersistentVolumeSpecBuilder) getResourceStorage() resource.Quantity {
-	qty := b.radixVolumeMount.BlobFuse2.RequestsStorage
-	if qty.IsZero() {
-		return defaultStorageCapacity
-	}
-	return qty
 }
 
 // buildVolumeHandle returns a value the driver can use to uniquely identify the share in the cluster.
@@ -129,7 +108,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) mountOptions(volumeHandle string)
 	}
 	mountOptions = append(mountOptions, fmt.Sprintf("--use-adls=%v", b.radixVolumeMount.BlobFuse2.UseAdls != nil && *b.radixVolumeMount.BlobFuse2.UseAdls))
 
-	if b.getAccessMode() == corev1.ReadOnlyMany {
+	if getVolumeMountAccessMode(b.radixVolumeMount) == corev1.ReadOnlyMany {
 		mountOptions = append(mountOptions, "--read-only=true")
 	}
 
