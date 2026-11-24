@@ -34,7 +34,7 @@ type componentStorage struct {
 
 // ReconcileComponentVolumes returns the Pod volumes and container volume mounts for a component or job in the RadixDeployment.
 // For each BlobFuse2 volume mount it reuses the current PV/PVC of the component if it matches the desired spec, or creates the desired PV/PVC.
-// All other PVs/PVCs of the component are deleted, except those created less than deletionGracePeriod ago. Kubernetes keeps a PVC, and its PV, that is used by a Pod in Terminating state
+// All other PVs/PVCs of the component are deleted, except those created less than deletionGracePeriod ago, and those used by a Kubernetes Job that has not finished. Kubernetes keeps a PVC, and its PV, that is used by a Pod in Terminating state
 // (kubernetes.io/pvc-protection and kubernetes.io/pv-protection) until the Pod is gone, so running workloads are not affected.
 // Blob data is never deleted, as all PVs use the reclaim policy Retain.
 func ReconcileComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, deletionGracePeriod time.Duration) ([]corev1.Volume, []corev1.VolumeMount, error) {
@@ -85,8 +85,8 @@ func (s *componentStorage) componentSelector() kubelabels.Set {
 }
 
 // reconcile reuses or creates the PV/PVC for each BlobFuse2 volume mount of the component, and returns the PVC name by volume mount name.
-// When deleteUnused is set, all other PVCs/PVs of the component that are older than deletionGracePeriod are deleted,
-// unless the PV/PVC of any volume mount could not be reused or created.
+// When deleteUnused is set, all other PVCs/PVs of the component that are older than deletionGracePeriod, and are not used by a Kubernetes Job
+// that has not finished, are deleted, unless the PV/PVC of any volume mount could not be reused or created.
 func (s *componentStorage) reconcile(ctx context.Context, deleteUnused bool) (map[string]string, error) {
 	currentPvcs, err := listRadixPvcs(ctx, s.kubeUtil.KubeClient(), s.appName, s.namespace(), s.componentSelector())
 	if err != nil {
@@ -125,7 +125,8 @@ func (s *componentStorage) reconcile(ctx context.Context, deleteUnused bool) (ma
 		if err != nil {
 			return nil, err
 		}
-		if err := deleteUnusedVolumeResources(ctx, s.kubeUtil.KubeClient(), currentPvcs, currentPvs, usedPvcs, s.deletionGracePeriod); err != nil {
+		collector := newVolumeCollector(s.kubeUtil.KubeClient(), s.namespace(), s.deletionGracePeriod)
+		if err := collector.deleteUnused(ctx, currentPvcs, currentPvs, usedPvcs); err != nil {
 			return nil, fmt.Errorf("failed to delete unused storage for component %s: %w", s.component.GetName(), err)
 		}
 	}

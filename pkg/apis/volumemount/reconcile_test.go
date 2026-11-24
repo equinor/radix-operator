@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -605,6 +606,54 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 	s.True(s.pvExists(newPv.Name))
 	s.False(s.pvcExists(expiredPvc.Name))
 	s.False(s.pvExists(expiredPv.Name))
+}
+
+func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByUnfinishedJobIsKept() {
+	const jobName = "anyjob"
+	jobStates := map[string]struct {
+		conditions []batchv1.JobCondition
+		expectKept bool
+	}{
+		"running job":  {expectKept: true},
+		"complete job": {conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}}},
+		"failed job":   {conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}},
+	}
+	collectors := map[string]func(rd *radixv1.RadixDeployment) error{
+		"ReconcileComponentVolumes with changed job spec": func(rd *radixv1.RadixDeployment) error {
+			_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, &rd.Spec.Jobs[0], testDeletionGracePeriod)
+			return err
+		},
+		"GarbageCollectVolumesNoLongerInSpec with removed job": func(rd *radixv1.RadixDeployment) error {
+			rd.Spec.Jobs = nil
+			return GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd, testDeletionGracePeriod)
+		},
+	}
+	for collectorName, collect := range collectors {
+		for stateName, state := range jobStates {
+			s.Run(collectorName+"/"+stateName, func() {
+				oldVm := blobFuse2VolumeMount("vol", "oldcontainer")
+				rd, _ := newEnsureTestRd()
+				rd.Spec.Components = nil
+				rd.Spec.Jobs = []radixv1.RadixDeployJobComponent{{Name: jobName, VolumeMounts: []radixv1.RadixVolumeMount{blobFuse2VolumeMount("vol", "newcontainer")}}}
+				oldPv, oldPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], oldVm, "aaaaa", beforeGracePeriod())
+				job := &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{Name: "batch-job1", Namespace: rd.Namespace},
+					Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Volumes: []corev1.Volume{{
+						Name:         "vol",
+						VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: oldPvc.Name}},
+					}}}}},
+					Status: batchv1.JobStatus{Conditions: state.conditions},
+				}
+				_, err := s.kubeClient.BatchV1().Jobs(rd.Namespace).Create(context.Background(), job, metav1.CreateOptions{})
+				s.Require().NoError(err)
+
+				s.Require().NoError(collect(rd))
+
+				s.Equal(state.expectKept, s.pvcExists(oldPvc.Name), "PVC kept")
+				s.Equal(state.expectKept, s.pvExists(oldPv.Name), "PV kept")
+			})
+		}
+	}
 }
 
 func Test_DesiredNamesAndVolumeHandle(t *testing.T) {
