@@ -608,15 +608,45 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 	s.False(s.pvExists(expiredPv.Name))
 }
 
-func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByUnfinishedJobIsKept() {
+func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByWorkloadIsKept() {
 	const jobName = "anyjob"
-	jobStates := map[string]struct {
-		conditions []batchv1.JobCondition
+	podSpecWithClaim := func(claimName string) corev1.PodTemplateSpec {
+		return corev1.PodTemplateSpec{Spec: corev1.PodSpec{Volumes: []corev1.Volume{{
+			Name:         "vol",
+			VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName}},
+		}}}}
+	}
+	createJob := func(namespace, claimName string, conditions ...batchv1.JobCondition) error {
+		job := &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{Name: "batch-job1", Namespace: namespace},
+			Spec:       batchv1.JobSpec{Template: podSpecWithClaim(claimName)},
+			Status:     batchv1.JobStatus{Conditions: conditions},
+		}
+		_, err := s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+		return err
+	}
+	createReplicaSet := func(namespace, claimName string, replicas *int32) error {
+		replicaSet := &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "anycomp-12345", Namespace: namespace},
+			Spec:       appsv1.ReplicaSetSpec{Replicas: replicas, Template: podSpecWithClaim(claimName)},
+		}
+		_, err := s.kubeClient.AppsV1().ReplicaSets(namespace).Create(context.Background(), replicaSet, metav1.CreateOptions{})
+		return err
+	}
+	workloads := map[string]struct {
+		create     func(namespace, claimName string) error
 		expectKept bool
 	}{
-		"running job":  {expectKept: true},
-		"complete job": {conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue}}},
-		"failed job":   {conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}},
+		"running job": {create: func(ns, claim string) error { return createJob(ns, claim) }, expectKept: true},
+		"complete job": {create: func(ns, claim string) error {
+			return createJob(ns, claim, batchv1.JobCondition{Type: batchv1.JobComplete, Status: corev1.ConditionTrue})
+		}},
+		"failed job": {create: func(ns, claim string) error {
+			return createJob(ns, claim, batchv1.JobCondition{Type: batchv1.JobFailed, Status: corev1.ConditionTrue})
+		}},
+		"replicaset with replicas":         {create: func(ns, claim string) error { return createReplicaSet(ns, claim, new(int32(1))) }, expectKept: true},
+		"replicaset with default replicas": {create: func(ns, claim string) error { return createReplicaSet(ns, claim, nil) }, expectKept: true},
+		"replicaset scaled down":           {create: func(ns, claim string) error { return createReplicaSet(ns, claim, new(int32(0))) }},
 	}
 	collectors := map[string]func(rd *radixv1.RadixDeployment) error{
 		"ReconcileComponentVolumes with changed job spec": func(rd *radixv1.RadixDeployment) error {
@@ -629,28 +659,19 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByUnfinishedJobIsKept(
 		},
 	}
 	for collectorName, collect := range collectors {
-		for stateName, state := range jobStates {
-			s.Run(collectorName+"/"+stateName, func() {
+		for workloadName, workload := range workloads {
+			s.Run(collectorName+"/"+workloadName, func() {
 				oldVm := blobFuse2VolumeMount("vol", "oldcontainer")
 				rd, _ := newEnsureTestRd()
 				rd.Spec.Components = nil
 				rd.Spec.Jobs = []radixv1.RadixDeployJobComponent{{Name: jobName, VolumeMounts: []radixv1.RadixVolumeMount{blobFuse2VolumeMount("vol", "newcontainer")}}}
 				oldPv, oldPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], oldVm, "aaaaa", beforeGracePeriod())
-				job := &batchv1.Job{
-					ObjectMeta: metav1.ObjectMeta{Name: "batch-job1", Namespace: rd.Namespace},
-					Spec: batchv1.JobSpec{Template: corev1.PodTemplateSpec{Spec: corev1.PodSpec{Volumes: []corev1.Volume{{
-						Name:         "vol",
-						VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: oldPvc.Name}},
-					}}}}},
-					Status: batchv1.JobStatus{Conditions: state.conditions},
-				}
-				_, err := s.kubeClient.BatchV1().Jobs(rd.Namespace).Create(context.Background(), job, metav1.CreateOptions{})
-				s.Require().NoError(err)
+				s.Require().NoError(workload.create(rd.Namespace, oldPvc.Name))
 
 				s.Require().NoError(collect(rd))
 
-				s.Equal(state.expectKept, s.pvcExists(oldPvc.Name), "PVC kept")
-				s.Equal(state.expectKept, s.pvExists(oldPv.Name), "PV kept")
+				s.Equal(workload.expectKept, s.pvcExists(oldPvc.Name), "PVC kept")
+				s.Equal(workload.expectKept, s.pvExists(oldPv.Name), "PV kept")
 			})
 		}
 	}

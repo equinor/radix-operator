@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/rs/zerolog/log"
+	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,7 +20,7 @@ import (
 
 // GarbageCollectVolumesNoLongerInSpec deletes the Radix owned PVCs and PVs of the application in the namespace of the RadixDeployment
 // that belong to components or jobs that are not in the RadixDeployment. PVCs and PVs created less than deletionGracePeriod ago,
-// and PVCs used by Kubernetes Jobs that have not finished and their PVs, are kept.
+// and PVCs used by workloads that can still create Pods (see volumeCollector.getClaimNamesUsedByWorkloads) and their PVs, are kept.
 //
 // The RadixDeployment and RadixBatch syncers do not share a lock, so the RadixBatch syncer can create a PV/PVC for a job
 // while the RadixDeployment syncer garbage collects the PVs/PVCs of the job. Without a grace period, the new PV/PVC
@@ -85,20 +86,20 @@ func (c *volumeCollector) deleteUnused(ctx context.Context, pvcs []corev1.Persis
 
 // delete deletes the PVCs, then the PVs.
 // Resources that are already being deleted, or that are within the deletion grace period, are skipped.
-// PVCs used by the Pod template of a Kubernetes Job in the namespace that has not finished, and the PVs bound to them, are skipped,
-// because the Job can still create Pods, e.g. to retry a failed Pod, and they cannot start without the PVC.
+// PVCs used by a workload that can still create Pods (see getClaimNamesUsedByWorkloads), and the PVs bound to them, are skipped,
+// because Kubernetes does not start a new Pod with a terminating or deleted PVC. Storage object protection only keeps the PVC for existing Pods.
 func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume) error {
 	if len(pvcs) == 0 && len(pvs) == 0 {
 		return nil
 	}
-	jobClaimNames, err := c.getClaimNamesUsedByUnfinishedJobs(ctx)
+	workloadClaimNames, err := c.getClaimNamesUsedByWorkloads(ctx)
 	if err != nil {
 		return err
 	}
-	jobPvNames := make(map[string]struct{})
+	workloadPvNames := make(map[string]struct{})
 	for _, pvc := range pvcs {
-		if _, ok := jobClaimNames[pvc.GetName()]; ok && len(pvc.Spec.VolumeName) > 0 {
-			jobPvNames[pvc.Spec.VolumeName] = struct{}{}
+		if _, ok := workloadClaimNames[pvc.GetName()]; ok && len(pvc.Spec.VolumeName) > 0 {
+			workloadPvNames[pvc.Spec.VolumeName] = struct{}{}
 		}
 	}
 
@@ -113,8 +114,8 @@ func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVo
 			logger.Debug().Msgf("Skip delete of PersistentVolumeClaim %s in namespace %s, created less than %s ago", pvc.GetName(), pvc.GetNamespace(), c.deletionGracePeriod)
 			continue
 		}
-		if _, ok := jobClaimNames[pvc.GetName()]; ok {
-			logger.Debug().Msgf("Skip delete of PersistentVolumeClaim %s in namespace %s, used by a Job that has not finished", pvc.GetName(), pvc.GetNamespace())
+		if _, ok := workloadClaimNames[pvc.GetName()]; ok {
+			logger.Debug().Msgf("Skip delete of PersistentVolumeClaim %s in namespace %s, used by a Job that has not finished or a ReplicaSet with replicas", pvc.GetName(), pvc.GetNamespace())
 			continue
 		}
 		logger.Info().Msgf("Delete PersistentVolumeClaim %s in namespace %s", pvc.GetName(), pvc.GetNamespace())
@@ -130,8 +131,8 @@ func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVo
 			logger.Debug().Msgf("Skip delete of PersistentVolume %s, created less than %s ago", pv.GetName(), c.deletionGracePeriod)
 			continue
 		}
-		if c.isPvUsedByUnfinishedJob(&pv, jobClaimNames, jobPvNames) {
-			logger.Debug().Msgf("Skip delete of PersistentVolume %s, its PersistentVolumeClaim is used by a Job that has not finished", pv.GetName())
+		if c.isPvUsedByWorkload(&pv, workloadClaimNames, workloadPvNames) {
+			logger.Debug().Msgf("Skip delete of PersistentVolume %s, its PersistentVolumeClaim is used by a Job that has not finished or a ReplicaSet with replicas", pv.GetName())
 			continue
 		}
 		logger.Info().Msgf("Delete PersistentVolume %s (phase %s)", pv.GetName(), pv.Status.Phase)
@@ -142,37 +143,58 @@ func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVo
 	return errors.Join(errs...)
 }
 
-// getClaimNamesUsedByUnfinishedJobs returns the names of the PVCs used by the Pod template of the Kubernetes Jobs in the namespace that have not finished
-func (c *volumeCollector) getClaimNamesUsedByUnfinishedJobs(ctx context.Context) (map[string]struct{}, error) {
-	jobs, err := c.kubeClient.BatchV1().Jobs(c.namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list Jobs: %w", err)
-	}
+// getClaimNamesUsedByWorkloads returns the names of the PVCs used by the Pod template of workloads in the namespace that can still create Pods:
+//   - Kubernetes Jobs that have not finished, which can create Pods, e.g. to retry a failed Pod.
+//   - ReplicaSets with replicas, which recreate Pods, e.g. after an eviction. This includes the ReplicaSet of the previous revision
+//     of a Deployment while a rollout is in progress or has failed, so the previous revision keeps working until it is scaled down.
+func (c *volumeCollector) getClaimNamesUsedByWorkloads(ctx context.Context) (map[string]struct{}, error) {
 	claimNames := make(map[string]struct{})
-	for _, job := range jobs.Items {
-		if isJobFinished(&job) {
-			continue
-		}
-		for _, volume := range job.Spec.Template.Spec.Volumes {
+	addClaimNames := func(podSpec *corev1.PodSpec) {
+		for _, volume := range podSpec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
 				claimNames[volume.PersistentVolumeClaim.ClaimName] = struct{}{}
 			}
 		}
 	}
+
+	jobs, err := c.kubeClient.BatchV1().Jobs(c.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list Jobs: %w", err)
+	}
+	for _, job := range jobs.Items {
+		if !isJobFinished(&job) {
+			addClaimNames(&job.Spec.Template.Spec)
+		}
+	}
+
+	replicaSets, err := c.kubeClient.AppsV1().ReplicaSets(c.namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list ReplicaSets: %w", err)
+	}
+	for _, replicaSet := range replicaSets.Items {
+		if hasReplicas(&replicaSet) {
+			addClaimNames(&replicaSet.Spec.Template.Spec)
+		}
+	}
 	return claimNames, nil
 }
 
-// isPvUsedByUnfinishedJob returns true if the PV is bound to a PVC used by a Kubernetes Job that has not finished.
-// jobClaimNames has the PVCs used by such Jobs, and jobPvNames the PVs of those PVCs.
-func (c *volumeCollector) isPvUsedByUnfinishedJob(pv *corev1.PersistentVolume, jobClaimNames, jobPvNames map[string]struct{}) bool {
-	if _, ok := jobPvNames[pv.GetName()]; ok {
+// isPvUsedByWorkload returns true if the PV is bound to a PVC used by a workload that can still create Pods.
+// workloadClaimNames has the PVCs used by such workloads, and workloadPvNames the PVs of those PVCs.
+func (c *volumeCollector) isPvUsedByWorkload(pv *corev1.PersistentVolume, workloadClaimNames, workloadPvNames map[string]struct{}) bool {
+	if _, ok := workloadPvNames[pv.GetName()]; ok {
 		return true
 	}
 	if ref := pv.Spec.ClaimRef; ref != nil && ref.Namespace == c.namespace {
-		_, ok := jobClaimNames[ref.Name]
+		_, ok := workloadClaimNames[ref.Name]
 		return ok
 	}
 	return false
+}
+
+// hasReplicas returns true if the ReplicaSet wants Pods. A ReplicaSet without spec.replicas defaults to 1.
+func hasReplicas(replicaSet *appsv1.ReplicaSet) bool {
+	return replicaSet.Spec.Replicas == nil || *replicaSet.Spec.Replicas > 0
 }
 
 // isWithinDeletionGracePeriod returns true if the object was created less than deletionGracePeriod before now

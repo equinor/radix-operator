@@ -77,8 +77,8 @@ func TestVolumeMountIsMountedByCSIDriver(t *testing.T) {
 }
 
 // TestVolumeMountSpecChange changes the storage spec of a component, and verifies that a new PV/PVC pair is
-// created and used by the rolled out Pod, and that the old pair is deleted when the RadixDeployment syncs after the deletion grace period.
-// Kubernetes keeps the old pair while the old Pod uses it, and removes it when the Pod is gone, without another sync.
+// created and used by the rolled out Pod, and that the old pair is deleted by a RadixDeployment sync after the deletion grace period,
+// once the ReplicaSet of the previous revision is scaled down.
 func TestVolumeMountSpecChange(t *testing.T) {
 	t.Parallel()
 	c := getClient(t)
