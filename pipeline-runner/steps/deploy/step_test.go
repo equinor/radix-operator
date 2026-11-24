@@ -246,8 +246,9 @@ func (s *deployTestSuite) Test_RadixConfigHashAnnotation() {
 	cli.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
 
 	pipelineInfo := &model.PipelineInfo{
-		RadixApplication:   ra,
-		TargetEnvironments: []model.TargetEnvironment{{Environment: "dev"}},
+		RadixApplication:     ra,
+		RadixApplicationHash: "anyhash",
+		TargetEnvironments:   []model.TargetEnvironment{{Environment: "dev"}},
 	}
 
 	err := cli.Run(context.Background(), pipelineInfo)
@@ -255,7 +256,7 @@ func (s *deployTestSuite) Test_RadixConfigHashAnnotation() {
 	rds, _ := s.radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyAppName, "dev")).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(rds.Items, 1)
 	rd := rds.Items[0]
-	expectedHash := internaltest.GetRadixApplicationHash(ra)
+	expectedHash := pipelineInfo.RadixApplicationHash
 	s.Equal(expectedHash, rd.Annotations[kube.RadixConfigHash])
 }
 

@@ -28,6 +28,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	kedafake "github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -113,6 +114,10 @@ func (s *stepTestSuite) Test_SetRadixConfig() {
 	err := step.Run(ctx, pipelineInfo)
 	s.Require().NoError(err)
 	s.Equal(ra, pipelineInfo.RadixApplication)
+	expectedHash, err := hash.CreateRadixApplicationHash(ra)
+	s.Require().NoError(err)
+	s.NotEmpty(pipelineInfo.RadixApplicationHash)
+	s.Equal(expectedHash, pipelineInfo.RadixApplicationHash)
 }
 
 func (s *stepTestSuite) Test_SetRadixConfig_CheckoutError() {
