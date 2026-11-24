@@ -2361,6 +2361,11 @@ func getSourceForEnvironment(component RadixCommonComponent, environment string)
 		Folder:        component.GetSourceFolder(),
 		DockefileName: component.GetDockerfileName(),
 	}
+
+	if len(strings.TrimSpace(source.DockefileName)) == 0 {
+		source.DockefileName = "Dockerfile"
+	}
+
 	if len(environmentConfigsMap) == 0 {
 		return source
 	}

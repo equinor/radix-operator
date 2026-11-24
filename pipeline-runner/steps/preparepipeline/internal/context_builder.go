@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -64,7 +65,7 @@ func (cb *contextBuilder) GetBuildContext(ctx context.Context, pipelineInfo *mod
 
 		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
 			Environment: targetEnv.Environment,
-			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), targetEnv.Environment, distinctDirs(changedFiles)),
+			Components:  getComponentsToBuild(pipelineInfo.GetRadixApplication(), targetEnv.Environment, changedFiles),
 		})
 	}
 
@@ -75,16 +76,16 @@ func (cb *contextBuilder) GetBuildContext(ctx context.Context, pipelineInfo *mod
 	return &buildContext, nil
 }
 
-func getComponentsToBuild(ra *radixv1.RadixApplication, envName string, changedDirs []string) []string {
+func getComponentsToBuild(ra *radixv1.RadixApplication, envName string, changedFiles git.DiffEntries) []string {
 	var componentsWithChangedSource []string
 
 	for _, radixComponent := range ra.Spec.Components {
-		if componentHasChangedSource(envName, &radixComponent, changedDirs) {
+		if componentHasChangedSource(envName, &radixComponent, changedFiles) {
 			componentsWithChangedSource = append(componentsWithChangedSource, radixComponent.GetName())
 		}
 	}
 	for _, radixJobComponent := range ra.Spec.Jobs {
-		if componentHasChangedSource(envName, &radixJobComponent, changedDirs) {
+		if componentHasChangedSource(envName, &radixJobComponent, changedFiles) {
 			componentsWithChangedSource = append(componentsWithChangedSource, radixJobComponent.GetName())
 		}
 	}
@@ -92,8 +93,8 @@ func getComponentsToBuild(ra *radixv1.RadixApplication, envName string, changedD
 }
 
 // componentHasChangedSource checks if the component has changed source
-func componentHasChangedSource(envName string, component radixv1.RadixCommonComponent, changedFolders []string) bool {
-	if len(changedFolders) == 0 {
+func componentHasChangedSource(envName string, component radixv1.RadixCommonComponent, changedFiles git.DiffEntries) bool {
+	if len(changedFiles) == 0 {
 		return false
 	}
 
@@ -105,14 +106,31 @@ func componentHasChangedSource(envName string, component radixv1.RadixCommonComp
 		return false
 	}
 
-	cleanedSourceFolder := cleanPathForPrefixComparison(component.GetSourceForEnvironment(envName).Folder)
+	componentSource := component.GetSourceForEnvironment(envName)
+
+	cleanedSourceFolder := cleanPathForPrefixComparison(componentSource.Folder)
 	if cleanedSourceFolder == "/" {
 		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
 	}
 
-	for _, folder := range changedFolders {
-		if strings.HasPrefix(cleanPathForPrefixComparison(folder), cleanedSourceFolder) {
+	dockerFilePath := componentSource.DockefileName
+	if !filepath.IsAbs(dockerFilePath) {
+		dockerFilePath = filepath.Join(cleanedSourceFolder, dockerFilePath)
+	}
+
+	for _, entry := range changedFiles {
+
+		// Check if the changed entry is within the component's source folder
+		if dir := entryDir(entry); strings.HasPrefix(dir, cleanedSourceFolder) {
 			return true
+		}
+
+		// Check if the changed entry is the Dockerfile itself
+		if !entry.IsDir {
+			cleanedEntry := path.Join("/", filepath.Clean(entry.Name))
+			if cleanedEntry == dockerFilePath {
+				return true
+			}
 		}
 	}
 	return false
@@ -124,6 +142,13 @@ func cleanPathForPrefixComparison(dir string) string {
 		outDir = outDir + "/"
 	}
 	return outDir
+}
+
+func entryDir(entry git.DiffEntry) string {
+	if entry.IsDir {
+		return cleanPathForPrefixComparison(entry.Name)
+	}
+	return cleanPathForPrefixComparison(path.Dir(entry.Name))
 }
 
 // Returns list of distinct directories
