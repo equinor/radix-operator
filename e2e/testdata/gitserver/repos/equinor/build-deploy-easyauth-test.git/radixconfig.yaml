@@ -1,0 +1,27 @@
+# Used by TestBuildDeployStopsWhenRadixConfigIsUnchanged. radix-easyauth replaces the OAuth2 config of the
+# public component, so the applied RadixApplication differs from this file. webhookEnabled is set explicitly
+# so the API server default does not contribute to the difference.
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: build-deploy-easyauth-test
+  annotations:
+    easyauth.radix.equinor.com: ""
+spec:
+  environments:
+    - name: dev
+      build:
+        from: dev
+        webhookEnabled: true
+  components:
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      publicPort: http
+      authentication:
+        oauth2:
+          clientId: user-defined

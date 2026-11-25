@@ -1,0 +1,20 @@
+# radixconfig.yaml with a genuine change, see TestBuildDeployStopsWhenRadixConfigIsUnchanged
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: build-deploy-defaults-test
+spec:
+  environments:
+    - name: dev
+      build:
+        from: dev
+  components:
+    - name: web
+      image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+      runtime:
+        architecture: "{{ARCH}}"
+      ports:
+        - name: http
+          port: 8080
+      variables:
+        E2E_CONFIG_CHANGED: "true"
