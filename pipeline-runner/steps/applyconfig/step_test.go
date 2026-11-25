@@ -24,7 +24,9 @@ import (
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -67,6 +69,119 @@ func (s *applyConfigTestSuite) Test_RadixConfigMap_WithoutPrepareBuildCtx_Proces
 	err := step.Run(context.Background(), pipelineInfo)
 	s.Require().NoError(err)
 	s.Nil(pipelineInfo.BuildContext)
+}
+
+func (s *applyConfigTestSuite) Test_ApplyRadixApplication_SetsMutatedRadixApplication() {
+	const (
+		appName      = "anyapp"
+		mutatedLabel = "mutated-by-webhook"
+	)
+
+	scenarios := map[string]struct {
+		verb       string
+		existingRA *radixv1.RadixApplication
+	}{
+		"create": {verb: "create"},
+		"update": {
+			verb:       "update",
+			existingRA: utils.NewRadixApplicationBuilder().WithAppName(appName).BuildRA(),
+		},
+	}
+
+	for name, scenario := range scenarios {
+		s.Run(name, func() {
+			rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			if scenario.existingRA != nil {
+				_, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Create(context.Background(), scenario.existingRA, metav1.CreateOptions{})
+				s.Require().NoError(err)
+			}
+
+			var reactorCalled bool
+			s.radixClient.PrependReactor(scenario.verb, "radixapplications", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				reactorCalled = true
+				mutated := action.(k8stesting.CreateAction).GetObject().(*radixv1.RadixApplication).DeepCopy()
+				mutated.Labels = map[string]string{mutatedLabel: "true"}
+				return true, mutated, nil
+			})
+
+			ra := utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironment("dev", "main").BuildRA()
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					AppName: appName,
+				},
+				RadixApplication: ra,
+			}
+
+			step := applyconfig.NewApplyConfigStep()
+			step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+			err = step.Run(context.Background(), pipelineInfo)
+			s.Require().NoError(err)
+			s.True(reactorCalled)
+			s.Require().NotNil(pipelineInfo.RadixApplication)
+			s.Equal(map[string]string{mutatedLabel: "true"}, pipelineInfo.RadixApplication.Labels)
+		})
+	}
+}
+
+func (s *applyConfigTestSuite) Test_ApplyRadixApplication_AnnotationChangesAndUnchanged() {
+	const appName = "anyapp"
+
+	newRA := func(annotations map[string]string) *radixv1.RadixApplication {
+		ra := utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironment("dev", "main").BuildRA()
+		ra.SetAnnotations(annotations)
+		return ra
+	}
+
+	scenarios := map[string]struct {
+		existingAnnotations map[string]string
+		newAnnotations      map[string]string
+		expectedVerbs       []string
+	}{
+		"annotation-only change updates": {
+			existingAnnotations: map[string]string{"a": "1"},
+			newAnnotations:      map[string]string{"a": "2"},
+			expectedVerbs:       []string{"update"},
+		},
+		"annotation added updates": {
+			newAnnotations: map[string]string{"a": "1"},
+			expectedVerbs:  []string{"update"},
+		},
+		"identical spec and annotations: no write": {
+			existingAnnotations: map[string]string{"a": "1"},
+			newAnnotations:      map[string]string{"a": "1"},
+		},
+	}
+
+	for name, scenario := range scenarios {
+		s.Run(name, func() {
+			rr := utils.ARadixRegistration().WithName(appName).BuildRR()
+			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+			s.Require().NoError(err)
+			_, err = s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Create(context.Background(), newRA(scenario.existingAnnotations), metav1.CreateOptions{})
+			s.Require().NoError(err)
+			s.radixClient.ClearActions()
+
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{AppName: appName},
+				RadixApplication:  newRA(scenario.newAnnotations),
+			}
+			step := applyconfig.NewApplyConfigStep()
+			step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+			s.Require().NoError(step.Run(context.Background(), pipelineInfo))
+
+			var writeVerbs []string
+			for _, action := range s.radixClient.Actions() {
+				if action.GetResource().Resource == "radixapplications" && action.GetVerb() != "get" && action.GetVerb() != "list" && action.GetVerb() != "watch" {
+					writeVerbs = append(writeVerbs, action.GetVerb())
+				}
+			}
+			s.Equal(scenario.expectedVerbs, writeVerbs)
+			s.Require().NotNil(pipelineInfo.RadixApplication)
+			s.Equal(scenario.newAnnotations, pipelineInfo.RadixApplication.GetAnnotations())
+		})
+	}
 }
 
 func (s *applyConfigTestSuite) Test_BuildSecrets_SecretMissing() {
