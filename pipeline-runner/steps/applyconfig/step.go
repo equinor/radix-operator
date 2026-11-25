@@ -102,43 +102,6 @@ func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Con
 	}
 
 	return nil
-
-	// ra := pipelineInfo.RadixApplication
-	// namespace := operatorutils.GetAppNamespace(ra.GetName())
-
-	// existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
-	// if err != nil {
-	// 	if kubeerrors.IsNotFound(err) {
-	// 		mutatedRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{})
-	// 		if err != nil {
-	// 			return fmt.Errorf("failed to create radix application: %w", err)
-	// 		}
-
-	// 		pipelineInfo.RadixApplication = mutatedRA
-	// 		log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
-	// 		return nil
-	// 	}
-	// 	return fmt.Errorf("failed to get radix application: %w", err)
-	// }
-
-	// log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)
-	// // Annotations are compared since they can change admission webhook behavior (e.g. radix-easyauth)
-	// if reflect.DeepEqual(ra.Spec, existingRA.Spec) && maps.Equal(ra.GetAnnotations(), existingRA.GetAnnotations()) {
-	// 	log.Ctx(ctx).Info().Msgf("No changes to RadixApplication %s in namespace %s", ra.Name, namespace)
-	// 	return nil
-	// }
-
-	// // Update RA if different
-	// log.Ctx(ctx).Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", ra.Name, namespace)
-	// // For an update, ResourceVersion of the new object must be the same with the old object
-	// ra.SetResourceVersion(existingRA.GetResourceVersion())
-	// mutatedRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Update(ctx, ra, metav1.UpdateOptions{})
-	// if err != nil {
-	// 	return fmt.Errorf("failed to update existing radix application: %w", err)
-	// }
-	// pipelineInfo.RadixApplication = mutatedRA
-	// log.Ctx(ctx).Info().Msgf("RadixApplication %s updated in namespace %s", ra.Name, namespace)
-	// return nil
 }
 
 func (step *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.PipelineInfo) error {
