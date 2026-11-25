@@ -141,3 +141,43 @@ func Test_ApplyRadixApplication_ReturnsMutatedResponse(t *testing.T) {
 		})
 	}
 }
+
+func Test_ApplyRadixApplication_DryRunOptions(t *testing.T) {
+	tests := map[string]struct {
+		existing bool
+		dryRun   bool
+	}{
+		"create":         {},
+		"dry-run create": {dryRun: true},
+		"update":         {existing: true},
+		"dry-run update": {existing: true, dryRun: true},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			client := radixfake.NewSimpleClientset() //nolint:staticcheck // SA1019: Ignore linting deprecated fields
+			if test.existing {
+				_, err := client.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Create(context.Background(), newRA(nil, "dev"), metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
+			client.ClearActions()
+
+			_, _, err := radixconfig.ApplyRadixApplication(context.Background(), client, newRA(nil, "qa"), test.dryRun)
+			require.NoError(t, err)
+			require.Len(t, writeVerbs(client), 1)
+			var expected []string
+			if test.dryRun {
+				expected = []string{metav1.DryRunAll}
+			}
+			for _, action := range client.Actions() {
+				switch action.GetVerb() {
+				case "create":
+					options := action.(interface{ GetCreateOptions() metav1.CreateOptions }).GetCreateOptions()
+					assert.Equal(t, expected, options.DryRun)
+				case "update":
+					options := action.(interface{ GetUpdateOptions() metav1.UpdateOptions }).GetUpdateOptions()
+					assert.Equal(t, expected, options.DryRun)
+				}
+			}
+		})
+	}
+}
