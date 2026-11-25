@@ -133,7 +133,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		return fmt.Errorf("failed to open git repository: %w", err)
 	}
 
-	if err := step.setRadixConfig(pipelineInfo, repo); err != nil {
+	if err := step.setRadixConfig(ctx, pipelineInfo, repo); err != nil {
 		return err
 	}
 
@@ -212,7 +212,7 @@ func (step *PreparePipelinesStepImplementation) setBuildInfo(ctx context.Context
 	return err
 }
 
-func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+func (step *PreparePipelinesStepImplementation) setRadixConfig(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
 	configBranch := step.GetRegistration().Spec.ConfigBranch
 	err := repo.Checkout(configBranch)
 	if err != nil {
@@ -224,7 +224,7 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 		return fmt.Errorf("failed to read RadixApplication: %w", err)
 	}
 
-	mutatedRa, _, err := radixconfig.ApplyRadixApplication(context.Background(), step.GetRadixClient(), ra, true)
+	mutatedRa, _, err := radixconfig.ApplyRadixApplication(ctx, step.GetRadixClient(), ra, true)
 	if err != nil {
 		return fmt.Errorf("failed to dry-run RadixApplication: %w", err)
 	}

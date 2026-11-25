@@ -1,20 +1,18 @@
 package application
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"unicode"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
 // ParseRadixApplication Parse and validate RadixApplication from configFileContent
-func ParseRadixApplication(ctx context.Context, radixClient radixclient.Interface, appName string, configFileContent []byte) (*radixv1.RadixApplication, error) {
+func ParseRadixApplication(radixClient radixclient.Interface, appName string, configFileContent []byte) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
@@ -26,13 +24,12 @@ func ParseRadixApplication(ctx context.Context, radixClient radixclient.Interfac
 	if ra.GetName() != appName {
 		return nil, fmt.Errorf("the application name %s in the radixconfig file does not match the registered application name %s", ra.GetName(), appName)
 	}
-	correctRadixApplication(ctx, ra)
+	correctRadixApplication(ra)
 	return ra, nil
 }
 
-func correctRadixApplication(ctx context.Context, ra *radixv1.RadixApplication) {
+func correctRadixApplication(ra *radixv1.RadixApplication) {
 	if !isApplicationNameLowercase(ra.Name) {
-		log.Ctx(ctx).Warn().Msgf("Converting name %s to lowercase ", ra.Name)
 		ra.Name = strings.ToLower(ra.Name)
 	}
 	for i := 0; i < len(ra.Spec.Components); i++ {

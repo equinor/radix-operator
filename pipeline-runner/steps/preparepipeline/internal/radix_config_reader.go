@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -35,7 +34,7 @@ func (r *radixConfigReader) Read(pipelineInfo *model.PipelineInfo) (*radixv1.Rad
 		return nil, fmt.Errorf("failed to read file %s: %w", radixConfigFileFullName, err)
 	}
 
-	radixApplication, err := application.ParseRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), configFileContent)
+	radixApplication, err := application.ParseRadixApplication(r.radixClient, pipelineInfo.GetAppName(), configFileContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse file content: %w", err)
 	}
