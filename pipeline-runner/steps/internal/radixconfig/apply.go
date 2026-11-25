@@ -44,7 +44,7 @@ func ApplyRadixApplication(ctx context.Context, client radixclient.Interface, ra
 	}
 
 	// Annotations are compared since they can change admission webhook behavior (e.g. radix-easyauth)
-	if equality.Semantic.DeepEqual(ra.Spec, existingRA.Spec) && maps.Equal(ra.GetAnnotations(), existingRA.GetAnnotations()) {
+	if !dryRun && equality.Semantic.DeepEqual(ra.Spec, existingRA.Spec) && maps.Equal(ra.GetAnnotations(), existingRA.GetAnnotations()) {
 		return existingRA, ApplyRadixApplicationOperationResultUnchanged, nil
 	}
 
