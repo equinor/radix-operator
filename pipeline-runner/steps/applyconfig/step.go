@@ -351,10 +351,11 @@ func getCurrentlyDeployedComponent(radixDeployment *radixv1.RadixDeployment, com
 // Get component build information used by build job
 func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, componentImageSourceMap environmentComponentImageSourceMap) error {
 	pipelineInfo.BuildComponentImages = make(pipeline.EnvironmentBuildComponentImages)
+
 	for envName := range componentImageSourceMap {
 		var buildComponentImages []pipeline.BuildComponentImage
-		for imageSourceIndex := 0; imageSourceIndex < len(componentImageSourceMap[envName]); imageSourceIndex++ {
-			imageSource := componentImageSourceMap[envName][imageSourceIndex]
+
+		for imageSourceIndex, imageSource := range componentImageSourceMap[envName] {
 			if imageSource.ImageSource != fromBuild {
 				continue
 			}
@@ -386,6 +387,7 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			})
 			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
 		}
+
 		if len(buildComponentImages) > 0 {
 			pipelineInfo.BuildComponentImages[envName] = buildComponentImages
 		}
