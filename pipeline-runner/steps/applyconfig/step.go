@@ -86,10 +86,11 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 
 func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 
-	_, operation, err := radixconfig.ApplyRadixApplication(ctx, step.GetRadixClient(), pipelineInfo.RadixApplication, false)
+	mutatedRA, operation, err := radixconfig.ApplyRadixApplication(ctx, step.GetRadixClient(), pipelineInfo.RadixApplication, false)
 	if err != nil {
 		return fmt.Errorf("failed to apply RadixApplication: %w", err)
 	}
+	pipelineInfo.RadixApplication = mutatedRA
 
 	switch operation {
 	case radixconfig.ApplyRadixApplicationOperationResultCreated:
