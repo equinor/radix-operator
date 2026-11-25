@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/rs/zerolog/log"
 )
 
 // RadixConfigReader interface for reading Radix config file
@@ -35,12 +34,10 @@ func (r *radixConfigReader) Read(pipelineInfo *model.PipelineInfo) (*radixv1.Rad
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", radixConfigFileFullName, err)
 	}
-	log.Debug().Msgf("Radix config file %s has been loaded", radixConfigFileFullName)
 
 	radixApplication, err := application.ParseRadixApplication(context.Background(), r.radixClient, pipelineInfo.GetAppName(), configFileContent)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse file content: %w", err)
 	}
-	log.Debug().Msg("Radix Application has been loaded")
 	return radixApplication, err
 }

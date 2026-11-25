@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/radixconfig"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
@@ -218,12 +219,17 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 		return fmt.Errorf("failed to checkout config branch %s: %w", configBranch, err)
 	}
 
-	radixConfig, err := step.radixConfigReader.Read(pipelineInfo)
+	ra, err := step.radixConfigReader.Read(pipelineInfo)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read RadixApplication: %w", err)
 	}
 
-	pipelineInfo.RadixApplication = radixConfig
+	mutatedRa, _, err := radixconfig.ApplyRadixApplication(context.Background(), step.GetRadixClient(), ra, true)
+	if err != nil {
+		return fmt.Errorf("failed to dry-run RadixApplication: %w", err)
+	}
+	pipelineInfo.RadixApplication = mutatedRa
+
 	return nil
 }
 
