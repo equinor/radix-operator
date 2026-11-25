@@ -27,7 +27,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/hash"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -223,14 +222,8 @@ func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *mod
 	if err != nil {
 		return err
 	}
+
 	pipelineInfo.RadixApplication = radixConfig
-
-	radixApplicationHash, err := hash.CreateRadixApplicationHash(radixConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create Radix application hash: %w", err)
-	}
-	pipelineInfo.RadixApplicationHash = radixApplicationHash
-
 	return nil
 }
 
