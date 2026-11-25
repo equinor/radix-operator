@@ -59,7 +59,7 @@ func (s *reconcileComponentVolumesTestSuite) SetupSubTest() {
 
 func newEnsureTestRd(volumeMounts ...radixv1.RadixVolumeMount) (*radixv1.RadixDeployment, *radixv1.RadixDeployComponent) {
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: ensureTestRdName, Namespace: ensureTestNamespace},
+		Name: ensureTestRdName, Namespace: ensureTestNamespace,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName:     ensureTestAppName,
 			Environment: ensureTestEnvName,
@@ -531,19 +531,19 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 	s.Require().NoError(err)
 
 	untouchedPvcs := []*corev1.PersistentVolumeClaim{
-		{ObjectMeta: metav1.ObjectMeta{Name: "no-labels", Namespace: ensureTestNamespace}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "other-app", Namespace: ensureTestNamespace, Labels: map[string]string{kube.RadixAppLabel: "otherapp", kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "no-volume-mount-label", Namespace: ensureTestNamespace, Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixComponentLabel: "removedcomp"}}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "other-namespace", Namespace: "other-ns", Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
+		{Name: "no-labels", Namespace: ensureTestNamespace},
+		{Name: "other-app", Namespace: ensureTestNamespace, Labels: map[string]string{kube.RadixAppLabel: "otherapp", kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}},
+		{Name: "no-volume-mount-label", Namespace: ensureTestNamespace, Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixComponentLabel: "removedcomp"}},
+		{Name: "other-namespace", Namespace: "other-ns", Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}},
 	}
 	for _, pvc := range untouchedPvcs {
 		_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.Background(), pvc, metav1.CreateOptions{})
 		s.Require().NoError(err)
 	}
 	untouchedPvs := []*corev1.PersistentVolume{
-		{ObjectMeta: metav1.ObjectMeta{Name: "pv-no-labels"}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "pv-other-namespace", Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixNamespace: "other-ns", kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "pv-other-app", Labels: map[string]string{kube.RadixAppLabel: "otherapp", kube.RadixNamespace: ensureTestNamespace, kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}}},
+		{Name: "pv-no-labels"},
+		{Name: "pv-other-namespace", Labels: map[string]string{kube.RadixAppLabel: ensureTestAppName, kube.RadixNamespace: "other-ns", kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}},
+		{Name: "pv-other-app", Labels: map[string]string{kube.RadixAppLabel: "otherapp", kube.RadixNamespace: ensureTestNamespace, kube.RadixComponentLabel: "removedcomp", kube.RadixVolumeMountNameLabel: "vol"}},
 	}
 	for _, pv := range untouchedPvs {
 		_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), pv, metav1.CreateOptions{})
@@ -612,23 +612,23 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByWorkloadIsKept() {
 	const jobName = "anyjob"
 	podSpecWithClaim := func(claimName string) corev1.PodTemplateSpec {
 		return corev1.PodTemplateSpec{Spec: corev1.PodSpec{Volumes: []corev1.Volume{{
-			Name:         "vol",
-			VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName}},
+			Name:                  "vol",
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName},
 		}}}}
 	}
 	createJob := func(namespace, claimName string, conditions ...batchv1.JobCondition) error {
 		job := &batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{Name: "batch-job1", Namespace: namespace},
-			Spec:       batchv1.JobSpec{Template: podSpecWithClaim(claimName)},
-			Status:     batchv1.JobStatus{Conditions: conditions},
+			Name: "batch-job1", Namespace: namespace,
+			Spec:   batchv1.JobSpec{Template: podSpecWithClaim(claimName)},
+			Status: batchv1.JobStatus{Conditions: conditions},
 		}
 		_, err := s.kubeClient.BatchV1().Jobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 		return err
 	}
 	createReplicaSet := func(namespace, claimName string, replicas *int32) error {
 		replicaSet := &appsv1.ReplicaSet{
-			ObjectMeta: metav1.ObjectMeta{Name: "anycomp-12345", Namespace: namespace},
-			Spec:       appsv1.ReplicaSetSpec{Replicas: replicas, Template: podSpecWithClaim(claimName)},
+			Name: "anycomp-12345", Namespace: namespace,
+			Spec: appsv1.ReplicaSetSpec{Replicas: replicas, Template: podSpecWithClaim(claimName)},
 		}
 		_, err := s.kubeClient.AppsV1().ReplicaSets(namespace).Create(context.Background(), replicaSet, metav1.CreateOptions{})
 		return err

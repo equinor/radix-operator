@@ -22,9 +22,9 @@ func Test_GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(t *testing
 	kubeUtil, err := kube.New(kubeClient, radixfake.NewSimpleClientset(), kedafake.NewSimpleClientset(), secretproviderfake.NewSimpleClientset()) //nolint:staticcheck
 	require.NoError(t, err)
 	secret := func(name, component, mountType string) *corev1.Secret {
-		return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: map[string]string{
+		return &corev1.Secret{Name: name, Namespace: namespace, Labels: map[string]string{
 			kube.RadixComponentLabel: component, kube.RadixMountTypeLabel: mountType,
-		}}}
+		}}
 	}
 	secrets := []*corev1.Secret{
 		secret("legacy-azure-blob-creds", "web", "azure-blob"),

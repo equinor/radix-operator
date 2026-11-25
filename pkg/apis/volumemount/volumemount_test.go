@@ -2918,8 +2918,8 @@ func (s *volumeMountTestSuite) ensureClaimName(appName string, rd *radixv1.Radix
 func (s *volumeMountTestSuite) ensureVolumes(component radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
 	const appName, envName = "any-app", "any-env"
 	rd := &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "any-rd", Namespace: testutils.CreateEnvNamespace(s.kubeClient, appName, envName)},
-		Spec:       radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
+		Name: "any-rd", Namespace: testutils.CreateEnvNamespace(s.kubeClient, appName, envName),
+		Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
 	}
 	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, appName, rd, component)
 	return volumes, err

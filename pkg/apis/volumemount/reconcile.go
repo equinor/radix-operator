@@ -149,8 +149,8 @@ func getVolumeMountVolumes(component radixv1.RadixCommonDeployComponent, claimNa
 		switch {
 		case radixVolumeMount.HasBlobFuse2():
 			volumes = append(volumes, corev1.Volume{
-				Name:         volumeName,
-				VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimNames[radixVolumeMount.Name]}},
+				Name:                  volumeName,
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimNames[radixVolumeMount.Name]},
 			})
 		case radixVolumeMount.HasEmptyDir():
 			volumes = append(volumes, corev1.Volume{

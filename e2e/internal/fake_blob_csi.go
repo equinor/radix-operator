@@ -120,10 +120,10 @@ func DeployFakeBlobCSIDriver(ctx context.Context, c client.Client, imageTag stri
 				},
 			},
 			Volumes: []corev1.Volume{
-				{Name: "plugin-dir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: fakeBlobCSIPluginDir, Type: &hostPathDirectoryOrCreate}}},
-				{Name: "registration-dir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: kubeletDir + "/plugins_registry", Type: &hostPathDirectory}}},
-				{Name: "kubelet-dir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: kubeletDir, Type: &hostPathDirectory}}},
-				{Name: "data-dir", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: fakeBlobCSIDataDir, Type: &hostPathDirectoryOrCreate}}},
+				{Name: "plugin-dir", HostPath: &corev1.HostPathVolumeSource{Path: fakeBlobCSIPluginDir, Type: &hostPathDirectoryOrCreate}},
+				{Name: "registration-dir", HostPath: &corev1.HostPathVolumeSource{Path: kubeletDir + "/plugins_registry", Type: &hostPathDirectory}},
+				{Name: "kubelet-dir", HostPath: &corev1.HostPathVolumeSource{Path: kubeletDir, Type: &hostPathDirectory}},
+				{Name: "data-dir", HostPath: &corev1.HostPathVolumeSource{Path: fakeBlobCSIDataDir, Type: &hostPathDirectoryOrCreate}},
 			},
 		}
 		return nil

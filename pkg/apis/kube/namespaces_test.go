@@ -23,15 +23,14 @@ func TestGetAppNameFromNamespace(t *testing.T) {
 		wantError string
 	}{
 		"returns the app label": {
-			namespace: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			namespace: &corev1.Namespace{
 				Name:   "app-dev",
-				Labels: map[string]string{kube.RadixAppLabel: "app"},
-			}},
+				Labels: map[string]string{kube.RadixAppLabel: "app"}},
 			name:     "app-dev",
 			wantName: "app",
 		},
 		"errors when the app label is empty": {
-			namespace: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "app-dev"}},
+			namespace: &corev1.Namespace{Name: "app-dev"},
 			name:      "app-dev",
 			wantError: kube.RadixAppLabel,
 		},

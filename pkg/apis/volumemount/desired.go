@@ -10,7 +10,6 @@ import (
 	"github.com/oklog/ulid/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -43,18 +42,14 @@ func buildDesiredVolumeResources(appName string, rd *radixv1.RadixDeployment, co
 	volumeHandle := buildVolumeHandle(appName, envName, component.GetName(), radixVolumeMount.Name, uniquePart)
 
 	pv := &corev1.PersistentVolume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   pvName,
-			Labels: radixlabels.ForBlobCSIAzurePersistentVolume(appName, namespace, component.GetName(), radixVolumeMount),
-		},
-		Spec: newBlobfuse2PersistentVolumeBuilder(component, radixVolumeMount).buildSpec(pvcName, namespace, volumeHandle),
+		Name:   pvName,
+		Labels: radixlabels.ForBlobCSIAzurePersistentVolume(appName, namespace, component.GetName(), radixVolumeMount),
+		Spec:   newBlobfuse2PersistentVolumeBuilder(component, radixVolumeMount).buildSpec(pvcName, namespace, volumeHandle),
 	}
 	pvc := &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pvcName,
-			Namespace: namespace,
-			Labels:    radixlabels.ForBlobCSIAzurePersistentVolumeClaim(appName, component.GetName(), radixVolumeMount),
-		},
+		Name:      pvcName,
+		Namespace: namespace,
+		Labels:    radixlabels.ForBlobCSIAzurePersistentVolumeClaim(appName, component.GetName(), radixVolumeMount),
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(radixVolumeMount)},
 			Resources: corev1.VolumeResourceRequirements{

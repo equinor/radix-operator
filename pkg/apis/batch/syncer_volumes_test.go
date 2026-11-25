@@ -25,7 +25,7 @@ const (
 
 func volumesTestRd(name, container string) *radixv1.RadixDeployment {
 	return &radixv1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: volumesTestNamespace},
+		Name: name, Namespace: volumesTestNamespace,
 		Spec: radixv1.RadixDeploymentSpec{
 			AppName:     volumesTestAppName,
 			Environment: "dev",
@@ -43,14 +43,14 @@ func volumesTestRd(name, container string) *radixv1.RadixDeployment {
 
 func volumesTestBatch(rdName string) *radixv1.RadixBatch {
 	return &radixv1.RadixBatch{
-		ObjectMeta: metav1.ObjectMeta{Name: volumesTestBatchName, Namespace: volumesTestNamespace, Labels: radixlabels.ForJobScheduleJobType()},
+		Name: volumesTestBatchName, Namespace: volumesTestNamespace, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
 			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
 				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
 				Job:                  volumesTestJobComponent,
 			},
 			Jobs: []radixv1.RadixBatchJob{{Name: volumesTestBatchJobName, PayloadSecretRef: &radixv1.PayloadSecretKeySelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: "payload-secret"}, Key: "payload-key",
+				Name: "payload-secret", Key: "payload-key",
 			}}},
 		},
 	}
@@ -63,8 +63,8 @@ func (s *syncerTestSuite) createVolumesTestResources(batch *radixv1.RadixBatch, 
 		s.Require().NoError(err)
 	}
 	payloadSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "payload-secret", Namespace: volumesTestNamespace, Labels: radixlabels.Merge(radixlabels.ForComponentName(volumesTestJobComponent), radixlabels.ForJobScheduleJobType(), radixlabels.ForBatchName(volumesTestBatchName))},
-		Data:       map[string][]byte{"payload-key": []byte("any")},
+		Name: "payload-secret", Namespace: volumesTestNamespace, Labels: radixlabels.Merge(radixlabels.ForComponentName(volumesTestJobComponent), radixlabels.ForJobScheduleJobType(), radixlabels.ForBatchName(volumesTestBatchName)),
+		Data: map[string][]byte{"payload-key": []byte("any")},
 	}
 	_, err := s.kubeClient.CoreV1().Secrets(volumesTestNamespace).Create(context.Background(), payloadSecret, metav1.CreateOptions{})
 	s.Require().NoError(err)
@@ -143,10 +143,9 @@ func (s *syncerTestSuite) Test_Volumes_NotEnsuredWhenNoJobIsCreated() {
 	rd := volumesTestRd("any-rd", "container1")
 	batch := volumesTestBatch(rd.Name)
 	batch = s.createVolumesTestResources(batch, rd)
-	existingJob := &batchv1.Job{ObjectMeta: metav1.ObjectMeta{
+	existingJob := &batchv1.Job{
 		Name: getKubeJobName(volumesTestBatchName, volumesTestBatchJobName), Namespace: volumesTestNamespace,
-		Labels: radixlabels.Merge(radixlabels.ForBatchName(volumesTestBatchName), radixlabels.ForBatchJobName(volumesTestBatchJobName)),
-	}}
+		Labels: radixlabels.Merge(radixlabels.ForBatchName(volumesTestBatchName), radixlabels.ForBatchJobName(volumesTestBatchJobName))}
 	_, err := s.kubeClient.BatchV1().Jobs(volumesTestNamespace).Create(context.Background(), existingJob, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
@@ -181,10 +180,9 @@ func (s *syncerTestSuite) Test_Volumes_EnsuredOnRestart() {
 }
 
 func (s *syncerTestSuite) createOrphanPvc(name string) {
-	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+	pvc := &corev1.PersistentVolumeClaim{
 		Name: name, Namespace: volumesTestNamespace,
-		Labels: map[string]string{kube.RadixAppLabel: volumesTestAppName, kube.RadixComponentLabel: volumesTestJobComponent, kube.RadixVolumeMountNameLabel: "removed"},
-	}}
+		Labels: map[string]string{kube.RadixAppLabel: volumesTestAppName, kube.RadixComponentLabel: volumesTestJobComponent, kube.RadixVolumeMountNameLabel: "removed"}}
 	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(volumesTestNamespace).Create(context.Background(), pvc, metav1.CreateOptions{})
 	s.Require().NoError(err)
 }

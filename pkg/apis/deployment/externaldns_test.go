@@ -807,8 +807,8 @@ func (s *ExternalDNSTestSuite) deploymentWithCertificateAutomation(certAutomatio
 		kubeutil:        s.kubeUtil,
 		dynamicClient:   s.dynamicClient,
 		certClient:      s.certClient,
-		registration:    &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: edTestAppName}},
-		radixDeployment: &radixv1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "anyrd", Namespace: s.namespace()}},
+		registration:    &radixv1.RadixRegistration{Name: edTestAppName},
+		radixDeployment: &radixv1.RadixDeployment{Name: "anyrd", Namespace: s.namespace()},
 		config:          cfg,
 	}
 }
