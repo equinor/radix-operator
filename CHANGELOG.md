@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.134.2](https://github.com/equinor/radix-operator/compare/v1.134.1..v1.134.2) - 2026-11-26
+
+### 🐛 Bug Fixes
+
+- *(pipeline)* Detect changes to dockerfile outside src, and support absolute path in dockerfileName (#2083) - ([31b01a9](https://github.com/equinor/radix-operator/commit/31b01a91b8da9f1d03dfe5728c4ac4232546aeb7)) by @nilsgstrabo in [#2083](https://github.com/equinor/radix-operator/pull/2083)
+
+- Retain pod statuses when a running pod is deleted from a batch job (#2065) - ([bad9c73](https://github.com/equinor/radix-operator/commit/bad9c7396bb517f26be30541eab96248c35170fd)) by @ingeknudsen in [#2065](https://github.com/equinor/radix-operator/pull/2065)
+
+
 ## [1.134.1](https://github.com/equinor/radix-operator/compare/v1.134.0..v1.134.1) - 2026-11-25
 
 ### 🐛 Bug Fixes
