@@ -6338,12 +6338,14 @@
           "x-go-name": "ReplicaList"
         },
         "status": {
-          "description": "Status of the auxiliary resource's deployment\n- Consistent: All replicas are running with the desired state\n- Reconciling: Waiting for new replicas to enter desired state\n- Stopped: Replica count is set to 0",
+          "description": "Status of the auxiliary resource's deployment\n- Consistent: All replicas are running with the desired state\n- Reconciling: Waiting for new replicas to enter desired state\n- Stopped: Replica count is set to 0\n- Restarting: User has triggered restart, but this is not reconciled\n- Outdated: Deployment is not yet updated to the active RadixDeployment",
           "type": "string",
           "enum": [
             "Stopped",
             "Consistent",
-            "Reconciling"
+            "Reconciling",
+            "Restarting",
+            "Outdated"
           ],
           "x-go-name": "Status",
           "example": "Consistent"

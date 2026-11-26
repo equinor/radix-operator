@@ -252,8 +252,10 @@ type AuxiliaryResourceDeployment struct {
 	// - Consistent: All replicas are running with the desired state
 	// - Reconciling: Waiting for new replicas to enter desired state
 	// - Stopped: Replica count is set to 0
+	// - Restarting: User has triggered restart, but this is not reconciled
+	// - Outdated: Deployment is not yet updated to the active RadixDeployment
 	//
-	// enum: Stopped,Consistent,Reconciling
+	// enum: Stopped,Consistent,Reconciling,Restarting,Outdated
 	// example: Consistent
 	Status string `json:"status"`
 
