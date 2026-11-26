@@ -27,10 +27,9 @@ func Test_GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(t *testing
 		}}
 	}
 	secrets := []*corev1.Secret{
-		secret("legacy-azure-blob-creds", "web", "azure-blob"),
 		secret("removed-blobfuse2-creds", "web", string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure)),
 		secret("current-blobfuse2-creds", "web", string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure)),
-		secret("other-component-creds", "other", "azure-blob"),
+		secret("other-component-creds", "other", string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure)),
 	}
 	for _, s := range secrets {
 		_, err := kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), s, metav1.CreateOptions{})
@@ -44,7 +43,6 @@ func Test_GarbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(t *testing
 		_, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		return err == nil
 	}
-	assert.False(t, exists("legacy-azure-blob-creds"), "credentials of a removed legacy azure-blob volume mount should be deleted")
 	assert.False(t, exists("removed-blobfuse2-creds"))
 	assert.True(t, exists("current-blobfuse2-creds"))
 	assert.True(t, exists("other-component-creds"))

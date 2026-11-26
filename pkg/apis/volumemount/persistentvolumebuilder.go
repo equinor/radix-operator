@@ -41,7 +41,7 @@ func (b *blobfuse2PersistentVolumeSpecBuilder) buildSpec(pvcName, pvcNamespace, 
 		MountOptions:                  b.mountOptions(volumeHandle),
 		Capacity:                      corev1.ResourceList{corev1.ResourceStorage: getVolumeCapacityOrDefault(b.radixVolumeMount)},
 		AccessModes:                   []corev1.PersistentVolumeAccessMode{getVolumeMountAccessMode(b.radixVolumeMount)},
-		ClaimRef: &corev1.ObjectReference{
+		ClaimRef: &corev1.ObjectReference{ // TODO: Check if we need to set the claimRef, or if its better to be left Nil so driver can set it automatically
 			APIVersion: "v1",
 			Kind:       k8s.KindPersistentVolumeClaim,
 			Namespace:  pvcNamespace,
