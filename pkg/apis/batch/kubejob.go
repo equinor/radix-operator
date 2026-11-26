@@ -43,13 +43,7 @@ func getSafeToRestartAnnotations(safeToRestart *bool, timeLimitSeconds *int64, s
 	return annotations.ForClusterAutoscalerSafeToEvict(true)
 }
 
-// jobVolumes holds the volumes and container volume mounts for the job component
-type jobVolumes struct {
-	volumes      []corev1.Volume
-	volumeMounts []corev1.VolumeMount
-}
-
-func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job, jobVolumesGetter func() (*jobVolumes, error)) error {
+func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	batchJobKubeJobs := slice.FindAll(existingJobs, isKubeJobForBatchJob(batchJob))
 
 	if isBatchJobStopRequested(batchJob) {
@@ -73,11 +67,7 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		return err
 	}
 
-	volumes, err := jobVolumesGetter()
-	if err != nil {
-		return err
-	}
-	job, err := s.buildJob(ctx, batchJob, jobComponent, rd, volumes)
+	job, err := s.buildJob(ctx, batchJob, jobComponent, rd, volumes, volumeMounts)
 	if err != nil {
 		return err
 	}
@@ -118,7 +108,7 @@ func (s *syncer) deleteJobs(ctx context.Context, jobsToDelete []*batchv1.Job) er
 	return nil
 }
 
-func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment, componentVolumes *jobVolumes) (*batchv1.Job, error) {
+func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*batchv1.Job, error) {
 	jobLabels := s.batchJobIdentifierLabel(batchJob.Name, rd.Spec.AppName) //nolint:staticcheck
 	podLabels := radixlabels.Merge(
 		jobLabels,
@@ -126,7 +116,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	)
 
 	kubeJobName := getKubeJobName(s.radixBatch.GetName(), batchJob.Name)
-	containers, err := s.getContainers(ctx, rd, jobComponent, batchJob, kubeJobName, componentVolumes.volumeMounts)
+	containers, err := s.getContainers(ctx, rd, jobComponent, batchJob, kubeJobName, volumeMounts)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +157,7 @@ func (s *syncer) buildJob(ctx context.Context, batchJob *radixv1.RadixBatchJob, 
 	}
 
 	serviceAccountSpec := deployment.NewServiceAccountSpec(jobComponent)
-	volumes := s.appendPayloadSecretVolumes(batchJob, jobComponent, slices.Clone(componentVolumes.volumes))
+	volumes = s.appendPayloadSecretVolumes(batchJob, jobComponent, slices.Clone(volumes))
 
 	job := &batchv1.Job{
 		Name:            kubeJobName,
