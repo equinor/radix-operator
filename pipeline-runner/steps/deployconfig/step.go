@@ -32,7 +32,7 @@ func (cli *DeployConfigStepImplementation) ImplementationForType() pipeline.Step
 
 // SucceededMsg Override of default step method
 func (cli *DeployConfigStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: deploy application %s", cli.GetAppName())
+	return fmt.Sprintf("Succeeded: deploy application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method

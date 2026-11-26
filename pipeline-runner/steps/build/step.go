@@ -61,7 +61,7 @@ func (step *BuildStepImplementation) ImplementationForType() pipeline.StepType {
 
 // SucceededMsg Override of default step method
 func (step *BuildStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: build step for application %s", step.GetAppName())
+	return fmt.Sprintf("Succeeded: build step for application %s", step.GetAppName())
 }
 
 // ErrorMsg Override of default step method
