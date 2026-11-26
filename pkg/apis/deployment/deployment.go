@@ -331,7 +331,7 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec(ctx context.Con
 		return err
 	}
 
-	if err := volumemount.GarbageCollectVolumesNoLongerInSpec(ctx, deploy.kubeclient, deploy.registration.Name, deploy.radixDeployment, deploy.config.Operator.VolumeDeletionGracePeriod); err != nil {
+	if err := volumemount.GarbageCollectVolumesNoLongerInSpec(ctx, deploy.kubeclient, deploy.registration.Name, deploy.radixDeployment); err != nil {
 		return fmt.Errorf("failed to garbage collect persistent volumes or persistent volume claims: %w", err)
 	}
 
@@ -399,7 +399,7 @@ func (deploy *Deployment) getRadixDeploymentsReferencedByJobs(ctx context.Contex
 
 // syncComponent reconciles the volumes of the component, and syncs its Deployment and related resources
 func (deploy *Deployment) syncComponent(ctx context.Context, component *v1.RadixDeployComponent) error {
-	volumes, volumeMounts, err := volumemount.ReconcileComponentVolumes(ctx, deploy.kubeutil, deploy.registration.Name, deploy.radixDeployment, component, deploy.config.Operator.VolumeDeletionGracePeriod)
+	volumes, volumeMounts, err := volumemount.ReconcileComponentVolumes(ctx, deploy.kubeutil, deploy.registration.Name, deploy.radixDeployment, component)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile volumes: %w", err)
 	}
@@ -409,7 +409,7 @@ func (deploy *Deployment) syncComponent(ctx context.Context, component *v1.Radix
 // syncJobComponent reconciles the volumes of the job, which are mounted by the job-aux Deployment,
 // and syncs the job scheduler Deployment and related resources
 func (deploy *Deployment) syncJobComponent(ctx context.Context, jobComponent *v1.RadixDeployJobComponent) error {
-	volumes, volumeMounts, err := volumemount.ReconcileComponentVolumes(ctx, deploy.kubeutil, deploy.registration.Name, deploy.radixDeployment, jobComponent, deploy.config.Operator.VolumeDeletionGracePeriod)
+	volumes, volumeMounts, err := volumemount.ReconcileComponentVolumes(ctx, deploy.kubeutil, deploy.registration.Name, deploy.radixDeployment, jobComponent)
 	if err != nil {
 		return fmt.Errorf("failed to reconcile volumes: %w", err)
 	}

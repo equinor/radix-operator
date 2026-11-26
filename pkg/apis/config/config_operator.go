@@ -49,7 +49,6 @@ type OperatorConfig struct {
 
 	PipelineJobsHistoryLimit       int           `json:"pipelineJobsHistoryLimit" required:"true" validate:"self >= 3"`
 	PipelineJobsHistoryPeriodLimit time.Duration `json:"pipelineJobsHistoryPeriodLimit" required:"true" validate:"compareDuration(self, '24h') >= 0"`
-	VolumeDeletionGracePeriod      time.Duration `json:"volumeDeletionGracePeriod" required:"true" validate:"compareDuration(self, '1s') >= 0"`
 }
 
 type PodSecurityStandardConfig struct {

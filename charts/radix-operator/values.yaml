@@ -76,7 +76,6 @@ config:
     orphanedEnvironmentsCleanupCron: "0 0 * * *"
     pipelineJobsHistoryLimit: 5
     pipelineJobsHistoryPeriodLimit: "720h"
-    volumeDeletionGracePeriod: 10m
 
     podSecurityStandard:
       appNamespace:
@@ -170,52 +169,52 @@ config:
     # jobSchedulerTemplate: {}
     # jobSchedulerAuxTemplate: {}
     # specialNodeTypes: {}
-    # gpu-nvidia-v1:
-    #   description: "Nvidia GPU node"
-    #   architecture: amd64
-    #   template:
-    #     spec:
-    #       nodeSelector:
-    #         nodetype: gpu-nvidia-v1
-    #   builderTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         nodetype: gpu-nvidia-v1
+      # gpu-nvidia-v1:
+      #   description: "Nvidia GPU node"
+      #   architecture: amd64
+      #   template:
+      #     spec:
+      #       nodeSelector:
+      #         nodetype: gpu-nvidia-v1
+      #   builderTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         nodetype: gpu-nvidia-v1
     # architectures: {}
-    # amd64:
-    #   enabled: true
-    #   builderTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         kubernetes.io/arch: amd64
-    #         kubernetes.io/os: linux
-    #   jobTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         kubernetes.io/arch: amd64
-    #         kubernetes.io/os: linux
-    #   componentTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         kubernetes.io/arch: amd64
-    #         kubernetes.io/os: linux
-    # arm64:
-    #   enabled: true
-    #   builderTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         kubernetes.io/arch: arm64
-    #         kubernetes.io/os: linux
-    #   jobTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         kubernetes.io/arch: arm64
-    #         kubernetes.io/os: linux
-    #   componentTemplate:
-    #     spec:
-    #       nodeSelector:
-    #         kubernetes.io/arch: arm64
-    #         kubernetes.io/os: linux
+      # amd64:
+      #   enabled: true
+      #   builderTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: amd64
+      #         kubernetes.io/os: linux
+      #   jobTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: amd64
+      #         kubernetes.io/os: linux
+      #   componentTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: amd64
+      #         kubernetes.io/os: linux
+      # arm64:
+      #   enabled: true
+      #   builderTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: arm64
+      #         kubernetes.io/os: linux
+      #   jobTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: arm64
+      #         kubernetes.io/os: linux
+      #   componentTemplate:
+      #     spec:
+      #       nodeSelector:
+      #         kubernetes.io/arch: arm64
+      #         kubernetes.io/os: linux
 
 replicaCount: 1
 

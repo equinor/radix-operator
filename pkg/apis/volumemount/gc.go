@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -19,14 +18,10 @@ import (
 )
 
 // GarbageCollectVolumesNoLongerInSpec deletes the Radix owned PVCs and PVs of the application in the namespace of the RadixDeployment
-// that belong to components or jobs that are not in the RadixDeployment. PVCs and PVs created less than deletionGracePeriod ago,
-// and PVCs used by workloads that can still create Pods (see volumeCollector.getClaimNamesUsedByWorkloads) and their PVs, are kept.
-//
-// The RadixDeployment and RadixBatch syncers do not share a lock, so the RadixBatch syncer can create a PV/PVC for a job
-// while the RadixDeployment syncer garbage collects the PVs/PVCs of the job. Without a grace period, the new PV/PVC
-// could be deleted before the Pod of the Kubernetes Job uses it. Once a Pod uses the PVC,
+// that belong to components or jobs that are not in the RadixDeployment. PVCs used by workloads that can still create Pods
+// (see volumeCollector.getClaimNamesUsedByWorkloads) and their PVs are kept. Once a Pod uses the PVC,
 // kubernetes.io/pvc-protection and kubernetes.io/pv-protection keep the PVC and PV until the Pod is gone.
-func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kubernetes.Interface, appName string, rd *radixv1.RadixDeployment, deletionGracePeriod time.Duration) error {
+func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kubernetes.Interface, appName string, rd *radixv1.RadixDeployment) error {
 	componentNames := make(map[string]struct{})
 	for _, component := range rd.Spec.Components {
 		componentNames[component.GetName()] = struct{}{}
@@ -50,19 +45,18 @@ func GarbageCollectVolumesNoLongerInSpec(ctx context.Context, kubeClient kuberne
 	}
 	pvcs = slices.DeleteFunc(pvcs, func(pvc corev1.PersistentVolumeClaim) bool { return isInSpec(pvc.GetLabels()) })
 	pvs = slices.DeleteFunc(pvs, func(pv corev1.PersistentVolume) bool { return isInSpec(pv.GetLabels()) })
-	return newVolumeCollector(kubeClient, namespace, deletionGracePeriod).delete(ctx, pvcs, pvs)
+	return newVolumeCollector(kubeClient, namespace).delete(ctx, pvcs, pvs)
 }
 
 // volumeCollector deletes Radix owned PVCs and PVs of a namespace, except those that must be kept
 type volumeCollector struct {
-	kubeClient          kubernetes.Interface
-	namespace           string
-	deletionGracePeriod time.Duration
+	kubeClient kubernetes.Interface
+	namespace  string
 }
 
-// newVolumeCollector returns a volumeCollector for the namespace that keeps PVCs and PVs created less than deletionGracePeriod ago
-func newVolumeCollector(kubeClient kubernetes.Interface, namespace string, deletionGracePeriod time.Duration) *volumeCollector {
-	return &volumeCollector{kubeClient: kubeClient, namespace: namespace, deletionGracePeriod: deletionGracePeriod}
+// newVolumeCollector returns a volumeCollector for the namespace
+func newVolumeCollector(kubeClient kubernetes.Interface, namespace string) *volumeCollector {
+	return &volumeCollector{kubeClient: kubeClient, namespace: namespace}
 }
 
 // deleteUnused deletes the PVCs and PVs that are not used by any volume mount. usedPvcs has the used PVC by volume mount name.
@@ -85,7 +79,7 @@ func (c *volumeCollector) deleteUnused(ctx context.Context, pvcs []corev1.Persis
 }
 
 // delete deletes the PVCs, then the PVs.
-// Resources that are already being deleted, or that are within the deletion grace period, are skipped.
+// Resources that are already being deleted are skipped.
 // PVCs used by a workload that can still create Pods (see getClaimNamesUsedByWorkloads), and the PVs bound to them, are skipped,
 // because Kubernetes does not start a new Pod with a terminating or deleted PVC. Storage object protection only keeps the PVC for existing Pods.
 func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVolumeClaim, pvs []corev1.PersistentVolume) error {
@@ -104,14 +98,9 @@ func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVo
 	}
 
 	logger := log.Ctx(ctx)
-	now := time.Now()
 	var errs []error
 	for _, pvc := range pvcs {
 		if pvc.GetDeletionTimestamp() != nil {
-			continue
-		}
-		if c.isWithinDeletionGracePeriod(&pvc, now) {
-			logger.Debug().Msgf("Skip delete of PersistentVolumeClaim %s in namespace %s, created less than %s ago", pvc.GetName(), pvc.GetNamespace(), c.deletionGracePeriod)
 			continue
 		}
 		if _, ok := workloadClaimNames[pvc.GetName()]; ok {
@@ -125,10 +114,6 @@ func (c *volumeCollector) delete(ctx context.Context, pvcs []corev1.PersistentVo
 	}
 	for _, pv := range pvs {
 		if pv.GetDeletionTimestamp() != nil {
-			continue
-		}
-		if c.isWithinDeletionGracePeriod(&pv, now) {
-			logger.Debug().Msgf("Skip delete of PersistentVolume %s, created less than %s ago", pv.GetName(), c.deletionGracePeriod)
 			continue
 		}
 		if c.isPvUsedByWorkload(&pv, workloadClaimNames, workloadPvNames) {
@@ -195,11 +180,6 @@ func (c *volumeCollector) isPvUsedByWorkload(pv *corev1.PersistentVolume, worklo
 // hasReplicas returns true if the ReplicaSet wants Pods. A ReplicaSet without spec.replicas defaults to 1.
 func hasReplicas(replicaSet *appsv1.ReplicaSet) bool {
 	return replicaSet.Spec.Replicas == nil || *replicaSet.Spec.Replicas > 0
-}
-
-// isWithinDeletionGracePeriod returns true if the object was created less than deletionGracePeriod before now
-func (c *volumeCollector) isWithinDeletionGracePeriod(obj metav1.Object, now time.Time) bool {
-	return obj.GetCreationTimestamp().Add(c.deletionGracePeriod).After(now)
 }
 
 // isJobFinished returns true if the Job has the terminal condition Complete or Failed. A finished Job does not create new Pods.

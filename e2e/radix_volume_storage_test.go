@@ -32,14 +32,12 @@ import (
 )
 
 const (
-	volumeTestTimeout      = 5 * time.Minute
-	volumeTestPollInterval = 2 * time.Second
-	// volumeTestDeletionGracePeriod must match config.operator.volumeDeletionGracePeriod in testdata/radix-operator-values.yaml
-	volumeTestDeletionGracePeriod = 5 * time.Second
-	volumeTestEnvName             = "dev"
-	volumeTestComponentName       = "web"
-	volumeTestMountPath           = "/mnt/blob"
-	volumeTestImage               = "docker.io/nginxinc/nginx-unprivileged:1.27-alpine"
+	volumeTestTimeout       = 5 * time.Minute
+	volumeTestPollInterval  = 2 * time.Second
+	volumeTestEnvName       = "dev"
+	volumeTestComponentName = "web"
+	volumeTestMountPath     = "/mnt/blob"
+	volumeTestImage         = "docker.io/nginxinc/nginx-unprivileged:1.27-alpine"
 )
 
 // TestVolumeMountIsMountedByCSIDriver deploys a component with a BlobFuse2 volume mount, and verifies that the
@@ -78,7 +76,7 @@ func TestVolumeMountIsMountedByCSIDriver(t *testing.T) {
 }
 
 // TestVolumeMountSpecChange changes the storage spec of a component, and verifies that a new PV/PVC pair is
-// created and used by the rolled out Pod, and that the old pair is deleted by a RadixDeployment sync after the deletion grace period,
+// created and used by the rolled out Pod, and that the old pair is deleted by a RadixDeployment sync
 // once the ReplicaSet of the previous revision is scaled down.
 func TestVolumeMountSpecChange(t *testing.T) {
 	t.Parallel()
@@ -138,7 +136,7 @@ func TestVolumesOfRemovedComponentAreDeleted(t *testing.T) {
 }
 
 // TestVolumeOfUnfinishedJobIsKeptUntilJobIsStopped starts a job from a RadixBatch, changes the storage spec of the job
-// in a new RadixDeployment, and verifies that a RadixDeployment sync after the deletion grace period keeps the PV/PVC of the batch
+// in a new RadixDeployment, and verifies that a RadixDeployment sync keeps the PV/PVC of the batch
 // while its Kubernetes Job has not finished, as the Job can still create Pods that need them, and deletes them when the job is stopped.
 func TestVolumeOfUnfinishedJobIsKeptUntilJobIsStopped(t *testing.T) {
 	t.Parallel()
@@ -180,8 +178,6 @@ func TestVolumeOfUnfinishedJobIsKeptUntilJobIsStopped(t *testing.T) {
 	require.NotEqual(t, claim1, podClaimName(&corev1.Pod{Spec: auxDeployment.Spec.Template.Spec}), "the job-aux deployment should use a new claim for the changed spec")
 
 	// The PVC of the batch does not match the job spec of the active RadixDeployment, but is kept while the Kubernetes Job has not finished.
-	// Sync after the deletion grace period (creationTimestamp has a precision of seconds), so only the Job protects the PVC.
-	time.Sleep(time.Until(pvc1.CreationTimestamp.Add(volumeTestDeletionGracePeriod + time.Second)))
 	resyncRadixDeployment(t, c, envNamespace, rd2.Name)
 	currentPvc1 := &corev1.PersistentVolumeClaim{}
 	require.NoError(t, c.Get(t.Context(), client.ObjectKey{Namespace: envNamespace, Name: claim1}, currentPvc1), "the PVC of the unfinished job should be kept")
@@ -255,7 +251,7 @@ func TestLegacyVolumesAreReusedWhenMatching(t *testing.T) {
 	waitForActiveRadixDeployment(t, c, envNamespace, rd.Name)
 	pod := waitForComponentPodWithClaim(t, c, envNamespace, legacyPvc.Name)
 
-	// The pair for the older spec is not used by any Pod, and is removed by the first sync after the deletion grace period
+	// The pair for the older spec is not used by any Pod, and is removed by the next sync
 	waitForVolumeResourcesDeleted(t, c, envNamespace, rd.Name, oldSpecPvc.Name, oldSpecPv.Name)
 	pvcs := &corev1.PersistentVolumeClaimList{}
 	require.NoError(t, c.List(t.Context(), pvcs, client.InNamespace(envNamespace)))
@@ -305,8 +301,8 @@ func waitForVolumeResourcesDeleted(t *testing.T, c client.Client, namespace, rdN
 }
 
 // waitForConditionWhileResyncingRadixDeployment waits until condition is true, and triggers a sync of the RadixDeployment
-// at each poll while it is false. Unused PVs/PVCs created less than volumeDeletionGracePeriod ago are kept by a sync, and the
-// operator does not sync the RadixDeployment again by itself, so a sync is triggered until the grace period has passed.
+// at each poll while it is false. Unused PVs/PVCs are kept by a sync while a workload can still create Pods that use them,
+// e.g. the ReplicaSet of the previous revision during a rollout, and the operator does not sync the RadixDeployment again by itself.
 func waitForConditionWhileResyncingRadixDeployment(ctx context.Context, c client.Client, namespace, rdName string, condition func(ctx context.Context) bool) error {
 	return wait.PollUntilContextTimeout(ctx, volumeTestPollInterval, volumeTestTimeout, true, func(ctx context.Context) (bool, error) {
 		if condition(ctx) {

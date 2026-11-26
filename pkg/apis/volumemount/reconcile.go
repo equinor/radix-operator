@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -28,17 +27,15 @@ type componentStorage struct {
 	appName   string
 	rd        *radixv1.RadixDeployment
 	component radixv1.RadixCommonDeployComponent
-	// deletionGracePeriod is the minimum age of an unused PV/PVC before it is deleted. Only used when unused PVs/PVCs are deleted.
-	deletionGracePeriod time.Duration
 }
 
 // ReconcileComponentVolumes returns the Pod volumes and container volume mounts for a component or job in the RadixDeployment.
 // For each BlobFuse2 volume mount it reuses the current PV/PVC of the component if it matches the desired spec, or creates the desired PV/PVC.
-// All other PVs/PVCs of the component are deleted, except those created less than deletionGracePeriod ago, and those used by a Kubernetes Job that has not finished or a ReplicaSet with replicas, e.g. the previous revision during a rollout. Kubernetes keeps a PVC, and its PV, that is used by a Pod in Terminating state
+// All other PVs/PVCs of the component are deleted, except those used by a Kubernetes Job that has not finished or a ReplicaSet with replicas, e.g. the previous revision during a rollout. Kubernetes keeps a PVC, and its PV, that is used by a Pod in Terminating state
 // (kubernetes.io/pvc-protection and kubernetes.io/pv-protection) until the Pod is gone, so running workloads are not affected.
 // Blob data is never deleted, as all PVs use the reclaim policy Retain.
-func ReconcileComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, deletionGracePeriod time.Duration) ([]corev1.Volume, []corev1.VolumeMount, error) {
-	storage := componentStorage{kubeUtil: kubeUtil, appName: appName, rd: rd, component: component, deletionGracePeriod: deletionGracePeriod}
+func ReconcileComponentVolumes(ctx context.Context, kubeUtil *kube.Kube, appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent) ([]corev1.Volume, []corev1.VolumeMount, error) {
+	storage := componentStorage{kubeUtil: kubeUtil, appName: appName, rd: rd, component: component}
 	return storage.getComponentVolumes(ctx, true)
 }
 
@@ -85,7 +82,7 @@ func (s *componentStorage) componentSelector() kubelabels.Set {
 }
 
 // reconcile reuses or creates the PV/PVC for each BlobFuse2 volume mount of the component, and returns the PVC name by volume mount name.
-// When deleteUnused is set, all other PVCs/PVs of the component that are older than deletionGracePeriod, and are not used by a Kubernetes Job
+// When deleteUnused is set, all other PVCs/PVs of the component that are not used by a Kubernetes Job
 // that has not finished or a ReplicaSet with replicas, are deleted, unless the PV/PVC of any volume mount could not be reused or created.
 func (s *componentStorage) reconcile(ctx context.Context, deleteUnused bool) (map[string]string, error) {
 	currentPvcs, err := listRadixPvcs(ctx, s.kubeUtil.KubeClient(), s.appName, s.namespace(), s.componentSelector())
@@ -125,7 +122,7 @@ func (s *componentStorage) reconcile(ctx context.Context, deleteUnused bool) (ma
 		if err != nil {
 			return nil, err
 		}
-		collector := newVolumeCollector(s.kubeUtil.KubeClient(), s.namespace(), s.deletionGracePeriod)
+		collector := newVolumeCollector(s.kubeUtil.KubeClient(), s.namespace())
 		if err := collector.deleteUnused(ctx, currentPvcs, currentPvs, usedPvcs); err != nil {
 			return nil, fmt.Errorf("failed to delete unused storage for component %s: %w", s.component.GetName(), err)
 		}
@@ -247,7 +244,7 @@ func selectOldestPersistentVolumeClaim(pvcs []corev1.PersistentVolumeClaim) core
 }
 
 // createDesiredVolumeResources creates the desired PV, then the PVC. The names are unique, so they do not conflict with existing resources.
-// If the PVC cannot be created, the PV is left behind, and deleted when the component is reconciled after the deletion grace period.
+// If the PVC cannot be created, the PV is left behind, and deleted the next time the component is reconciled.
 func createDesiredVolumeResources(ctx context.Context, kubeClient kubernetes.Interface, desired *desiredVolumeResources) error {
 	logger := log.Ctx(ctx)
 	logger.Info().Msgf("Create PersistentVolume %s for PersistentVolumeClaim %s in namespace %s", desired.pv.GetName(), desired.pvc.GetName(), desired.pvc.GetNamespace())

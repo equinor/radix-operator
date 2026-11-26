@@ -16,7 +16,7 @@ Azure Key Vault `secretRefs` are also mounted as CSI volumes through this packag
 | File                                                       | Purpose                                                                                                                                               |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [reconcile.go](./reconcile.go)                             | `ReconcileComponentVolumes` and `EnsureComponentVolumes`: reuse and create PV/PVCs. `componentStorage` holds the arguments of one component reconcile |
-| [gc.go](./gc.go)                                           | `GarbageCollectVolumesNoLongerInSpec` and deletion of unused PV/PVCs, with the deletion grace period                                                  |
+| [gc.go](./gc.go)                                           | `GarbageCollectVolumesNoLongerInSpec` and deletion of unused PV/PVCs                                                                                  |
 | [desired.go](./desired.go)                                 | Build the desired PV/PVC for a volume mount, with new unique names                                                                                    |
 | [match.go](./match.go)                                     | Decide whether an existing PV/PVC pair matches the desired PV/PVC                                                                                     |
 | [persistentvolumebuilder.go](./persistentvolumebuilder.go) | BlobFuse2 PV spec: CSI attributes and mount options (cache modes and so on)                                                                           |
@@ -52,7 +52,7 @@ The design relies on Kubernetes storage object protection: a PVC that is used by
    - PVC: `pvc-<component>-<volumeMount>-<ulid>`
    - CSI `volumeHandle`: `radixvolumemount#<app>#<env>#<component>#<volumeMount>#<ulid>`, which is also used in the `--block-cache-path` mount option
 
-   New names never conflict with existing objects, e.g. a pair for the same spec that is still terminating after a revert of the spec. If the PVC cannot be created, the PV is left behind, and deleted when the component is reconciled after the [deletion grace period](#deletion-grace-period).
+   New names never conflict with existing objects, e.g. a pair for the same spec that is still terminating after a revert of the spec. If the PVC cannot be created, the PV is left behind, and deleted the next time the component is reconciled.
 
 Matching uses the spec, not the name. Existing PVCs with older naming schemes (random suffix, UUID PV names) are therefore reused as long as their spec and labels still match.
 
@@ -63,7 +63,7 @@ After the PV/PVC of every volume mount has been found or created, every other PV
 - PVCs with `radix-app=<app>`, `radix-component=<component>` and a `radix-volume-mount-name` label;
 - PVs with `radix-app=<app>`, `radix-namespace=<ns>`, `radix-component=<component>` and a `radix-volume-mount-name` label.
 
-PVCs are deleted before PVs. Objects that are already terminating, or that were created less than the [deletion grace period](#deletion-grace-period) ago, are skipped. PVCs used by the Pod template of a workload in the namespace that can still create Pods, and the PVs bound to them, are skipped too, because a new Pod cannot start with a terminating or deleted PVC, and storage object protection only keeps the PVC for existing Pods:
+PVCs are deleted before PVs. Objects that are already terminating are skipped. PVCs used by the Pod template of a workload in the namespace that can still create Pods, and the PVs bound to them, are skipped too, because a new Pod cannot start with a terminating or deleted PVC, and storage object protection only keeps the PVC for existing Pods:
 
 - a Kubernetes Job that has not finished (no `Complete` or `Failed` condition), which can create Pods, e.g. to retry a failed Pod;
 - a ReplicaSet with replicas (`spec.replicas` unset or above 0), which recreates Pods, e.g. after an eviction or a node drain. This keeps the PVC of the previous revision of a Deployment while a rollout is in progress or has failed, so the previous revision keeps working until it is scaled down.
@@ -78,15 +78,13 @@ The batch syncer uses the RadixDeployment the batch references, which can be an 
 
 ### Components and jobs removed from the RadixDeployment (`GarbageCollectVolumesNoLongerInSpec`)
 
-Runs in `garbageCollectComponentsNoLongerInSpec` at the start of the RadixDeployment sync, like the garbage collection of other resources. It deletes all Radix-owned PVCs and PVs in the namespace (same labels as above, without the component label) whose `radix-component` label is not a component or job in the RadixDeployment. The [deletion grace period](#deletion-grace-period) applies here too.
+Runs in `garbageCollectComponentsNoLongerInSpec` at the start of the RadixDeployment sync, like the garbage collection of other resources. It deletes all Radix-owned PVCs and PVs in the namespace (same labels as above, without the component label) whose `radix-component` label is not a component or job in the RadixDeployment. The same objects are skipped as above.
 
-### Deletion grace period
+### Concurrent RadixDeployment and RadixBatch syncs
 
-PVCs and PVs created less than the deletion grace period ago are never deleted, by `ReconcileComponentVolumes` or by `GarbageCollectVolumesNoLongerInSpec`. The RadixDeployment and RadixBatch syncers do not share a lock, so the batch syncer can create a pair for a job while the RadixDeployment syncer cleans up the storage of that job, for example when both find no matching pair and each creates its own. Without the grace period, the batch's new pair could be deleted before the Pod of its Kubernetes Job exists. Once that Pod exists (even `Pending`), storage object protection keeps the pair.
+The RadixDeployment and RadixBatch syncers do not share a lock, and there is no grace period for new objects. When the batch syncer has found or created a pair for a job, but not yet created the Kubernetes Job, nothing protects the pair: no workload references it, and no Pod uses it. A RadixDeployment sync in that window deletes the pair if it does not match the spec of the active RadixDeployment, e.g. a pair for a batch that references an older RadixDeployment with another volume spec, or the batch's own pair when both syncers found no matching pair and each created one. The Pod of the Job then cannot start. The window is short, and the race is accepted. Once the Job exists, the unfinished-Job check keeps the pair, and once its Pod exists (even `Pending`), storage object protection keeps it.
 
-The grace period is set by `operator.volumeDeletionGracePeriod` in the operator config (`config.operator.volumeDeletionGracePeriod` in the Helm chart, default `10m`, minimum `1s`). It is passed to `ReconcileComponentVolumes` and `GarbageCollectVolumesNoLongerInSpec`. The e2e tests use a few seconds, and trigger RadixDeployment syncs until the unused objects are gone.
-
-Objects that are skipped are deleted the next time the RadixDeployment syncs after the grace period. The operator has no periodic resync, so this can take a while: the next sync of the RadixDeployment, e.g. a new deployment.
+Objects that are skipped are deleted the next time the RadixDeployment syncs. The operator has no periodic resync, so this can take a while: the next sync of the RadixDeployment, e.g. a new deployment. The e2e tests trigger RadixDeployment syncs until the unused objects are gone.
 
 ### Deleted environments
 
@@ -116,7 +114,7 @@ Before this change, storage was handled by `GetVolumes`, `CreateOrUpdatePVCVolum
 
 ### Pros
 
-- **Simple model.** For each component the operator keeps exactly the PV/PVC the spec needs and deletes the rest. There is no separate garbage collection with keep rules, only a configurable grace period for new objects and a check of the PVCs used by Kubernetes Jobs that have not finished and ReplicaSets with replicas. Kubernetes storage object protection keeps PV/PVCs that are still used by Pods.
+- **Simple model.** For each component the operator keeps exactly the PV/PVC the spec needs and deletes the rest. There is no separate garbage collection with keep rules, only a check of the PVCs used by Kubernetes Jobs that have not finished and ReplicaSets with replicas. Kubernetes storage object protection keeps PV/PVCs that are still used by Pods.
 - **Unique names.** A new PV/PVC never conflicts with an existing object, so reverting a spec while the pair for it is still terminating creates a new pair at once, instead of failing until the old pair is gone.
 - **Spec-based reuse.** Unchanged volume mounts keep their claim even if other parts of the component change. After an upgrade, existing PVCs with legacy random names are reused when they match, so workloads are not restarted.
 - **Safer deletes than before.** Only Radix-labelled objects for the app, namespace and component are deleted, while the old cluster-wide PV sweep could delete PVs that belonged to other namespaces. Deletes have `uid` preconditions, and nothing is deleted for a component whose storage could not be ensured.
@@ -126,10 +124,10 @@ Before this change, storage was handled by `GetVolumes`, `CreateOrUpdatePVCVolum
 ### Cons / risks
 
 - **Removal of the deprecated `type` volume mount.** The `type`, `storage`, `uid`, `gid`, `accessMode`, `requestsStorage` and `container` fields are removed from the CRD schemas. [#2035](https://github.com/equinor/radix-operator/issues/2035) confirms that no RadixApplication or RadixDeployment in any cluster uses `type: azure-blob`, so no existing volume mount is affected.
-- **Pods that are not yet running cannot use a deleted PVC.** Kubernetes does not schedule a Pod whose PVC is terminating. A RadixBatch for an older RadixDeployment with another volume spec gets its own PV/PVC, which is deleted when the active RadixDeployment syncs after the deletion grace period and its Kubernetes Jobs have finished. Pods of those Jobs, including retries, can therefore always use the pair. Likewise, a Pod of an old ReplicaSet that is recreated during a rollout can use its pair, as it is kept until the ReplicaSet is scaled down. Only Pods that are not created by a Job or a ReplicaSet are not protected, and Radix does not create such Pods.
+- **Pods that are not yet running cannot use a deleted PVC.** Kubernetes does not schedule a Pod whose PVC is terminating. A RadixBatch for an older RadixDeployment with another volume spec gets its own PV/PVC, which is deleted when the active RadixDeployment syncs after its Kubernetes Jobs have finished. Once a Job exists, its Pods, including retries, can therefore use the pair. Before the Job exists, a concurrent RadixDeployment sync can delete the pair, see [Concurrent RadixDeployment and RadixBatch syncs](#concurrent-radixdeployment-and-radixbatch-syncs). Likewise, a Pod of an old ReplicaSet that is recreated during a rollout can use its pair, as it is kept until the ReplicaSet is scaled down. Only Pods that are not created by a Job or a ReplicaSet are not protected, and Radix does not create such Pods.
 - **Released PVs of deleted environments are not cleaned up.** PVs are cluster scoped and are not deleted with the namespace.
 - **Objects without labels are never cleaned up.** Only objects with Radix labels are selected, and matching requires the PV labels. [#2035](https://github.com/equinor/radix-operator/issues/2035) §6 confirms that all Radix PVs/PVCs in the current clusters are labelled. Any object without labels would not match: a new pair would be created, and the old one would stay until removed by hand.
-- **Creates are not idempotent.** When the RadixDeployment and RadixBatch syncers find no matching pair for the same spec at the same time, both create a pair. The deletion grace period keeps the extra pair long enough for the Pod of the batch Job to be created, and the first RadixDeployment sync after the grace period deletes whichever pair is unused. Likewise, a PV left behind by a failed PVC create is only deleted by the first RadixDeployment sync after the grace period.
+- **Creates are not idempotent.** When the RadixDeployment and RadixBatch syncers find no matching pair for the same spec at the same time, both create a pair. If the RadixDeployment syncs again before the batch has created its Job, the batch's pair is deleted and the Pod of the Job cannot start, see [Concurrent RadixDeployment and RadixBatch syncs](#concurrent-radixdeployment-and-radixbatch-syncs). Otherwise, the next RadixDeployment sync deletes whichever pair is unused. A PV left behind by a failed PVC create is deleted by the next RadixDeployment sync.
 - **A semantic change to the generated spec** (for example a new default mount option) causes a new PV/PVC and a Pod restart for every affected volume mount, as before.
 
 ## Appendix: where volume logic runs in the reconciliation loops

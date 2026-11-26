@@ -36,8 +36,6 @@ const (
 	ensureTestNamespace     = "anyapp-anyenv"
 	ensureTestComponentName = "anycomp"
 	ensureTestRdName        = "anyrd"
-
-	testDeletionGracePeriod = 10 * time.Minute
 )
 
 type reconcileComponentVolumesTestSuite struct {
@@ -122,11 +120,6 @@ func (s *testSuite) createLegacyPair(rd *radixv1.RadixDeployment, component radi
 	return pv, pvc
 }
 
-// beforeGracePeriod returns a creation time of a PV/PVC that is no longer protected by the deletion grace period
-func beforeGracePeriod() time.Time {
-	return time.Now().Add(-2 * testDeletionGracePeriod)
-}
-
 func (s *testSuite) listPvAndPvcNames() ([]string, []string) {
 	pvList, err := s.kubeClient.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
@@ -181,7 +174,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_LegacyPairIsReusedAndNothingIs
 		s.Run(name, func() {
 			rd, component := newEnsureTestRd(vm)
 			component.Identity = &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "any-client-id"}}
-			_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", beforeGracePeriod())
+			_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 			pvsBefore, pvcsBefore := s.listPvAndPvcNames()
 
 			volumes, volumeMounts, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
@@ -237,9 +230,9 @@ func (s *reconcileComponentVolumesTestSuite) Test_MatchingClaimOfCurrentDeployme
 			}
 			volumeName, err := getVolumeMountVolumeName(&vm, target.GetName())
 			s.Require().NoError(err)
-			_, oldestPvc := s.createLegacyPair(rd, target, vm, "aaaaa", beforeGracePeriod().Add(-time.Hour))
-			newerPv, newerPvc := s.createLegacyPair(rd, target, vm, "bbbbb", beforeGracePeriod())
-			_, otherSpecPvc := s.createLegacyPair(rd, target, blobFuse2VolumeMount("vol", "othercontainer"), "ccccc", beforeGracePeriod())
+			_, oldestPvc := s.createLegacyPair(rd, target, vm, "aaaaa", time.Now().Add(-time.Hour))
+			newerPv, newerPvc := s.createLegacyPair(rd, target, vm, "bbbbb", time.Now())
+			_, otherSpecPvc := s.createLegacyPair(rd, target, blobFuse2VolumeMount("vol", "othercontainer"), "ccccc", time.Now())
 			deployedPvc, expectedPvc := otherSpecPvc, oldestPvc
 			if test.deployedClaimMatches {
 				deployedPvc, expectedPvc = newerPvc, newerPvc
@@ -254,7 +247,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_MatchingClaimOfCurrentDeployme
 			_, err = s.kubeClient.AppsV1().Deployments(rd.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, target, testDeletionGracePeriod)
+			volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, target)
 			s.Require().NoError(err)
 			s.Equal(expectedPvc.Name, claimNameOf(volumes, volumeName))
 			s.True(s.pvcExists(expectedPvc.Name), "the selected PVC must be kept")
@@ -290,7 +283,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 		s.Run(name, func() {
 			initialVm := blobFuse2VolumeMount("vol", "container")
 			rd, component := newEnsureTestRd(initialVm)
-			legacyPv, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", beforeGracePeriod())
+			legacyPv, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", time.Now())
 
 			changedVm := blobFuse2VolumeMount("vol", "container", modify)
 			changedRd, changedComponent := newEnsureTestRd(changedVm)
@@ -312,7 +305,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 			s.True(s.pvcExists(legacyPvc.Name), "EnsureComponentVolumes must not delete the current PVC")
 			s.True(s.pvExists(legacyPv.Name), "EnsureComponentVolumes must not delete the current PV")
 
-			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent, testDeletionGracePeriod)
+			volumes, _, err = ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, changedRd, changedComponent)
 			s.Require().NoError(err)
 			s.Equal(claimName, claimNameOf(volumes, changedVolumeName), "the new pair must be reused")
 			s.False(s.pvcExists(legacyPvc.Name), "ReconcileComponentVolumes must delete the PVC that does not match")
@@ -326,7 +319,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ChangedSpecCreatesNewPair() {
 func (s *reconcileComponentVolumesTestSuite) Test_SettingThatDoesNotChangeSpecReusesPair() {
 	initialVm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(initialVm)
-	_, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", beforeGracePeriod())
+	_, legacyPvc := s.createLegacyPair(rd, component, initialVm, "abcde", time.Now())
 
 	changedVm := blobFuse2VolumeMount("vol", "container", func(b *radixv1.RadixBlobFuse2VolumeMount) {
 		b.BlockCacheOptions = &radixv1.BlobFuse2BlockCacheOptions{BlockSize: new(defaultBlockCacheBlockSize), PrefetchCount: new(defaultBlockCachePrefetchCount)}
@@ -350,7 +343,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_RepeatedCallsCreateExactlyOneP
 	s.Require().NoError(err)
 	volumes2, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
-	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
+	volumes3, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 	s.Equal(volumes1, volumes2)
 	s.Equal(volumes1, volumes3)
@@ -364,12 +357,12 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairWithStaleClaimRefIsReplace
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
 	// The PV is still Bound to a deleted PVC with the same name, so the recreated PVC never binds to it
-	stalePv, stalePvc := s.createLegacyPair(rd, component, vm, "abcde", beforeGracePeriod())
+	stalePv, stalePvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 	stalePv.Spec.ClaimRef.UID = "deleted-pvc-uid"
 	_, err := s.kubeClient.CoreV1().PersistentVolumes().Update(context.Background(), stalePv, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 
 	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
@@ -384,7 +377,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairWithStaleClaimRefIsReplace
 func (s *reconcileComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	legacyPv, _ := s.createLegacyPair(rd, component, vm, "abcde", beforeGracePeriod())
+	legacyPv, _ := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 
 	_, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
@@ -397,7 +390,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ClaimRefWithPvcUIDIsNotUpdated
 func (s *reconcileComponentVolumesTestSuite) Test_PvcBeingDeletedIsNotReused() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", beforeGracePeriod())
+	_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 	legacyPvc.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	_, err := s.kubeClient.CoreV1().PersistentVolumeClaims(ensureTestNamespace).Update(context.Background(), legacyPvc, metav1.UpdateOptions{})
 	s.Require().NoError(err)
@@ -449,7 +442,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenCompon
 	for name, test := range tests {
 		s.Run(name, func() {
 			rd, component := newEnsureTestRd(vm)
-			_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", beforeGracePeriod())
+			_, legacyPvc := s.createLegacyPair(rd, component, vm, "abcde", time.Now())
 
 			otherRd, otherComponent := newEnsureTestRd(test.vm)
 			otherComponent.Name = test.componentName
@@ -467,7 +460,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairsAreNotSharedBetweenCompon
 func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsSelectedPairAndDeletesAllOtherPairsOfComponent() {
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
-	now := beforeGracePeriod()
+	now := time.Now()
 	keptPv, keptPvc := s.createLegacyPair(rd, component, vm, "aaaaa", now.Add(-2*time.Hour))
 	duplicatePv, duplicatePvc := s.createLegacyPair(rd, component, vm, "bbbbb", now.Add(-1*time.Hour))
 	oldSpecVm := blobFuse2VolumeMount("vol", "oldcontainer")
@@ -484,7 +477,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsSelectedPairAndD
 	_, err := s.kubeClient.CoreV1().PersistentVolumes().Create(context.Background(), releasedPv, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
+	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().NoError(err)
 
 	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
@@ -504,13 +497,13 @@ func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsSelectedPairAndD
 func (s *reconcileComponentVolumesTestSuite) Test_ReconcileDeletesNothingWhenEnsureFails() {
 	oldSpecVm := blobFuse2VolumeMount("vol", "oldcontainer")
 	rd, component := newEnsureTestRd(oldSpecVm)
-	oldSpecPv, oldSpecPvc := s.createLegacyPair(rd, component, oldSpecVm, "abcde", beforeGracePeriod())
+	oldSpecPv, oldSpecPvc := s.createLegacyPair(rd, component, oldSpecVm, "abcde", time.Now())
 	component.VolumeMounts = []radixv1.RadixVolumeMount{blobFuse2VolumeMount("vol", "newcontainer")}
 	s.kubeClient.(*fake.Clientset).PrependReactor("create", "persistentvolumeclaims", func(k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, errors.New("any create error")
 	})
 
-	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
+	_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component)
 	s.Require().Error(err)
 	s.True(s.pvcExists(oldSpecPvc.Name))
 	s.True(s.pvExists(oldSpecPv.Name))
@@ -520,10 +513,10 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 	vm := blobFuse2VolumeMount("vol", "container")
 	rd, component := newEnsureTestRd(vm)
 	rd.Spec.Jobs = []radixv1.RadixDeployJobComponent{{Name: "anyjob", VolumeMounts: []radixv1.RadixVolumeMount{vm}}}
-	componentPv, componentPvc := s.createLegacyPair(rd, component, vm, "aaaaa", beforeGracePeriod())
-	jobPv, jobPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], vm, "bbbbb", beforeGracePeriod())
+	componentPv, componentPvc := s.createLegacyPair(rd, component, vm, "aaaaa", time.Now())
+	jobPv, jobPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], vm, "bbbbb", time.Now())
 	removedComponent := &radixv1.RadixDeployComponent{Name: "removedcomp", VolumeMounts: []radixv1.RadixVolumeMount{vm}}
-	removedPv, removedPvc := s.createLegacyPair(rd, removedComponent, vm, "ccccc", beforeGracePeriod())
+	removedPv, removedPvc := s.createLegacyPair(rd, removedComponent, vm, "ccccc", time.Now())
 	removedReleasedPv := removedPv.DeepCopy()
 	removedReleasedPv.ObjectMeta = metav1.ObjectMeta{Name: "pv-removed-released", Labels: removedPv.Labels}
 	removedReleasedPv.Status.Phase = corev1.VolumeReleased
@@ -550,7 +543,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 		s.Require().NoError(err)
 	}
 
-	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd, testDeletionGracePeriod))
+	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd))
 
 	s.True(s.pvcExists(componentPvc.Name))
 	s.True(s.pvExists(componentPv.Name))
@@ -566,46 +559,6 @@ func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerI
 	for _, pv := range untouchedPvs {
 		s.True(s.pvExists(pv.Name), "PV %s must not be deleted", pv.Name)
 	}
-}
-
-func (s *reconcileComponentVolumesTestSuite) Test_ReconcileKeepsPairsWithinDeletionGracePeriod() {
-	vm := blobFuse2VolumeMount("vol", "container")
-	rd, component := newEnsureTestRd(vm)
-	now := time.Now()
-	keptPv, keptPvc := s.createLegacyPair(rd, component, vm, "aaaaa", beforeGracePeriod())
-	// A pair for the same spec, as created by the RadixBatch syncer at the same time as the RadixDeployment syncer
-	newDuplicatePv, newDuplicatePvc := s.createLegacyPair(rd, component, vm, "bbbbb", now)
-	newOldSpecPv, newOldSpecPvc := s.createLegacyPair(rd, component, blobFuse2VolumeMount("vol", "oldcontainer"), "ccccc", now.Add(-testDeletionGracePeriod+time.Minute))
-	expiredOldSpecPv, expiredOldSpecPvc := s.createLegacyPair(rd, component, blobFuse2VolumeMount("vol", "oldcontainer"), "ddddd", beforeGracePeriod())
-
-	volumes, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, component, testDeletionGracePeriod)
-	s.Require().NoError(err)
-
-	volumeName, err := getVolumeMountVolumeName(&vm, component.GetName())
-	s.Require().NoError(err)
-	s.Equal(keptPvc.Name, claimNameOf(volumes, volumeName))
-	s.True(s.pvExists(keptPv.Name))
-	for _, kept := range []struct{ pv, pvc string }{{newDuplicatePv.Name, newDuplicatePvc.Name}, {newOldSpecPv.Name, newOldSpecPvc.Name}} {
-		s.True(s.pvcExists(kept.pvc), "PVC %s must not be deleted within the grace period", kept.pvc)
-		s.True(s.pvExists(kept.pv), "PV %s must not be deleted within the grace period", kept.pv)
-	}
-	s.False(s.pvcExists(expiredOldSpecPvc.Name))
-	s.False(s.pvExists(expiredOldSpecPv.Name))
-}
-
-func (s *reconcileComponentVolumesTestSuite) Test_GarbageCollectVolumesNoLongerInSpecKeepsPairsWithinDeletionGracePeriod() {
-	vm := blobFuse2VolumeMount("vol", "container")
-	rd, _ := newEnsureTestRd(vm)
-	removedComponent := &radixv1.RadixDeployComponent{Name: "removedcomp", VolumeMounts: []radixv1.RadixVolumeMount{vm}}
-	newPv, newPvc := s.createLegacyPair(rd, removedComponent, vm, "aaaaa", time.Now())
-	expiredPv, expiredPvc := s.createLegacyPair(rd, removedComponent, vm, "bbbbb", beforeGracePeriod())
-
-	s.Require().NoError(GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd, testDeletionGracePeriod))
-
-	s.True(s.pvcExists(newPvc.Name))
-	s.True(s.pvExists(newPv.Name))
-	s.False(s.pvcExists(expiredPvc.Name))
-	s.False(s.pvExists(expiredPv.Name))
 }
 
 func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByWorkloadIsKept() {
@@ -650,12 +603,12 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByWorkloadIsKept() {
 	}
 	collectors := map[string]func(rd *radixv1.RadixDeployment) error{
 		"ReconcileComponentVolumes with changed job spec": func(rd *radixv1.RadixDeployment) error {
-			_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, &rd.Spec.Jobs[0], testDeletionGracePeriod)
+			_, _, err := ReconcileComponentVolumes(context.Background(), s.kubeUtil, ensureTestAppName, rd, &rd.Spec.Jobs[0])
 			return err
 		},
 		"GarbageCollectVolumesNoLongerInSpec with removed job": func(rd *radixv1.RadixDeployment) error {
 			rd.Spec.Jobs = nil
-			return GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd, testDeletionGracePeriod)
+			return GarbageCollectVolumesNoLongerInSpec(context.Background(), s.kubeClient, ensureTestAppName, rd)
 		},
 	}
 	for collectorName, collect := range collectors {
@@ -665,7 +618,7 @@ func (s *reconcileComponentVolumesTestSuite) Test_PairUsedByWorkloadIsKept() {
 				rd, _ := newEnsureTestRd()
 				rd.Spec.Components = nil
 				rd.Spec.Jobs = []radixv1.RadixDeployJobComponent{{Name: jobName, VolumeMounts: []radixv1.RadixVolumeMount{blobFuse2VolumeMount("vol", "newcontainer")}}}
-				oldPv, oldPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], oldVm, "aaaaa", beforeGracePeriod())
+				oldPv, oldPvc := s.createLegacyPair(rd, &rd.Spec.Jobs[0], oldVm, "aaaaa", time.Now())
 				s.Require().NoError(workload.create(rd.Namespace, oldPvc.Name))
 
 				s.Require().NoError(collect(rd))
