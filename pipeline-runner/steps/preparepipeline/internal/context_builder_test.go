@@ -395,6 +395,110 @@ func (s *stepTestSuite) Test_DetectComponentsWithChangedSource() {
 			},
 			expectedComponents: []string{"comp1", "job1"},
 		},
+		"default Dockerfile: changed Dockerfile in source folder matches": {
+			diffs: git.DiffEntries{{Name: "sub1/Dockerfile"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"default Dockerfile: changed Dockerfile in repository root does not match components in subfolders": {
+			diffs: git.DiffEntries{{Name: "Dockerfile"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1"),
+			},
+			expectedComponents: nil,
+		},
+		"relative Dockerfile: changed Dockerfile outside source folder matches": {
+			diffs: git.DiffEntries{{Name: "docker/Dockerfile.app"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("../docker/Dockerfile.app"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("Dockerfile.app"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("../docker/Dockerfile.app"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("Dockerfile.app"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"relative Dockerfile: changed Dockerfile in source folder matches": {
+			diffs: git.DiffEntries{{Name: "sub1/Dockerfile.app"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("Dockerfile.app"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("Dockerfile.app"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("Dockerfile.app"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("Dockerfile.app"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"relative Dockerfile: other file outside source folder does not match": {
+			diffs: git.DiffEntries{{Name: "docker/Dockerfile.other"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("../docker/Dockerfile.app"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("../docker/Dockerfile.app"),
+			},
+			expectedComponents: nil,
+		},
+		"absolute Dockerfile: changed Dockerfile outside source folder matches": {
+			diffs: git.DiffEntries{{Name: "docker/Dockerfile.app"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("/docker/Dockerfile.app"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("/docker/Dockerfile.other"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("/docker/Dockerfile.app"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("/docker/Dockerfile.other"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"absolute Dockerfile: Dockerfile in root matches, not relative to source folder": {
+			diffs: git.DiffEntries{{Name: "Dockerfile.app"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("/Dockerfile.app"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("Dockerfile.app"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("/Dockerfile.app"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("Dockerfile.app"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"absolute Dockerfile: path is cleaned": {
+			diffs: git.DiffEntries{{Name: "/docker/Dockerfile.app"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("/sub/../docker/Dockerfile.app"),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("/sub/../docker/Dockerfile.other"),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("/sub/../docker/Dockerfile.app"),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("/sub/../docker/Dockerfile.other"),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
+		"matching environment config: use Dockerfile": {
+			diffs: git.DiffEntries{{Name: "docker/Dockerfile.env"}},
+			components: []utils.RadixApplicationComponentBuilder{
+				utils.NewApplicationComponentBuilder().WithName("comp1").WithSourceFolder("/sub1").WithDockerfileName("/docker/Dockerfile.common").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithDockerfileName("/docker/Dockerfile.env")),
+				utils.NewApplicationComponentBuilder().WithName("comp2").WithSourceFolder("/sub2").WithDockerfileName("/docker/Dockerfile.env").WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(envName).WithDockerfileName("/docker/Dockerfile.common")),
+			},
+			jobs: []utils.RadixApplicationJobComponentBuilder{
+				utils.NewApplicationJobComponentBuilder().WithName("job1").WithSourceFolder("/sub1").WithDockerfileName("/docker/Dockerfile.common").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithDockerfileName("/docker/Dockerfile.env")),
+				utils.NewApplicationJobComponentBuilder().WithName("job2").WithSourceFolder("/sub2").WithDockerfileName("/docker/Dockerfile.env").WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(envName).WithDockerfileName("/docker/Dockerfile.common")),
+			},
+			expectedComponents: []string{"comp1", "job1"},
+		},
 	}
 
 	for testName, testSpec := range tests {
