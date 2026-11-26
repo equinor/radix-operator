@@ -125,10 +125,13 @@ func (step *ApplyConfigStepImplementation) setBuildSecret(pipelineInfo *model.Pi
 func (step *ApplyConfigStepImplementation) setBuildAndDeployImages(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	componentImageSourceMap, err := step.getEnvironmentComponentImageSource(ctx, pipelineInfo)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to resolve component image sources: %w", err)
 	}
 
-	setPipelineBuildComponentImages(pipelineInfo, componentImageSourceMap)
+	if err := setPipelineBuildComponentImages(pipelineInfo, componentImageSourceMap); err != nil {
+		return fmt.Errorf("failed to resolve build component images: %w", err)
+	}
+
 	setPipelineDeployEnvironmentComponentImages(pipelineInfo, componentImageSourceMap)
 
 	if pipelineInfo.IsPipelineType(radixv1.BuildDeploy) {
@@ -326,15 +329,17 @@ func getCurrentlyDeployedComponent(radixDeployment *radixv1.RadixDeployment, com
 }
 
 // Get component build information used by build job
-func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, componentImageSourceMap environmentComponentImageSourceMap) {
+func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, componentImageSourceMap environmentComponentImageSourceMap) error {
 	pipelineInfo.BuildComponentImages = make(pipeline.EnvironmentBuildComponentImages)
+
 	for envName := range componentImageSourceMap {
 		var buildComponentImages []pipeline.BuildComponentImage
-		for imageSourceIndex := 0; imageSourceIndex < len(componentImageSourceMap[envName]); imageSourceIndex++ {
-			imageSource := componentImageSourceMap[envName][imageSourceIndex]
+
+		for imageSourceIndex, imageSource := range componentImageSourceMap[envName] {
 			if imageSource.ImageSource != fromBuild {
 				continue
 			}
+
 			componentName := strings.ToLower(imageSource.ComponentName)
 			envNameForName := getLengthLimitedName(envName)
 			imageName := fmt.Sprintf("%s-%s", envNameForName, componentName)
@@ -344,11 +349,16 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			imagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, imageTag)
 			clusterTypeImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterType, imageTag))
 			clusterNameImagePath := operatorutils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", pipelineInfo.Cfg.Common.ClusterName, imageTag))
+			buildContext := getBuildContext(pipelineInfo.GetGitWorkspace(), imageSource.Source)
+			dockerfile, err := getDockerfileRelativeToSourceContext(imageSource.Source)
+			if err != nil {
+				return fmt.Errorf("failed to build relative dockerfile for component %s in environment %s: %w", componentName, envName, err)
+			}
 			buildComponentImages = append(buildComponentImages, pipeline.BuildComponentImage{
 				ComponentName:        componentName,
 				EnvName:              envName,
-				Context:              getContext(pipelineInfo.GetGitWorkspace(), imageSource.Source.Folder),
-				Dockerfile:           getDockerfileName(imageSource.Source.DockefileName),
+				Context:              buildContext,
+				Dockerfile:           dockerfile,
 				ImageName:            imageName,
 				ImagePath:            imagePath,
 				ClusterTypeImagePath: clusterTypeImagePath,
@@ -357,10 +367,13 @@ func setPipelineBuildComponentImages(pipelineInfo *model.PipelineInfo, component
 			})
 			componentImageSourceMap[envName][imageSourceIndex].Image = imagePath
 		}
+
 		if len(buildComponentImages) > 0 {
 			pipelineInfo.BuildComponentImages[envName] = buildComponentImages
 		}
 	}
+
+	return nil
 }
 
 func getLengthLimitedName(name string) string {
@@ -459,16 +472,19 @@ func mustBuildComponentForEnvironment(ctx context.Context, targetEnvironment mod
 	}, nil
 }
 
-func getDockerfileName(name string) string {
-	if name == "" {
-		return "Dockerfile"
-	}
-	return name
+func getBuildContext(workspace string, source radixv1.ComponentSource) string {
+	sourceRoot := filepath.Join("/", source.Folder)
+	return fmt.Sprintf("%s/", filepath.Join(workspace, sourceRoot))
 }
 
-func getContext(workspace, sourceFolder string) string {
-	sourceRoot := filepath.Join("/", sourceFolder)
-	return fmt.Sprintf("%s/", filepath.Join(workspace, sourceRoot))
+func getDockerfileRelativeToSourceContext(source radixv1.ComponentSource) (string, error) {
+	sourceRoot := filepath.Join("/", source.Folder)
+
+	dockerfileName := source.DockerfileName
+	if !filepath.IsAbs(source.DockerfileName) {
+		dockerfileName = filepath.Join(sourceRoot, source.DockerfileName)
+	}
+	return filepath.Rel(sourceRoot, dockerfileName)
 }
 
 func getCommonComponents(ra *radixv1.RadixApplication) []radixv1.RadixCommonComponent {
