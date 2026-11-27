@@ -17,6 +17,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/ownerreferences"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/radixconfig"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/validation"
 	prepareInternal "github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 	"github.com/equinor/radix-operator/pipeline-runner/utils/annotations"
@@ -103,7 +104,7 @@ func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeCl
 		step.ownerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
 	}
 	if step.radixConfigReader == nil {
-		step.radixConfigReader = prepareInternal.NewRadixConfigReader(radixClient)
+		step.radixConfigReader = prepareInternal.NewRadixConfigReader()
 	}
 }
 
@@ -114,7 +115,7 @@ func (step *PreparePipelinesStepImplementation) ImplementationForType() pipeline
 
 // SucceededMsg Override of default step method
 func (step *PreparePipelinesStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: prepare pipelines step for application %s", step.GetAppName())
+	return fmt.Sprintf("Succeeded: prepare pipelines step for application %s", step.GetAppName())
 }
 
 // ErrorMsg Override of default step method
@@ -132,7 +133,7 @@ func (step *PreparePipelinesStepImplementation) Run(ctx context.Context, pipelin
 		return fmt.Errorf("failed to open git repository: %w", err)
 	}
 
-	if err := step.setRadixConfig(pipelineInfo, repo); err != nil {
+	if err := step.setRadixConfig(ctx, pipelineInfo, repo); err != nil {
 		return err
 	}
 
@@ -211,19 +212,24 @@ func (step *PreparePipelinesStepImplementation) setBuildInfo(ctx context.Context
 	return err
 }
 
-func (step *PreparePipelinesStepImplementation) setRadixConfig(pipelineInfo *model.PipelineInfo, repo git.Repository) error {
+func (step *PreparePipelinesStepImplementation) setRadixConfig(ctx context.Context, pipelineInfo *model.PipelineInfo, repo git.Repository) error {
 	configBranch := step.GetRegistration().Spec.ConfigBranch
 	err := repo.Checkout(configBranch)
 	if err != nil {
 		return fmt.Errorf("failed to checkout config branch %s: %w", configBranch, err)
 	}
 
-	radixConfig, err := step.radixConfigReader.Read(pipelineInfo)
+	ra, err := step.radixConfigReader.Read(pipelineInfo)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read RadixApplication: %w", err)
 	}
 
-	pipelineInfo.RadixApplication = radixConfig
+	mutatedRa, _, err := radixconfig.ApplyRadixApplication(ctx, step.GetRadixClient(), ra, true)
+	if err != nil {
+		return fmt.Errorf("failed to dry-run RadixApplication: %w", err)
+	}
+	pipelineInfo.RadixApplication = mutatedRa
+
 	return nil
 }
 

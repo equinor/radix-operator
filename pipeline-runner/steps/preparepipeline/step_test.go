@@ -39,7 +39,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 const (
@@ -115,6 +117,79 @@ func (s *stepTestSuite) Test_SetRadixConfig() {
 	s.Equal(ra, pipelineInfo.RadixApplication)
 }
 
+func (s *stepTestSuite) Test_SetRadixConfig_SetsMutatedRadixApplication() {
+	const (
+		configBranch = "anycfgbranch"
+		appName      = "anyapp"
+		mutatedLabel = "mutated-by-webhook"
+	)
+	rr := utils.NewRegistrationBuilder().WithConfigBranch(configBranch).BuildRR()
+	ra := utils.NewRadixApplicationBuilder().WithAppName(appName).WithEnvironment("dev", "main").BuildRA()
+
+	scenarios := map[string]struct {
+		verb       string
+		existingRA *radixv1.RadixApplication
+	}{
+		"create": {verb: "create"},
+		"update": {
+			verb:       "update",
+			existingRA: utils.NewRadixApplicationBuilder().WithAppName(appName).BuildRA(),
+		},
+	}
+
+	for name, scenario := range scenarios {
+		s.Run(name, func() {
+			if scenario.existingRA != nil {
+				_, err := s.radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Create(context.Background(), scenario.existingRA, metav1.CreateOptions{})
+				s.Require().NoError(err)
+			}
+
+			var reactorCalled bool
+			s.radixClient.PrependReactor(scenario.verb, "radixapplications", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				reactorCalled = true
+				mutated := action.(k8stesting.CreateAction).GetObject().(*radixv1.RadixApplication).DeepCopy()
+				mutated.Labels = map[string]string{mutatedLabel: "true"}
+				return true, mutated, nil
+			})
+
+			pipelineInfo := &model.PipelineInfo{
+				Definition: &pipeline.Definition{},
+				PipelineArguments: model.PipelineArguments{
+					PipelineType: string(radixv1.ApplyConfig),
+				},
+			}
+			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(ra, nil).Times(1)
+			mockGitRepo := git.NewMockRepository(s.ctrl)
+			mockGitRepo.EXPECT().Checkout(configBranch).Times(1).Return(nil)
+			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("", nil)
+			mockGitRepo.EXPECT().IsAncestor(gomock.Any(), gomock.Any()).AnyTimes().Return(true, nil)
+			mockGitRepo.EXPECT().ResolveTagsForCommit(gomock.Any()).AnyTimes().Return(nil, nil)
+			mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
+			mockContextBuilder.EXPECT().GetBuildContext(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+			mockSubPipelineReader := prepareInternal.NewMockSubPipelineReader(s.ctrl)
+			mockSubPipelineReader.EXPECT().ReadPipelineAndTasks(gomock.Any(), gomock.Any()).Return(false, "", nil, nil, nil).AnyTimes()
+			mockOwnerReferenceFactory := ownerreferences.NewMockOwnerReferenceFactory(s.ctrl)
+			mockOwnerReferenceFactory.EXPECT().Create().Return(&metav1.OwnerReference{}).AnyTimes()
+			step := preparepipeline.NewPreparePipelinesStep(
+				preparepipeline.WithRadixConfigReader(mockRadixConfigReader),
+				preparepipeline.WithSubPipelineReader(mockSubPipelineReader),
+				preparepipeline.WithBuildContextBuilder(mockContextBuilder),
+				preparepipeline.WithOwnerReferenceFactory(mockOwnerReferenceFactory),
+				preparepipeline.WithOpenGitRepoFunc(func(_ string) (git.Repository, error) { return mockGitRepo, nil }),
+			)
+			ctx := context.Background()
+			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+			err := step.Run(ctx, pipelineInfo)
+			s.Require().NoError(err)
+			s.True(reactorCalled)
+			s.Require().NotNil(pipelineInfo.RadixApplication)
+			s.Equal(map[string]string{mutatedLabel: "true"}, pipelineInfo.RadixApplication.Labels)
+		})
+	}
+}
+
 func (s *stepTestSuite) Test_SetRadixConfig_CheckoutError() {
 	rr := utils.NewRegistrationBuilder().WithConfigBranch("anybranch").BuildRR()
 
@@ -184,7 +259,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_ApplyConfig() {
 		},
 	}
 	mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
-	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(nil, nil).Times(1)
+	mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(&radixv1.RadixApplication{}, nil).Times(1)
 	mockGitRepo := git.NewMockRepository(s.ctrl)
 	mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 	mockContextBuilder := prepareInternal.NewMockContextBuilder(s.ctrl)
@@ -256,7 +331,7 @@ func (s *stepTestSuite) Test_TargetEnvironments_Deploy() {
 				},
 			}
 			mockRadixConfigReader := prepareInternal.NewMockRadixConfigReader(s.ctrl)
-			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(nil, nil).Times(1)
+			mockRadixConfigReader.EXPECT().Read(pipelineInfo).Return(&radixv1.RadixApplication{}, nil).Times(1)
 			mockGitRepo := git.NewMockRepository(s.ctrl)
 			mockGitRepo.EXPECT().Checkout(gomock.Any()).AnyTimes().Return(nil)
 			mockGitRepo.EXPECT().ResolveCommitForReference(gomock.Any()).AnyTimes().Return("", nil)

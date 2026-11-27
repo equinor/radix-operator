@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
+	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/radixconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -86,41 +85,22 @@ func (step *ApplyConfigStepImplementation) Run(ctx context.Context, pipelineInfo
 }
 
 func (step *ApplyConfigStepImplementation) applyRadixApplication(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
-	ra := pipelineInfo.RadixApplication
-	namespace := operatorutils.GetAppNamespace(ra.GetName())
 
-	existingRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Get(ctx, ra.Name, metav1.GetOptions{})
+	mutatedRA, operation, err := radixconfig.ApplyRadixApplication(ctx, step.GetRadixClient(), pipelineInfo.RadixApplication, false)
 	if err != nil {
-		if kubeerrors.IsNotFound(err) {
-			mutatedRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Create(ctx, ra, metav1.CreateOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create radix application: %w", err)
-			}
-
-			pipelineInfo.RadixApplication = mutatedRA
-			log.Ctx(ctx).Info().Msgf("RadixApplication %s created", ra.Name)
-			return nil
-		}
-		return fmt.Errorf("failed to get radix application: %w", err)
-	}
-
-	log.Ctx(ctx).Debug().Msgf("RadixApplication %s exists in namespace %s", ra.Name, namespace)
-	// Annotations are compared since they can change admission webhook behavior (e.g. radix-easyauth)
-	if reflect.DeepEqual(ra.Spec, existingRA.Spec) && maps.Equal(ra.GetAnnotations(), existingRA.GetAnnotations()) {
-		log.Ctx(ctx).Info().Msgf("No changes to RadixApplication %s in namespace %s", ra.Name, namespace)
-		return nil
-	}
-
-	// Update RA if different
-	log.Ctx(ctx).Debug().Msgf("RadixApplication %s in namespace %s has changed, updating now", ra.Name, namespace)
-	// For an update, ResourceVersion of the new object must be the same with the old object
-	ra.SetResourceVersion(existingRA.GetResourceVersion())
-	mutatedRA, err := step.GetRadixClient().RadixV1().RadixApplications(namespace).Update(ctx, ra, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update existing radix application: %w", err)
+		return fmt.Errorf("failed to apply RadixApplication: %w", err)
 	}
 	pipelineInfo.RadixApplication = mutatedRA
-	log.Ctx(ctx).Info().Msgf("RadixApplication %s updated in namespace %s", ra.Name, namespace)
+
+	switch operation {
+	case radixconfig.ApplyRadixApplicationOperationResultCreated:
+		log.Ctx(ctx).Info().Msgf("RadixApplication %s created", pipelineInfo.RadixApplication.GetName())
+	case radixconfig.ApplyRadixApplicationOperationResultUpdated:
+		log.Ctx(ctx).Info().Msgf("RadixApplication %s updated", pipelineInfo.RadixApplication.GetName())
+	case radixconfig.ApplyRadixApplicationOperationResultUnchanged:
+		log.Ctx(ctx).Info().Msgf("RadixApplication %s unchanged", pipelineInfo.RadixApplication.GetName())
+	}
+
 	return nil
 }
 
