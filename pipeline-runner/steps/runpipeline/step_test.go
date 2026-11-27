@@ -2,9 +2,11 @@ package runpipeline_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal/labels"
 	internalTest "github.com/equinor/radix-operator/pipeline-runner/steps/internal/test"
@@ -40,6 +42,7 @@ type stepTestSuite struct {
 	kedaClient    *kedafake.Clientset
 	dynamicClient client.Client
 	tknClient     tektonclient.Interface
+	saWatcher     *watcher.MockServiceAccountWatcher
 }
 
 func (s *stepTestSuite) SetupTest() {
@@ -48,6 +51,8 @@ func (s *stepTestSuite) SetupTest() {
 	s.dynamicClient = test.CreateClient()
 	s.kedaClient = kedafake.NewSimpleClientset()
 	s.tknClient = tektonfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
+	s.saWatcher = watcher.NewMockServiceAccountWatcher(gomock.NewController(s.T()))
+	s.saWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 }
 
 func (s *stepTestSuite) SetupSubTest() {
@@ -78,7 +83,7 @@ func (s *stepTestSuite) Test_RunPipeline_TaskRunTemplate() {
 	ctx := context.Background()
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -161,7 +166,7 @@ func (s *stepTestSuite) Test_RunPipeline_RadixParam() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	paramSpec, err := subpipeline.ObjectParamSpec("radix", model.SubPipelineParams{})
@@ -323,7 +328,7 @@ func (s *stepTestSuite) Test_RunPipeline_ParamsFromBuildAndEnvironment() {
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -440,7 +445,7 @@ func (s *stepTestSuite) Test_RunPipeline_AzureIdentityClientID() {
 			_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 			s.Require().NoError(err)
 
-			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+			step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 			step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 			_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -515,7 +520,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -573,7 +578,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_NotInjectedWhenNoImages() {
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -635,7 +640,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_Promote_AllImagesPassedOn() 
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -708,7 +713,7 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledCompo
 	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
 	s.Require().NoError(err)
 
-	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter))
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(s.saWatcher))
 	step.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
 
 	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
@@ -740,4 +745,93 @@ func (s *stepTestSuite) Test_RunPipeline_ImageParam_BuildDeploy_OnlyEnabledCompo
 	s.Assert().Equal("registry.azurecr.io/myapp-dev1-web-app:abc123", imageParam.Value.ObjectVal["web-app"])
 	// Disabled component is present in the param (declared in ParamSpec) but has empty value
 	s.Assert().Equal("", imageParam.Value.ObjectVal["disabled-component"])
+}
+
+func (s *stepTestSuite) Test_RunPipeline_WaitsForSubPipelineServiceAccount() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:       internalTest.AppName,
+			ImageTag:      internalTest.RadixImageTag,
+			JobName:       internalTest.RadixPipelineJobName,
+			GitRef:        internalTest.BranchMain,
+			GitRefType:    string(radixv1.GitRefBranch),
+			PipelineType:  string(radixv1.BuildDeploy),
+			ToEnvironment: internalTest.Env1,
+		},
+		RadixApplication:             raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
+	}
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	saWatcher := watcher.NewMockServiceAccountWatcher(mockCtrl)
+	saWatcher.EXPECT().WaitFor(gomock.Any(), pipelineInfo.GetAppNamespace(), utils.GetSubPipelineServiceAccountName(internalTest.Env1)).Return(nil).Times(1)
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(saWatcher))
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().NoError(err)
+
+	l, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Assert().Len(l.Items, 1)
+}
+
+func (s *stepTestSuite) Test_RunPipeline_FailsWhenSubPipelineServiceAccountIsMissing() {
+	mockCtrl := gomock.NewController(s.T())
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).Times(0)
+	rrBuilder := utils.NewRegistrationBuilder().WithName(internalTest.AppName)
+	raBuilder := utils.NewRadixApplicationBuilder().WithRadixRegistration(rrBuilder).WithAppName(internalTest.AppName).
+		WithEnvironment(internalTest.Env1, internalTest.BranchMain)
+	rr := rrBuilder.BuildRR()
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			AppName:       internalTest.AppName,
+			ImageTag:      internalTest.RadixImageTag,
+			JobName:       internalTest.RadixPipelineJobName,
+			GitRef:        internalTest.BranchMain,
+			GitRefType:    string(radixv1.GitRefBranch),
+			PipelineType:  string(radixv1.BuildDeploy),
+			ToEnvironment: internalTest.Env1,
+		},
+		RadixApplication:             raBuilder.BuildRA(),
+		EnvironmentSubPipelinesToRun: []model.EnvironmentSubPipelineToRun{{Environment: "any", PipelineFile: "any"}},
+	}
+	ctx := context.Background()
+	_, err := s.radixClient.RadixV1().RadixRegistrations().Create(ctx, rr, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.tknClient.TektonV1().Pipelines(pipelineInfo.GetAppNamespace()).Create(ctx, &pipelinev1.Pipeline{
+		Name:   internalTest.RadixPipelineJobName,
+		Labels: labels.GetSubPipelineLabelsForEnvironment(pipelineInfo, internalTest.Env1, rr.Spec.AppID),
+		Spec:   pipelinev1.PipelineSpec{},
+	}, metav1.CreateOptions{})
+	s.Require().NoError(err)
+
+	watcherErr := errors.New("service account not created within timeout")
+	saWatcher := watcher.NewMockServiceAccountWatcher(mockCtrl)
+	saWatcher.EXPECT().WaitFor(gomock.Any(), gomock.Any(), gomock.Any()).Return(watcherErr).Times(1)
+	step := runpipeline.NewRunPipelinesStep(runpipeline.WithPipelineRunsWaiter(completionWaiter), runpipeline.WithServiceAccountWatcher(saWatcher))
+	step.Init(ctx, s.kubeClient, s.radixClient, s.dynamicClient, s.tknClient, rr)
+
+	err = step.Run(ctx, pipelineInfo)
+	s.Require().ErrorIs(err, watcherErr)
+
+	l, err := s.tknClient.TektonV1().PipelineRuns(pipelineInfo.GetAppNamespace()).List(ctx, metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Assert().Empty(l.Items, "no PipelineRun should be created when the service account is missing")
 }

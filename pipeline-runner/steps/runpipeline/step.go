@@ -8,6 +8,7 @@ import (
 	"time"
 
 	internalsubpipeline "github.com/equinor/radix-operator/pipeline-runner/internal/subpipeline"
+	"github.com/equinor/radix-operator/pipeline-runner/internal/watcher"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pipeline-runner/steps/internal"
@@ -30,16 +31,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// serviceAccountWaitTimeout is how long to wait for the operator to create the sub-pipeline service account
+// after the RadixApplication has been applied, before giving up creating the PipelineRun.
+const serviceAccountWaitTimeout = 2 * time.Minute
+
 // RunPipelinesStepImplementation Step to run Tekton pipelines
 type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
 	waiter                wait.PipelineRunsCompletionWaiter
+	serviceAccountWatcher watcher.ServiceAccountWatcher
 	OwnerReferenceFactory ownerreferences.OwnerReferenceFactory
 }
 
 // NewRunPipelinesStep Constructor.
-// jobWaiter is optional and will be set by Init(...) function if nil.
+// jobWaiter and serviceAccountWatcher are optional and will be set by Init(...) function if nil.
 func NewRunPipelinesStep(options ...RunPipelinesStepImplementationOption) model.Step {
 
 	step := &RunPipelinesStepImplementation{
@@ -55,6 +61,9 @@ func (step *RunPipelinesStepImplementation) Init(ctx context.Context, kubeClient
 	step.DefaultStepImplementation.Init(ctx, kubeClient, radixClient, dynamicClient, tektonClient, rr)
 	if step.waiter == nil {
 		step.waiter = wait.NewPipelineRunsCompletionWaiter(tektonClient)
+	}
+	if step.serviceAccountWatcher == nil {
+		step.serviceAccountWatcher = watcher.NewServiceAccountWatcher(kubeClient, serviceAccountWaitTimeout)
 	}
 	if step.OwnerReferenceFactory == nil {
 		step.OwnerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
@@ -85,7 +94,7 @@ func (step *RunPipelinesStepImplementation) Run(ctx context.Context, pipelineInf
 	commitID := pipelineInfo.GitCommitHash
 	appName := step.GetAppName()
 	log.Ctx(ctx).Info().Msgf("Run pipelines app %s for %s %s and commit %s", appName, pipelineInfo.GetGitRefTypeOrDefault(), pipelineInfo.GetGitRefOrDefault(), commitID)
-	return step.RunPipelinesJob(pipelineInfo)
+	return step.RunPipelinesJob(ctx, pipelineInfo)
 }
 
 type RunPipelinesStepImplementationOption func(step *RunPipelinesStepImplementation)
@@ -97,15 +106,22 @@ func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) RunPipelin
 	}
 }
 
+// WithServiceAccountWatcher Set the watcher used to wait for the sub-pipeline service account
+func WithServiceAccountWatcher(serviceAccountWatcher watcher.ServiceAccountWatcher) RunPipelinesStepImplementationOption {
+	return func(step *RunPipelinesStepImplementation) {
+		step.serviceAccountWatcher = serviceAccountWatcher
+	}
+}
+
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
-func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.PipelineInfo) error {
+func (step *RunPipelinesStepImplementation) RunPipelinesJob(ctx context.Context, pipelineInfo *model.PipelineInfo) error {
 	if pipelineInfo.GetRadixPipelineType() == radixv1.Build {
 		log.Info().Msg("Pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
 	namespace := utils.GetAppNamespace(step.GetAppName())
 	labelSelector := fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, pipelineInfo.GetRadixPipelineJobName())
-	pipelineList, err := step.GetTektonClient().TektonV1().Pipelines(namespace).List(context.Background(), v1.ListOptions{
+	pipelineList, err := step.GetTektonClient().TektonV1().Pipelines(namespace).List(ctx, v1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -118,7 +134,7 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 
 	log.Info().Msg("Run sub-pipelines.")
 
-	pipelineRunMap, err := step.runPipelines(pipelineList.Items, namespace, pipelineInfo)
+	pipelineRunMap, err := step.runPipelines(ctx, pipelineList.Items, namespace, pipelineInfo)
 
 	if err != nil {
 		return fmt.Errorf("failed to run pipelines: %w", err)
@@ -130,12 +146,12 @@ func (step *RunPipelinesStepImplementation) RunPipelinesJob(pipelineInfo *model.
 	return nil
 }
 
-func (step *RunPipelinesStepImplementation) runPipelines(pipelines []pipelinev1.Pipeline, namespace string, pipelineInfo *model.PipelineInfo) (map[string]*pipelinev1.PipelineRun, error) {
+func (step *RunPipelinesStepImplementation) runPipelines(ctx context.Context, pipelines []pipelinev1.Pipeline, namespace string, pipelineInfo *model.PipelineInfo) (map[string]*pipelinev1.PipelineRun, error) {
 	timestamp := time.Now().Format("20060102150405")
 	pipelineRunMap := make(map[string]*pipelinev1.PipelineRun)
 	var errs []error
 	for _, pl := range pipelines {
-		createdPipelineRun, err := step.createPipelineRun(namespace, &pl, timestamp, pipelineInfo)
+		createdPipelineRun, err := step.createPipelineRun(ctx, namespace, &pl, timestamp, pipelineInfo)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -145,7 +161,7 @@ func (step *RunPipelinesStepImplementation) runPipelines(pipelines []pipelinev1.
 	return pipelineRunMap, errors.Join(errs...)
 }
 
-func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string, pipelineInfo *model.PipelineInfo) (*pipelinev1.PipelineRun, error) {
+func (step *RunPipelinesStepImplementation) createPipelineRun(ctx context.Context, namespace string, pipeline *pipelinev1.Pipeline, timestamp string, pipelineInfo *model.PipelineInfo) (*pipelinev1.PipelineRun, error) {
 	targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
 	if !pipelineTargetEnvDefined {
 		return nil, fmt.Errorf("missing target environment in labels of the pipeline %s", pipeline.Name)
@@ -156,7 +172,13 @@ func (step *RunPipelinesStepImplementation) createPipelineRun(namespace string, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to build pipelinerun for environment %s: %w", targetEnv, err)
 	}
-	return step.GetTektonClient().TektonV1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, v1.CreateOptions{})
+	// The service account is created asynchronously by the operator when it reconciles the RadixApplication applied
+	// in the previous step. Tekton marks a TaskRun as permanently failed if the service account does not exist when
+	// the pod is created, so make sure it exists before creating the PipelineRun.
+	if err := step.serviceAccountWatcher.WaitFor(ctx, namespace, pipelineRun.Spec.TaskRunTemplate.ServiceAccountName); err != nil {
+		return nil, fmt.Errorf("failed to create pipelinerun for environment %s: %w", targetEnv, err)
+	}
+	return step.GetTektonClient().TektonV1().PipelineRuns(namespace).Create(ctx, &pipelineRun, v1.CreateOptions{})
 }
 
 func (step *RunPipelinesStepImplementation) buildPipelineRun(pipeline *pipelinev1.Pipeline, targetEnv, timestamp string, pipelineInfo *model.PipelineInfo) (pipelinev1.PipelineRun, error) {
