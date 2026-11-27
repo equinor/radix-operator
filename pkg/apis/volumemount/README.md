@@ -21,6 +21,7 @@ Azure Key Vault `secretRefs` are also mounted as CSI volumes through this packag
 | [match.go](./match.go)                                     | Decide whether an existing PV/PVC pair matches the desired PV/PVC                                                                                     |
 | [persistentvolumebuilder.go](./persistentvolumebuilder.go) | BlobFuse2 PV spec: CSI attributes and mount options (cache modes and so on)                                                                           |
 | [volumemount.go](./volumemount.go)                         | Container volume mounts, volume names, Key Vault volumes, credential secrets                                                                          |
+| [defaults.go](./defaults.go)                               | CSI driver, attribute, and resource name constants                                                                                                    |
 
 ## How it works
 
@@ -44,7 +45,7 @@ The design relies on Kubernetes storage object protection: a PVC that is used by
    - not be terminating or `Lost`;
    - be bound to an existing PV that is not terminating;
    - be bound both ways (`pvc.spec.volumeName` and `pv.spec.claimRef`), and the PV `claimRef.uid` must be empty or the uid of the PVC. A PV with the uid of a deleted PVC with the same name never binds to the PVC, so such a pair is not reused;
-   - pass `matchesDesired`. This compares the PVC labels, resources, access modes, volume mode and storage class. It also compares four PV labels, plus PV capacity, access modes, normalized mount options, CSI driver, node-stage secret, CSI attributes (without provisioner-set keys), reclaim policy and storage class. Names, the volume handle and the `--block-cache-path` value are not compared.
+   - pass `matchesDesired`. This compares the four Radix PVC labels, plus PVC resources, access modes, volume mode and storage class. It also compares the four Radix PV labels, plus PV capacity, access modes, normalized mount options, CSI driver, node-stage secret, CSI attributes (without provisioner-set keys), reclaim policy and storage class. Other labels, names, the volume handle and the `--block-cache-path` value are not compared.
 
    If several PVCs match, the oldest is used (then by name). The PVCs used by workloads, e.g. the Kubernetes Deployment of the component or the job-aux Deployment of a job, are not considered, so the RadixDeployment and RadixBatch syncers always select the same PVC. If several legacy pairs match and the Deployment uses one that is not the oldest, the workload is rolled out once to use the oldest.
 4. If nothing matches, the desired PV and then the PVC are created. Each build of the desired PV/PVC gets a new [ULID](https://github.com/oklog/ulid) as unique part of the names:

@@ -15,6 +15,9 @@ var (
 	// PV label keys that must have the desired values. Other PV label keys are ignored.
 	matchedPersistentVolumeLabelKeys = []string{kube.RadixAppLabel, kube.RadixNamespace, kube.RadixComponentLabel, kube.RadixVolumeMountNameLabel}
 
+	// PVC label keys that must have the desired values. Other PVC label keys are ignored.
+	matchedPersistentVolumeClaimLabelKeys = []string{kube.RadixAppLabel, kube.RadixComponentLabel, kube.RadixMountTypeLabel, kube.RadixVolumeMountNameLabel}
+
 	// CSI volume attributes that are set by a provisioner, and are therefore ignored.
 	provisionerVolumeAttributeKeys = []string{csiVolumeMountAttributePvName, csiVolumeMountAttributePvcName, csiVolumeMountAttributePvcNamespace, csiVolumeMountAttributeProvisionerIdentity}
 )
@@ -40,8 +43,10 @@ func pvcMatchesDesired(pvc, desired *corev1.PersistentVolumeClaim) bool {
 	if pvc.GetNamespace() != desired.GetNamespace() {
 		return false
 	}
-	if !cmp.Equal(pvc.GetLabels(), desired.GetLabels(), cmpopts.EquateEmpty()) {
-		return false
+	for _, key := range matchedPersistentVolumeClaimLabelKeys {
+		if pvc.GetLabels()[key] != desired.GetLabels()[key] {
+			return false
+		}
 	}
 	if !cmp.Equal(pvc.Spec.Resources, desired.Spec.Resources, cmpopts.EquateEmpty()) {
 		return false

@@ -662,7 +662,7 @@ func Test_MatchesDesired(t *testing.T) {
 		expected bool
 	}{
 		"identical": {modify: func(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) {}, expected: true},
-		"ignored: names, uid, volumeHandle, block cache path, provisioner attributes, extra PV labels, order": {
+		"ignored: names, uid, volumeHandle, block cache path, provisioner attributes, extra PV and PVC labels, order": {
 			modify: func(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) {
 				pv.Name, pvc.Name = "pv-other", "pvc-other"
 				pvc.Spec.VolumeName, pv.Spec.ClaimRef.Name = pv.Name, pvc.Name
@@ -677,6 +677,7 @@ func Test_MatchesDesired(t *testing.T) {
 				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributePvName] = "x"
 				pv.Spec.CSI.VolumeAttributes[csiVolumeMountAttributeProvisionerIdentity] = "x"
 				pv.Labels["extra"] = "x"
+				pvc.Labels["extra"] = "x"
 			},
 			expected: true,
 		},
@@ -686,7 +687,9 @@ func Test_MatchesDesired(t *testing.T) {
 			pv.Spec.ClaimRef.Namespace = "other"
 		}},
 		"pv without claimRef": {modify: func(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) { pv.Spec.ClaimRef = nil }},
-		"pvc extra label":     {modify: func(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) { pvc.Labels["extra"] = "x" }},
+		"pvc label value differs": {modify: func(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) {
+			pvc.Labels[kube.RadixComponentLabel] = "other"
+		}},
 		"pvc missing label": {modify: func(pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) {
 			delete(pvc.Labels, kube.RadixMountTypeLabel)
 		}},
