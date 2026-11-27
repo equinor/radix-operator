@@ -200,7 +200,7 @@ func (s *JobHandlerTestSuite) Test_GetApplicationJob() {
 		//lint:ignore SA1019 we want to make sure that Components is populated for backward compatibility (at least for a while)
 		s.ElementsMatch(slice.PointersOf(expectedComponents), actualJob.Components)
 		expectedSteps := []jobModels.Step{
-			{Name: step1Name, Type: jobModels.StepTypeUnknown, PodName: step1Pod, Status: string(step1Condition), Started: &step1Started.Time, Ended: &step1Ended.Time, Components: step1Components},
+			{Name: step1Name, Type: jobModels.StepTypeUnknown, PodName: step1Pod, Status: jobModels.StepStatusRunning, Started: &step1Started.Time, Ended: &step1Ended.Time, Components: step1Components},
 			{Name: step2Name, Type: jobModels.StepTypeUnknown},
 		}
 		s.ElementsMatch(expectedSteps, actualJob.Steps)

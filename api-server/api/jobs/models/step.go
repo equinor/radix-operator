@@ -15,7 +15,28 @@ const (
 	StepTypeUnknown         StepType = "Unknown"
 )
 
-// Step holds general information about job step
+// StepStatus Enumeration of the statuses of job steps
+// swagger:enum StepStatus
+type StepStatus string
+
+const (
+	// Queued status indicates the step is queued for execution
+	StepStatusQueued StepStatus = "Queued"
+	// Waiting status indicates the step is waiting for execution
+	StepStatusWaiting StepStatus = "Waiting"
+	// Running status indicates the step is currently running
+	StepStatusRunning StepStatus = "Running"
+	// Succeeded status indicates the step has completed successfully
+	StepStatusSucceeded StepStatus = "Succeeded"
+	// Failed status indicates the step has failed
+	StepStatusFailed StepStatus = "Failed"
+	// Stopped status indicates the step has been stopped
+	StepStatusStopped StepStatus = "Stopped"
+	// StoppedNoChanges status indicates the step has been stopped with no changes
+	StepStatusStoppedNoChanges StepStatus = "StoppedNoChanges"
+)
+
+// Step holds general information about a job step
 // swagger:model Step
 type Step struct {
 	// Name of the step
@@ -34,7 +55,7 @@ type Step struct {
 	// required: false
 	// enum: Queued,Waiting,Running,Succeeded,Failed,Stopped,StoppedNoChanges
 	// example: Waiting
-	Status string `json:"status"`
+	Status StepStatus `json:"status"`
 
 	// Started timestamp
 	//

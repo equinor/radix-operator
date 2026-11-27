@@ -20,6 +20,7 @@ import (
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/git"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	crdUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -389,7 +390,7 @@ func (jh JobHandler) getJobStepsFromRadixJob(ctx context.Context, job *v1.RadixJ
 		step := jobModels.Step{
 			Name:          jobStep.Name,
 			Type:          resolveStepTypeFromJobStep(jobStep),
-			Status:        string(jobStep.Condition),
+			Status:        parseJobStepStatusFromRadixJobStep(jobStep),
 			PodName:       jobStep.PodName,
 			ContainerName: jobStep.ContainerName,
 			Components:    jobStep.Components,
@@ -416,6 +417,27 @@ func (jh JobHandler) getJobStepsFromRadixJob(ctx context.Context, job *v1.RadixJ
 
 	sort.Slice(buildSteps, func(i, j int) bool { return buildSteps[i].Name < buildSteps[j].Name })
 	return append(steps, buildSteps...), nil
+}
+
+func parseJobStepStatusFromRadixJobStep(jobStep v1.RadixJobStep) jobModels.StepStatus {
+	switch jobStep.Condition {
+	case radixv1.JobQueued:
+		return jobModels.StepStatusQueued
+	case radixv1.JobWaiting:
+		return jobModels.StepStatusWaiting
+	case radixv1.JobRunning:
+		return jobModels.StepStatusRunning
+	case radixv1.JobSucceeded:
+		return jobModels.StepStatusSucceeded
+	case radixv1.JobFailed:
+		return jobModels.StepStatusFailed
+	case radixv1.JobStopped:
+		return jobModels.StepStatusStopped
+	case radixv1.JobStoppedNoChanges:
+		return jobModels.StepStatusStoppedNoChanges
+	default:
+		return ""
+	}
 }
 
 func resolveStepTypeFromJobStep(jobStep v1.RadixJobStep) jobModels.StepType {
@@ -482,37 +504,39 @@ func (jh JobHandler) getTaskRunStepModel(envName, pipelineName, pipelineRunName,
 			KubeName:        taskKubeName,
 		},
 	}
-	if taskStep.Terminated != nil {
+
+	switch {
+	case taskStep.Terminated != nil:
 		stepModel.Started = &taskStep.Terminated.StartedAt.Time
 		stepModel.Ended = &taskStep.Terminated.FinishedAt.Time
-		stepModel.Status = getStepStatusBySubPipelineTaskStepTerminationStatus(taskStep.Terminated.Reason)
+		stepModel.Status = getStepStatusBySubPipelineStepContainerTerminatedState(*taskStep.Terminated)
 		stepModel.SubPipelineTaskStep.Status = taskStep.Terminated.Reason
-	} else if taskStep.Running != nil {
+	case taskStep.Running != nil:
 		stepModel.Started = &taskStep.Running.StartedAt.Time
-		stepModel.Status = "Running"
-		stepModel.SubPipelineTaskStep.Status = string(pipelinev1.TaskRunReasonRunning)
-	} else if taskStep.Waiting != nil {
-		stepModel.Status = "Waiting"
-		stepModel.SubPipelineTaskStep.Status = getStepStatusBySubPipelineTaskStepWaitingStatus(taskStep.Waiting.Reason)
+		stepModel.Status = jobModels.StepStatusRunning
+		stepModel.SubPipelineTaskStep.Status = "Running"
+	default:
+		stepModel.Status = jobModels.StepStatusWaiting
+
+		if taskStep.Waiting != nil {
+			stepModel.SubPipelineTaskStep.Status = getStepStatusBySubPipelineTaskStepWaitingStatus(taskStep.Waiting.Reason)
+		}
 	}
+
 	return stepModel
+}
+
+func getStepStatusBySubPipelineStepContainerTerminatedState(state corev1.ContainerStateTerminated) jobModels.StepStatus {
+	if state.ExitCode > 0 {
+		return jobModels.StepStatusFailed
+	}
+	return jobModels.StepStatusSucceeded
 }
 
 func getStepStatusBySubPipelineTaskStepWaitingStatus(reason string) string {
 	switch reason {
 	case "PodInitializing":
 		return "Starting"
-	default:
-		return reason
-	}
-}
-
-func getStepStatusBySubPipelineTaskStepTerminationStatus(reason string) string {
-	switch pipelinev1.TaskRunReason(reason) {
-	case pipelinev1.TaskRunReasonStarted, pipelinev1.TaskRunReasonRunning:
-		return ""
-	case pipelinev1.TaskRunReasonSuccessful:
-		return "Succeeded"
 	default:
 		return reason
 	}

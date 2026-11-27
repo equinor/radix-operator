@@ -9088,7 +9088,7 @@
       "x-go-package": "github.com/equinor/radix-operator/api-server/api/alerting/models"
     },
     "Step": {
-      "description": "Step holds general information about job step",
+      "description": "Step holds general information about a job step",
       "type": "object",
       "required": [
         "name"
