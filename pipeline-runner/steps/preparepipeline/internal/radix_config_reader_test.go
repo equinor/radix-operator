@@ -1,17 +1,13 @@
 package internal_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/steps/preparepipeline/internal"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -43,11 +39,6 @@ func Test_LoadRadixApplication(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			rxClient := radixclientfake.NewSimpleClientset() // nolint:staticcheck // SA1019: Ignore linting deprecated fields
-			_, err := rxClient.RadixV1().RadixRegistrations().Create(context.Background(), &radixv1.RadixRegistration{
-				Name: appName,
-			}, metav1.CreateOptions{})
-			require.NoError(t, err)
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
 					AppName:         ts.registeredAppName,
@@ -55,8 +46,8 @@ func Test_LoadRadixApplication(t *testing.T) {
 					GitWorkspace:    sampleAppWorkspace,
 				},
 			}
-			radixConfigReader := internal.NewRadixConfigReader(rxClient)
-			_, err = radixConfigReader.Read(pipelineInfo)
+			radixConfigReader := internal.NewRadixConfigReader()
+			_, err := radixConfigReader.Read(pipelineInfo)
 			if ts.expectedError == nil {
 				require.NoError(t, err)
 			} else {

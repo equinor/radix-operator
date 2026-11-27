@@ -6,13 +6,12 @@ import (
 	"unicode"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
 // ParseRadixApplication Parse and validate RadixApplication from configFileContent
-func ParseRadixApplication(radixClient radixclient.Interface, appName string, configFileContent []byte) (*radixv1.RadixApplication, error) {
+func ParseRadixApplication(appName string, configFileContent []byte) (*radixv1.RadixApplication, error) {
 	ra := &radixv1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.

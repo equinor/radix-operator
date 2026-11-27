@@ -104,7 +104,7 @@ func (step *PreparePipelinesStepImplementation) Init(ctx context.Context, kubeCl
 		step.ownerReferenceFactory = ownerreferences.NewOwnerReferenceFactory()
 	}
 	if step.radixConfigReader == nil {
-		step.radixConfigReader = prepareInternal.NewRadixConfigReader(radixClient)
+		step.radixConfigReader = prepareInternal.NewRadixConfigReader()
 	}
 }
 
