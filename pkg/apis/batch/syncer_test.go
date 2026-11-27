@@ -1004,7 +1004,7 @@ func (s *syncerTestSuite) Test_BatchRecreatesDeletedKubernetesJob() {
 	s.Require().NoError(s.kubeClient.CoreV1().Pods(batch.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{}))
 	rd := &radixv1.RadixDeployment{Name: "any-rd", Namespace: batch.Namespace, Spec: radixv1.RadixDeploymentSpec{AppName: "any-app"}}
 	component := &radixv1.RadixDeployJobComponent{Name: "compute", Image: "any-image"}
-	s.Require().NoError(sut.reconcileKubeJob(ctx, batchJob, rd, component, nil, func() ([]corev1.Volume, error) { return nil, nil }))
+	s.Require().NoError(sut.reconcileKubeJob(ctx, batchJob, rd, component, nil, nil, nil))
 	jobs[0], err = s.kubeClient.BatchV1().Jobs(batch.Namespace).Get(ctx, jobs[0].Name, metav1.GetOptions{})
 	s.Require().NoError(err, "the deleted Kubernetes Job must be recreated")
 
