@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.134.3](https://github.com/equinor/radix-operator/compare/v1.134.2..v1.134.3) - 2026-11-27
+
+### 🐛 Bug Fixes
+
+- Update auxiliary resource deployment status descriptions and enums (#2091) - ([7973f36](https://github.com/equinor/radix-operator/commit/7973f36a094b12f465c2aef81e501db653f3fef6)) by @ingeknudsen in [#2091](https://github.com/equinor/radix-operator/pull/2091)
+
+
 ## [1.134.2](https://github.com/equinor/radix-operator/compare/v1.134.1..v1.134.2) - 2026-11-26
 
 ### 🐛 Bug Fixes
