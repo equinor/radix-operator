@@ -258,6 +258,101 @@ func (s *applyConfigTestSuite) Test_Deploy_BuildJobInDeployPipelineShouldFail() 
 	s.ErrorIs(err, applyconfig.ErrDeployOnlyPipelineDoesNotSupportBuild)
 }
 
+func (s *applyConfigTestSuite) Test_BuildComponentImages_AbsoluteDockerfileIsRelativeToContext() {
+	appName, envName, otherEnvName, buildBranch := "anyapp", "dev", "other", "anybranch"
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	_, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName, buildBranch).
+		WithEnvironment(otherEnvName, buildBranch).
+		WithComponents(
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-in-context").WithSourceFolder("./client/").WithDockerfileName("/client/sub/client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-outside-context").WithSourceFolder("./client/").WithDockerfileName("/docker/client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-root-context").WithDockerfileName("/docker/client.Dockerfile"),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-env-override-source-and-dockerfile").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").
+				WithEnvironmentConfigs(
+					utils.NewComponentEnvironmentBuilder().WithEnvironment(otherEnvName).WithSourceFolder("./client2/").WithDockerfileName("/client2/sub/client2.Dockerfile"),
+				),
+			utils.NewApplicationComponentBuilder().WithPort("any", 8080).WithName("comp-env-override-dockerfile").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").
+				WithEnvironmentConfigs(
+					utils.NewComponentEnvironmentBuilder().WithEnvironment(otherEnvName).WithDockerfileName("/docker/client2.Dockerfile"),
+				),
+		).
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-in-context").WithSourceFolder("./client/").WithDockerfileName("/client/sub/client.Dockerfile").WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-outside-context").WithSourceFolder("./client/").WithDockerfileName("/docker/client.Dockerfile").WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-root-context").WithDockerfileName("/docker/client.Dockerfile").WithSchedulerPort(new(int32(9999))),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-env-override-source-and-dockerfile").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").WithSchedulerPort(new(int32(9999))).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(otherEnvName).WithSourceFolder("./client2/").WithDockerfileName("/client2/sub/client2.Dockerfile"),
+				),
+			utils.NewApplicationJobComponentBuilder().WithPort("any", 8080).WithName("job-env-override-dockerfile").WithSourceFolder("./client/").WithDockerfileName("client.Dockerfile").WithSchedulerPort(new(int32(9999))).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().WithEnvironment(otherEnvName).WithDockerfileName("/docker/client2.Dockerfile"),
+				),
+		).
+		BuildRA()
+
+	pipelineInfo := model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			PipelineType: string(radixv1.BuildDeploy),
+			Branch:       buildBranch,
+			ImageTag:     "anytag",
+			GitWorkspace: "/some-workspace",
+		},
+		Cfg: config.Config{
+			PipelineRunner: config.PipelineRunnerConfig{
+				ContainerRegistry: "anycontainerregistry",
+			},
+		},
+		RadixApplication:   ra,
+		TargetEnvironments: []model.TargetEnvironment{{Environment: envName}, {Environment: otherEnvName}},
+	}
+
+	applyStep := applyconfig.NewApplyConfigStep()
+	applyStep.Init(context.Background(), s.kubeClient, s.radixClient, s.dynamicClient, nil, rr)
+	s.Require().NoError(applyStep.Run(context.Background(), &pipelineInfo))
+
+	type contextAndDockerfile struct{ Context, Dockerfile string }
+	expected := map[string]map[string]contextAndDockerfile{
+		envName: {
+			"comp-in-context":                         {Context: "/some-workspace/client/", Dockerfile: "sub/client.Dockerfile"},
+			"comp-outside-context":                    {Context: "/some-workspace/client/", Dockerfile: "../docker/client.Dockerfile"},
+			"comp-root-context":                       {Context: "/some-workspace/", Dockerfile: "docker/client.Dockerfile"},
+			"comp-env-override-source-and-dockerfile": {Context: "/some-workspace/client/", Dockerfile: "client.Dockerfile"},
+			"comp-env-override-dockerfile":            {Context: "/some-workspace/client/", Dockerfile: "client.Dockerfile"},
+			"job-in-context":                          {Context: "/some-workspace/client/", Dockerfile: "sub/client.Dockerfile"},
+			"job-outside-context":                     {Context: "/some-workspace/client/", Dockerfile: "../docker/client.Dockerfile"},
+			"job-root-context":                        {Context: "/some-workspace/", Dockerfile: "docker/client.Dockerfile"},
+			"job-env-override-source-and-dockerfile":  {Context: "/some-workspace/client/", Dockerfile: "client.Dockerfile"},
+			"job-env-override-dockerfile":             {Context: "/some-workspace/client/", Dockerfile: "client.Dockerfile"},
+		},
+		otherEnvName: {
+			"comp-in-context":                         {Context: "/some-workspace/client/", Dockerfile: "sub/client.Dockerfile"},
+			"comp-outside-context":                    {Context: "/some-workspace/client/", Dockerfile: "../docker/client.Dockerfile"},
+			"comp-root-context":                       {Context: "/some-workspace/", Dockerfile: "docker/client.Dockerfile"},
+			"comp-env-override-source-and-dockerfile": {Context: "/some-workspace/client2/", Dockerfile: "sub/client2.Dockerfile"},
+			"comp-env-override-dockerfile":            {Context: "/some-workspace/client/", Dockerfile: "../docker/client2.Dockerfile"},
+			"job-in-context":                          {Context: "/some-workspace/client/", Dockerfile: "sub/client.Dockerfile"},
+			"job-outside-context":                     {Context: "/some-workspace/client/", Dockerfile: "../docker/client.Dockerfile"},
+			"job-root-context":                        {Context: "/some-workspace/", Dockerfile: "docker/client.Dockerfile"},
+			"job-env-override-source-and-dockerfile":  {Context: "/some-workspace/client2/", Dockerfile: "sub/client2.Dockerfile"},
+			"job-env-override-dockerfile":             {Context: "/some-workspace/client/", Dockerfile: "../docker/client2.Dockerfile"},
+		},
+	}
+
+	actual := map[string]map[string]contextAndDockerfile{}
+	for env, images := range pipelineInfo.BuildComponentImages {
+		actual[env] = map[string]contextAndDockerfile{}
+		for _, image := range images {
+			actual[env][image.ComponentName] = contextAndDockerfile{Context: image.Context, Dockerfile: image.Dockerfile}
+		}
+	}
+	s.Equal(expected, actual)
+}
+
 func (s *applyConfigTestSuite) Test_BuildAndDeployComponentImages() {
 	appName, envName1, envName2, envName3, envName4, rjName, buildBranch := "anyapp", "dev1", "dev2", "dev3", "dev4", "anyrj", "anybranch"
 

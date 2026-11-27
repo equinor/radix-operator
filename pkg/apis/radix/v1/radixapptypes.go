@@ -1761,7 +1761,7 @@ type ComponentSource struct {
 	// Source folder
 	Folder string
 	// Source docker file name
-	DockefileName string
+	DockerfileName string
 }
 
 type RuntimeArchitecture string
@@ -2300,9 +2300,14 @@ func getImageForEnvironment(component RadixCommonComponent, environment string) 
 func getSourceForEnvironment(component RadixCommonComponent, environment string) ComponentSource {
 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
 	source := ComponentSource{
-		Folder:        component.GetSourceFolder(),
-		DockefileName: component.GetDockerfileName(),
+		Folder:         component.GetSourceFolder(),
+		DockerfileName: component.GetDockerfileName(),
 	}
+
+	if len(strings.TrimSpace(source.DockerfileName)) == 0 {
+		source.DockerfileName = "Dockerfile"
+	}
+
 	if len(environmentConfigsMap) == 0 {
 		return source
 	}
@@ -2313,7 +2318,7 @@ func getSourceForEnvironment(component RadixCommonComponent, environment string)
 				source.Folder = sourceFolder
 			}
 			if dockerfileName := strings.TrimSpace(envConfig.GetDockerfileName()); len(dockerfileName) > 0 {
-				source.DockefileName = dockerfileName
+				source.DockerfileName = dockerfileName
 			}
 		}
 	}
