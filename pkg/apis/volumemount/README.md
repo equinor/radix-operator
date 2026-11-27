@@ -68,7 +68,7 @@ PVCs are deleted before PVs. Objects that are already terminating are skipped. P
 - a Kubernetes Job that has not finished (no `Complete` or `Failed` condition), which can create Pods, e.g. to retry a failed Pod;
 - a ReplicaSet with replicas (`spec.replicas` unset or above 0), which recreates Pods, e.g. after an eviction or a node drain. This keeps the PVC of the previous revision of a Deployment while a rollout is in progress or has failed, so the previous revision keeps working until it is scaled down.
 
-This applies to both `ReconcileComponentVolumes` and `GarbageCollectVolumesNoLongerInSpec`, which list the Jobs and ReplicaSets of the namespace before deleting. As the old ReplicaSet still has replicas when the spec changes, the old pair of a component is deleted by the first RadixDeployment sync after the rollout. Deletes have a `uid` precondition, so an object recreated with the same name is not deleted. If finding or creating the PV/PVC of any volume mount fails, nothing is deleted. Deletes have a `uid` precondition, so an object recreated with the same name is not deleted. If finding or creating the PV/PVC of any volume mount fails, nothing is deleted.
+This applies to both `ReconcileComponentVolumes` and `GarbageCollectVolumesNoLongerInSpec`, which list the Jobs and ReplicaSets of the namespace before deleting. As the old ReplicaSet still has replicas when the spec changes, the old pair of a component is deleted by the first RadixDeployment sync after the rollout. Deletes have a `uid` precondition, so an object recreated with the same name is not deleted. If finding or creating the PV/PVC of any volume mount fails, nothing is deleted.
 
 For a job, the volumes are reconciled for the `RadixDeployJobComponent` itself, the same object the RadixBatch syncer uses, so both syncers find or create the same PV/PVC. The volumes and mounts are set on the job-aux Deployment, and the job scheduler Deployment gets none. The job-aux container mounts the job volumes as a canary: if a volume cannot be mounted, users are warned before a job runs. PV/PVCs that RadixBatches created from another job spec are deleted too. A job that is running keeps its PV/PVC until it completes.
 
@@ -90,106 +90,40 @@ Objects that are skipped are deleted the next time the RadixDeployment syncs. Th
 
 Nothing is done when an environment namespace is deleted. The PVCs are deleted with the namespace, and their PVs become `Released` and are kept, as PVs are cluster scoped.
 
-## How it used to work
-
-Before this change, storage was handled by `GetVolumes`, `CreateOrUpdatePVCVolumeResourcesForDeployComponent` (in `pvcvolume.go`) and `GarbageCollectCsiAzureVolumeResourcesForDeployComponent`.
-
-1. **Two-pass volume build.** `GetVolumes` built the Pod volumes and copied the volume source of any current workload volume with the same name. Otherwise it generated a new claim name, `pvc-<volumeName>-<random5>`. Then `CreateOrUpdatePVCVolumeResourcesForDeployComponent` went through those volumes and tried to reconcile the storage behind each claim name.
-2. **Name-driven reconciliation with random names.** The reconciler:
-   - looked up the PV whose `claimRef.name` matched the claim name, and compared it with a freshly built PV (`ComparePersistentVolumes`, which allowed the random suffix of the claim name to differ);
-   - if that PV did not exist, scanned all CSI PVs in the namespace for one with matching labels and spec;
-   - checked the PVC with `ComparePersistentVolumeClaims`.
-
-   If anything differed, it created a new PVC with a new random suffix and a new PV named `pv-radixvolumemount-<uuid>`, with a UUID in the volumeHandle. A "HACK" forced the PV to be recreated when it had a storage class but its PVC was missing.
-3. **Deprecated volume type.** `type: azure-blob` (with the top-level `storage`, `uid`, `gid`, `accessMode`, `requestsStorage` fields) had its own PV spec builder.
-4. **Garbage collection per component.** GC ran inside `syncDeploymentForRadixComponent`, once for every component, before the other components were synced. It:
-   - listed all Deployments and Jobs in the namespace and collected the claim names in their Pod templates;
-   - deleted **every** PVC in the namespace that was not referenced, with no label filter, together with the PV named in `volumeName`;
-   - deleted every CSI PV whose `claimRef.namespace` was this namespace and whose claim was not referenced, in any phase;
-   - deleted `Released`/`Failed` Blob CSI PVs **cluster-wide** whose `claimRef.name` was not in this namespace's referenced set.
-
-   Deletes had no preconditions. Volumes for RadixBatches were not considered, except through Jobs that already existed. Nothing cleaned up PVs when an environment was deleted.
-
-## Pros and cons of the change
-
-### Pros
+## Design decisions
 
 - **Simple model.** For each component the operator keeps exactly the PV/PVC the spec needs and deletes the rest. There is no separate garbage collection with keep rules, only a check of the PVCs used by Kubernetes Jobs that have not finished and ReplicaSets with replicas. Kubernetes storage object protection keeps PV/PVCs that are still used by Pods.
+- **Each component owns its storage.** `ReconcileComponentVolumes` only deletes PV/PVCs labelled for the component it reconciles, so components can't interfere with each other.
 - **Unique names.** A new PV/PVC never conflicts with an existing object, so reverting a spec while the pair for it is still terminating creates a new pair at once, instead of failing until the old pair is gone.
-- **Spec-based reuse.** Unchanged volume mounts keep their claim even if other parts of the component change. After an upgrade, existing PVCs with legacy random names are reused when they match, so workloads are not restarted.
-- **Safer deletes than before.** Only Radix-labelled objects for the app, namespace and component are deleted, while the old cluster-wide PV sweep could delete PVs that belonged to other namespaces. Deletes have `uid` preconditions, and nothing is deleted for a component whose storage could not be ensured.
+- **Spec-based reuse.** Unchanged volume mounts keep their claim even if other parts of the component change. Existing PVCs with legacy names are reused when they match, so workloads are not restarted.
+- **Volumes and mounts come from one call**, so they can't get out of sync.
+- **Scoped, guarded deletes.** Only Radix-labelled objects for the app, namespace and component are deleted. Deletes have `uid` preconditions, and nothing is deleted for a component whose storage could not be ensured.
 - **No stale claimRef problem.** A pair whose PV refers to a deleted PVC with the same name is not reused, and is deleted when the component is reconciled.
-- **Less code.** The deprecated `azure-blob` volume type and its builder are gone, and no extra configuration or RBAC is needed.
+- **The batch syncer never deletes storage.** It ensures storage from the batch's own RD, which can be an older, inactive one, using the same matching as the RadixDeployment syncer, so both controllers reuse the same PV/PVC when it exists. Deleting is left to the RadixDeployment syncer.
 
-### Cons / risks
+## Known limitations and risks
 
-- **Removal of the deprecated `type` volume mount.** The `type`, `storage`, `uid`, `gid`, `accessMode`, `requestsStorage` and `container` fields are removed from the CRD schemas. [#2035](https://github.com/equinor/radix-operator/issues/2035) confirms that no RadixApplication or RadixDeployment in any cluster uses `type: azure-blob`, so no existing volume mount is affected.
 - **Pods that are not yet running cannot use a deleted PVC.** Kubernetes does not schedule a Pod whose PVC is terminating. A RadixBatch for an older RadixDeployment with another volume spec gets its own PV/PVC, which is deleted when the active RadixDeployment syncs after its Kubernetes Jobs have finished. Once a Job exists, its Pods, including retries, can therefore use the pair. Before the Job exists, a concurrent RadixDeployment sync can delete the pair, see [Concurrent RadixDeployment and RadixBatch syncs](#concurrent-radixdeployment-and-radixbatch-syncs). Likewise, a Pod of an old ReplicaSet that is recreated during a rollout can use its pair, as it is kept until the ReplicaSet is scaled down. Only Pods that are not created by a Job or a ReplicaSet are not protected, and Radix does not create such Pods.
 - **Released PVs of deleted environments are not cleaned up.** PVs are cluster scoped and are not deleted with the namespace.
 - **Objects without labels are never cleaned up.** Only objects with Radix labels are selected, and matching requires the PV labels. [#2035](https://github.com/equinor/radix-operator/issues/2035) §6 confirms that all Radix PVs/PVCs in the current clusters are labelled. Any object without labels would not match: a new pair would be created, and the old one would stay until removed by hand.
 - **Creates are not idempotent.** When the RadixDeployment and RadixBatch syncers find no matching pair for the same spec at the same time, both create a pair. If the RadixDeployment syncs again before the batch has created its Job, the batch's pair is deleted and the Pod of the Job cannot start, see [Concurrent RadixDeployment and RadixBatch syncs](#concurrent-radixdeployment-and-radixbatch-syncs). Otherwise, the next RadixDeployment sync deletes whichever pair is unused. A PV left behind by a failed PVC create is deleted by the next RadixDeployment sync.
-- **A semantic change to the generated spec** (for example a new default mount option) causes a new PV/PVC and a Pod restart for every affected volume mount, as before.
+- **A semantic change to the generated spec** (for example a new default mount option) causes a new PV/PVC and a Pod restart for every affected volume mount.
 
 ## Appendix: where volume logic runs in the reconciliation loops
 
 Volume logic is triggered from two controllers: the RadixDeployment syncer (`pkg/apis/deployment`) and the RadixBatch syncer (`pkg/apis/batch`). The operator runs with `resyncPeriod = 0`, so both only run when their resource, or a resource they watch, changes.
 
-### Summary
-
-| Step                                  | Before                                                                                                              | Now                                                                                                                                                                         |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build Pod volumes                     | `GetVolumes`: reuse the claim name of the current workload's volume with the same name, else generate a random name | `ReconcileComponentVolumes` / `EnsureComponentVolumes`: claim chosen by matching the spec                                                                                   |
-| Build container mounts                | Separately, with `GetRadixDeployComponentVolumeMounts` (deployment and batch)                                       | Returned together with the volumes                                                                                                                                          |
-| Create PV/PVC                         | `CreateOrUpdatePVCVolumeResourcesForDeployComponent`, a second pass that could rename claims                        | In the same call, only when no current PV/PVC matches the spec, with new unique (ULID) names                                                                                |
-| Delete PV/PVC in RadixDeployment sync | `GarbageCollectCsiAzureVolumeResourcesForDeployComponent` at the end of **every** component's sync, namespace-wide  | `ReconcileComponentVolumes` deletes the unused PV/PVCs of the component it reconciles; `GarbageCollectVolumesNoLongerInSpec` deletes PV/PVCs of removed components and jobs |
-| Delete PV/PVC in RadixBatch sync      | None                                                                                                                | None                                                                                                                                                                        |
-| Delete PVs of deleted environments    | None                                                                                                                | None                                                                                                                                                                        |
+| Step                                   | Where                                                                                                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build Pod volumes and container mounts | `ReconcileComponentVolumes` / `EnsureComponentVolumes`: claim chosen by matching the spec, volumes and mounts returned together                                             |
+| Create PV/PVC                          | In the same call, only when no current PV/PVC matches the spec, with new unique (ULID) names                                                                                |
+| Delete PV/PVC in RadixDeployment sync  | `ReconcileComponentVolumes` deletes the unused PV/PVCs of the component it reconciles; `GarbageCollectVolumesNoLongerInSpec` deletes PV/PVCs of removed components and jobs |
+| Delete PV/PVC in RadixBatch sync       | None                                                                                                                                                                        |
+| Delete PVs of deleted environments     | None                                                                                                                                                                        |
 
 In the diagrams below, steps that touch volume storage are highlighted.
 
-### RadixDeployment sync: before
-
-```mermaid
-flowchart TD
-    A["OnSync"] --> B{"Inactive, or not<br/>the latest RD?"}
-    B -->|yes| Z(["return"])
-    B -->|no| D["syncDeployment"]
-    D --> E["GC removed components and<br/>auxiliary resources, RBAC"]
-    E --> F["syncSecrets<br/>(volume mount credential secrets)"]
-    F --> G["Network policies, gateway"]
-    G --> L{{"For each component and job scheduler"}}
-
-    subgraph comp ["syncDeploymentForRadixComponent (one component)"]
-        direction TB
-        C1["ConfigMaps, ServiceAccount"]
-        C2["setDesiredDeploymentProperties"]
-        C3["GetVolumes<br/>claimName = current Deployment's claim with the same volume name,<br/>else pvc-&lt;volume&gt;-&lt;random5&gt;"]:::vol
-        C4["GetRadixDeployComponentVolumeMounts"]:::vol
-        C5["CreateOrUpdatePVCVolumeResourcesForDeployComponent<br/>find PV by claimRef name, compare;<br/>on mismatch: new random PVC + pv-&lt;uuid&gt;, rename claim"]:::vol
-        C6["handleJobAuxDeployment<br/>(job scheduler: volumes moved to aux Deployment)"]
-        C7["ApplyDeployment"]
-        C8["Scaler, Service, PDB, HTTPRoute, ServiceMonitor"]
-        C9["GarbageCollectCsiAzureVolumeResourcesForDeployComponent<br/>delete every PVC in the namespace not referenced by a<br/>Deployment/Job template, their PVs, and Released/Failed<br/>Blob PVs cluster-wide"]:::danger
-        C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7 --> C8 --> C9
-    end
-
-    L --> C1
-    C9 -->|next component| L
-    L -->|done| M{"Any component failed?"}
-    M -->|yes| ERR["syncStatus: Failed"]
-    M -->|no| N["External DNS, auxiliary resources"] --> S["syncStatus"]
-
-    classDef vol fill:#dbeafe,stroke:#1d4ed8
-    classDef danger fill:#fee2e2,stroke:#b91c1c
-```
-
-Problems in this loop:
-
-- **GC ran N times per sync** (once per component), in the middle of the loop. Later components had not yet created their new PVCs or applied their Deployments.
-- **The claim was chosen in two places.** `GetVolumes` picked a name, then `CreateOrUpdatePVCVolumeResourcesForDeployComponent` could replace it with a new random name.
-- **GC only knew about Deployments and Jobs that already existed.** It ignored RadixBatches, Pods and specs, so a PVC that was just created for a batch could be deleted.
-
-### RadixDeployment sync: now
+### RadixDeployment sync
 
 ```mermaid
 flowchart TD
@@ -223,47 +157,9 @@ flowchart TD
     classDef gc fill:#dcfce7,stroke:#15803d
 ```
 
-What changed:
+The PV/PVC of the previous revision is kept while its ReplicaSet has replicas, so a stalled or failed rollout does not affect the previous revision, and deleted by the first RadixDeployment sync after the rollout.
 
-- **Each component owns its storage.** `ReconcileComponentVolumes` only deletes PV/PVCs labelled for the component it reconciles, so components can't interfere with each other.
-- **Old storage is deleted once it is no longer needed.** The PV/PVC of the previous revision is kept while its ReplicaSet has replicas, so a stalled or failed rollout does not affect the previous revision, and deleted by the first RadixDeployment sync after the rollout.
-- **Removed components and jobs** are cleaned up with the other "no longer in spec" garbage collection.
-- **Volumes and mounts come from one call**, so they can't get out of sync.
-
-### RadixBatch sync: before
-
-```mermaid
-flowchart TD
-    A["OnSync"] --> B{"Done and no<br/>restart requested?"}
-    B -->|yes| Z(["return"])
-    B -->|no| R["reconcile"]
-    R --> R1["Get the referenced RD and job component"]
-    R1 --> R2["List batch Jobs and Services"]
-    R2 --> R3["Prepare lazy actualVolumesGetter<br/>(sync.OnceValues)"]:::vol
-    R3 --> L{{"For each batch job"}}
-
-    subgraph job ["reconcileKubeJob (one batch job)"]
-        direction TB
-        J0{"Stop requested?"}
-        J1{"Done, or Kubernetes Job exists,<br/>and no restart?"}
-        J2["Delete old Jobs on restart,<br/>validate payload secret"]
-        J3["actualVolumesGetter() — first call only:<br/>GetExistingJobAuxComponentVolumes<br/>→ GetVolumes (aux claim or random name)<br/>→ CreateOrUpdatePVCVolumeResourcesForDeployComponent"]:::vol
-        J4["buildJob<br/>mounts from GetRadixDeployComponentVolumeMounts + payload"]:::vol
-        J5["Create Kubernetes Job"]
-        J0 -->|yes| JD["Delete Jobs"]
-        J0 -->|no| J1
-        J1 -->|yes| JS(["skip, no volume work"])
-        J1 -->|no| J2 --> J3 --> J4 --> J5
-    end
-
-    L --> J0
-    L -->|done| S["syncStatus"]
-    S --> E(["return — no volume GC"])
-
-    classDef vol fill:#dbeafe,stroke:#1d4ed8
-```
-
-### RadixBatch sync: now
+### RadixBatch sync
 
 ```mermaid
 flowchart TD
@@ -272,56 +168,36 @@ flowchart TD
     B -->|no| R["reconcile"]
     R --> R1["Get the referenced RD (may be older/inactive)<br/>and job component"]
     R1 --> R2["List batch Jobs and Services"]
-    R2 --> R3["Prepare lazy jobVolumesGetter<br/>(sync.OnceValues)"]:::vol
-    R3 --> L{{"For each batch job"}}
+    R2 --> L{{"For each batch job"}}
+    L --> V0{"Volumes not yet ensured and<br/>kubeJobMustBeCreated?"}:::vol
+    V0 -->|yes| V1["EnsureComponentVolumes(batch RD, job)<br/>reuse or create, never delete;<br/>returns volumes + mounts"]:::vol
+    V0 -->|no| J0
+    V1 --> J0
 
     subgraph job ["reconcileKubeJob (one batch job)"]
         direction TB
         J0{"Stop requested?"}
-        J1{"Done, or Kubernetes Job exists,<br/>and no restart?"}
+        J1{"kubeJobMustBeCreated?<br/>(restart, or not done and<br/>no Kubernetes Job exists)"}
         J2["Delete old Jobs on restart,<br/>validate payload secret"]
-        J3["jobVolumesGetter() — first call only:<br/>EnsureComponentVolumes(batch RD, job)<br/>reuse or create, never delete;<br/>returns volumes + mounts"]:::vol
-        J4["buildJob<br/>returned mounts + payload mount"]:::vol
+        J4["buildJob<br/>ensured volumes + mounts + payload mount"]:::vol
         J5["Create Kubernetes Job"]
         J0 -->|yes| JD["Delete Jobs"]
         J0 -->|no| J1
-        J1 -->|yes| JS(["skip, no volume work"])
-        J1 -->|no| J2 --> J3 --> J4 --> J5
+        J1 -->|no| JS(["skip, no volume work"])
+        J1 -->|yes| J2 --> J4 --> J5
     end
 
-    L --> J0
     L -->|done| S["syncStatus"]
     S --> E(["return"])
 
     classDef vol fill:#dbeafe,stroke:#1d4ed8
 ```
 
-What changed:
-
-- **Storage is ensured from the batch's own RD**, which can be an older, inactive one, using the same matching as the RadixDeployment syncer. Both controllers therefore reuse the same PV/PVC when it exists.
-- **Job mounts come from `EnsureComponentVolumes`**, not from a separate call.
-- **The batch syncer never deletes storage.** That is left to the RadixDeployment syncer.
+Volumes are ensured at most once per reconcile, and only when a Kubernetes Job is going to be created, so a sync that creates no Job does no volume work.
 
 ### How the two controllers interact
 
-Before: the controllers created pairs with random names on their own, and the RadixDeployment GC could delete a pair the batch syncer had just created.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant B as RadixBatch syncer
-    participant K as Kubernetes API
-    participant D as RadixDeployment syncer
-
-    B->>K: Create PV pv-UUID1 + PVC pvc-x-abcde
-    D->>K: Create PV pv-UUID2 + PVC pvc-x-fghij (same spec, duplicate)
-    D->>K: GC: list Deployments/Jobs — pvc-x-abcde is not referenced yet
-    D->>K: Delete pvc-x-abcde and pv-UUID1
-    B->>K: Create Job with claimName pvc-x-abcde
-    Note over B,K: The Pod stays Pending — its PVC is gone
-```
-
-Now: both controllers reuse any pair that matches the spec, so they share one pair once it exists. Only a batch for an RD with another volume spec gets its own pair, which the RadixDeployment syncer deletes.
+Both controllers reuse any pair that matches the spec, so they share one pair once it exists. Only a batch for an RD with another volume spec gets its own pair, which the RadixDeployment syncer deletes.
 
 ```mermaid
 sequenceDiagram
@@ -339,3 +215,5 @@ sequenceDiagram
     Note over B,D: The RD is reverted to the previous spec
     D->>K: ReconcileComponentVolumes: no reusable match (ULID1 is terminating) → create pvc-job-vol-ULID3
 ```
+
+For how volume storage was handled before the rewrite of this package, see [OUTDATED.md](./OUTDATED.md).

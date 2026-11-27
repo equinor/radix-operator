@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/rs/zerolog/log"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -96,14 +97,23 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		return err
 	}
 
-	volumes, volumeMounts, err := volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, s.registration.Name, rd, jobComponent)
-	if err != nil {
-		return err
-	}
+	// Volumes are ensured at most once per reconcile, and only when a Kubernetes Job is going to be created.
+	// The RadixDeployment referenced by the batch may be an older, inactive RadixDeployment; its jobs get the storage defined in it.
+	// Ensuring volumes never deletes anything, storage that is no longer needed is deleted when the RadixDeployment syncs.
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
+	volumesEnsured := false
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
 		if err := s.reconcileService(ctx, &batchJob, rd, jobComponent, existingServices); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
+		}
+
+		if !volumesEnsured && s.kubeJobMustBeCreated(&batchJob, existingJobs) {
+			if volumes, volumeMounts, err = volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, s.registration.Name, rd, jobComponent); err != nil {
+				return fmt.Errorf("batchjob %s: failed to ensure volumes: %w", batchJob.Name, err)
+			}
+			volumesEnsured = true
 		}
 
 		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, volumes, volumeMounts); err != nil {

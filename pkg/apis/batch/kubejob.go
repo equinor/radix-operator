@@ -51,12 +51,11 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		return s.deleteJobs(ctx, batchJobKubeJobs)
 	}
 
-	requiresRestart := s.jobRequiresRestart(*batchJob)
-	if !requiresRestart && (s.isBatchJobDone(batchJob.Name) || len(batchJobKubeJobs) > 0) {
+	if !s.kubeJobMustBeCreated(batchJob, existingJobs) {
 		return nil
 	}
 
-	if requiresRestart {
+	if s.jobRequiresRestart(*batchJob) {
 		s.restartedJobs[batchJob.Name] = *batchJob
 		if err := s.deleteJobs(ctx, batchJobKubeJobs); err != nil {
 			return err
@@ -76,6 +75,17 @@ func (s *syncer) reconcileKubeJob(ctx context.Context, batchJob *radixv1.RadixBa
 		_, err = s.kubeClient.BatchV1().Jobs(s.radixBatch.GetNamespace()).Create(ctx, job, metav1.CreateOptions{})
 		return err
 	})
+}
+
+// kubeJobMustBeCreated returns true if reconciling the batch job will create a new Kubernetes Job
+func (s *syncer) kubeJobMustBeCreated(batchJob *radixv1.RadixBatchJob, existingJobs []*batchv1.Job) bool {
+	if isBatchJobStopRequested(batchJob) {
+		return false
+	}
+	if s.jobRequiresRestart(*batchJob) {
+		return true
+	}
+	return !s.isBatchJobDone(batchJob.Name) && !slice.Any(existingJobs, isKubeJobForBatchJob(batchJob))
 }
 
 func (s *syncer) validatePayloadSecretReference(ctx context.Context, batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
