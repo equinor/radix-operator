@@ -1,7 +1,7 @@
 apiVersion: v2
 name: radix-easyauth
-version: 1.134.2 # x-patch-semver
-appVersion: 1.134.2 # x-patch-semver
+version: 1.134.3 # x-patch-semver
+appVersion: 1.134.3 # x-patch-semver
 kubeVersion: ">=1.35.0"
 description: Radix EasyAuth mutating admission webhook
 icon: https://radix.equinor.com/images/logos/logo.svg
