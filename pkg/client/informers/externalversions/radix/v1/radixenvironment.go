@@ -41,11 +41,39 @@ import (
 )
 
 // RadixEnvironmentInformer provides access to a shared informer and lister for
-// RadixEnvironments.
+// RadixEnvironments. Prefer using the type-safe variant (see [TypedRadixEnvironmentInformer]).
 type RadixEnvironmentInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixEnvironmentLister
 }
+
+// TypedRadixEnvironmentInformer provides access to a shared informer and lister for
+// RadixEnvironments, including the type-safe TypedInformer variant.
+// It is a superset of RadixEnvironmentInformer.
+type TypedRadixEnvironmentInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixEnvironmentIndexInformer
+	Lister() radixv1.RadixEnvironmentLister
+}
+
+// RadixEnvironmentIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixEnvironmentIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixEnvironment]
+
+// RadixEnvironmentHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixEnvironment.
+type RadixEnvironmentHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixEnvironment]
+
+// RadixEnvironmentDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixEnvironment.
+type RadixEnvironmentDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixEnvironment]
+
+// RadixEnvironmentFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixEnvironment.
+type RadixEnvironmentFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixEnvironment]
+
+// RadixEnvironmentIndexers is a specialization of [cache.TypedIndexers] for RadixEnvironment.
+type RadixEnvironmentIndexers = cache.TypedIndexers[*apisradixv1.RadixEnvironment]
+
+// DeletedRadixEnvironment is a specialization of [cache.DeletedObject] for RadixEnvironment.
+type DeletedRadixEnvironment = cache.DeletedObject[*apisradixv1.RadixEnvironment]
 
 type radixEnvironmentInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -55,25 +83,49 @@ type radixEnvironmentInformer struct {
 // NewRadixEnvironmentInformer constructs a new informer for RadixEnvironment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixEnvironmentInformer]).
 func NewRadixEnvironmentInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixEnvironmentInformer constructs a new informer for RadixEnvironment type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixEnvironmentInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RadixEnvironmentIndexers) RadixEnvironmentIndexInformer {
+	return NewTypedRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixEnvironmentInformer constructs a new informer for RadixEnvironment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixEnvironmentInformer]).
 func NewFilteredRadixEnvironmentInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixEnvironmentInformer constructs a new informer for RadixEnvironment type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixEnvironmentInformer(client versioned.Interface, resyncPeriod time.Duration, indexers RadixEnvironmentIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixEnvironmentIndexInformer {
+	return NewTypedRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixEnvironmentInformerWithOptions constructs a new informer for RadixEnvironment type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixEnvironmentInformerWithOptions]).
 func NewRadixEnvironmentInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixEnvironmentInformerWithOptions(client, options)
+}
+
+// NewTypedRadixEnvironmentInformerWithOptions constructs a new informer for RadixEnvironment type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixEnvironmentInformerWithOptions(client versioned.Interface, options internalinterfaces.InformerOptions) RadixEnvironmentIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixenvironments"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixEnvironment](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -106,17 +158,57 @@ func NewRadixEnvironmentInformerWithOptions(client versioned.Interface, options 
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixEnvironmentInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixEnvironmentInformerWithOptions(client, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixEnvironmentInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixEnvironment{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixEnvironmentInformer) TypedInformer() RadixEnvironmentIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixEnvironment](f.factory.InformerFor(&apisradixv1.RadixEnvironment{}, f.defaultInformer))
 }
 
 func (f *radixEnvironmentInformer) Lister() radixv1.RadixEnvironmentLister {
 	return radixv1.NewRadixEnvironmentLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixEnvironmentInformer converts an untyped informer into a TypedRadixEnvironmentInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixEnvironment. If that is not the case, calling type-safe methods of the returned
+// TypedRadixEnvironmentInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixEnvironmentInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixEnvironmentInformer(informer RadixEnvironmentInformer) TypedRadixEnvironmentInformer {
+	if informer, ok := informer.(TypedRadixEnvironmentInformer); ok {
+		return informer
+	}
+	return &radixEnvironmentTypedInformerAdapter{informer}
+}
+
+type radixEnvironmentTypedInformerAdapter struct {
+	RadixEnvironmentInformer
+}
+
+func (a *radixEnvironmentTypedInformerAdapter) TypedInformer() RadixEnvironmentIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixEnvironment](a.Informer())
+}
+
+// ToRadixEnvironmentIndexInformer converts an untyped informer into a RadixEnvironmentIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixEnvironment. If that is not the case, calling type-safe methods of the returned
+// RadixEnvironmentIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixEnvironmentIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixEnvironmentIndexInformer(informer cache.SharedIndexInformer) RadixEnvironmentIndexInformer {
+	if informer, ok := informer.(RadixEnvironmentIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixEnvironment](informer)
 }

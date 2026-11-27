@@ -41,11 +41,39 @@ import (
 )
 
 // RadixBatchInformer provides access to a shared informer and lister for
-// RadixBatches.
+// RadixBatches. Prefer using the type-safe variant (see [TypedRadixBatchInformer]).
 type RadixBatchInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() radixv1.RadixBatchLister
 }
+
+// TypedRadixBatchInformer provides access to a shared informer and lister for
+// RadixBatches, including the type-safe TypedInformer variant.
+// It is a superset of RadixBatchInformer.
+type TypedRadixBatchInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() RadixBatchIndexInformer
+	Lister() radixv1.RadixBatchLister
+}
+
+// RadixBatchIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type RadixBatchIndexInformer cache.TypedSharedIndexInformer[*apisradixv1.RadixBatch]
+
+// RadixBatchHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for RadixBatch.
+type RadixBatchHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisradixv1.RadixBatch]
+
+// RadixBatchDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for RadixBatch.
+type RadixBatchDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisradixv1.RadixBatch]
+
+// RadixBatchFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for RadixBatch.
+type RadixBatchFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisradixv1.RadixBatch]
+
+// RadixBatchIndexers is a specialization of [cache.TypedIndexers] for RadixBatch.
+type RadixBatchIndexers = cache.TypedIndexers[*apisradixv1.RadixBatch]
+
+// DeletedRadixBatch is a specialization of [cache.DeletedObject] for RadixBatch.
+type DeletedRadixBatch = cache.DeletedObject[*apisradixv1.RadixBatch]
 
 type radixBatchInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -56,25 +84,49 @@ type radixBatchInformer struct {
 // NewRadixBatchInformer constructs a new informer for RadixBatch type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixBatchInformer]).
 func NewRadixBatchInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewRadixBatchInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedRadixBatchInformer constructs a new informer for RadixBatch type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixBatchInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixBatchIndexers) RadixBatchIndexInformer {
+	return NewTypedRadixBatchInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredRadixBatchInformer constructs a new informer for RadixBatch type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredRadixBatchInformer]).
 func NewFilteredRadixBatchInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewRadixBatchInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedRadixBatchInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredRadixBatchInformer constructs a new informer for RadixBatch type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredRadixBatchInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers RadixBatchIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) RadixBatchIndexInformer {
+	return NewTypedRadixBatchInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewRadixBatchInformerWithOptions constructs a new informer for RadixBatch type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedRadixBatchInformerWithOptions]).
 func NewRadixBatchInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedRadixBatchInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedRadixBatchInformerWithOptions constructs a new informer for RadixBatch type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedRadixBatchInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) RadixBatchIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixbatchs"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixBatch](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -107,17 +159,57 @@ func NewRadixBatchInformerWithOptions(client versioned.Interface, namespace stri
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *radixBatchInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewRadixBatchInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedRadixBatchInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *radixBatchInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisradixv1.RadixBatch{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *radixBatchInformer) TypedInformer() RadixBatchIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixBatch](f.factory.InformerFor(&apisradixv1.RadixBatch{}, f.defaultInformer))
 }
 
 func (f *radixBatchInformer) Lister() radixv1.RadixBatchLister {
 	return radixv1.NewRadixBatchLister(f.Informer().GetIndexer())
+}
+
+// ToTypedRadixBatchInformer converts an untyped informer into a TypedRadixBatchInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixBatch. If that is not the case, calling type-safe methods of the returned
+// TypedRadixBatchInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedRadixBatchInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedRadixBatchInformer(informer RadixBatchInformer) TypedRadixBatchInformer {
+	if informer, ok := informer.(TypedRadixBatchInformer); ok {
+		return informer
+	}
+	return &radixBatchTypedInformerAdapter{informer}
+}
+
+type radixBatchTypedInformerAdapter struct {
+	RadixBatchInformer
+}
+
+func (a *radixBatchTypedInformerAdapter) TypedInformer() RadixBatchIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixBatch](a.Informer())
+}
+
+// ToRadixBatchIndexInformer converts an untyped informer into a RadixBatchIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *RadixBatch. If that is not the case, calling type-safe methods of the returned
+// RadixBatchIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a RadixBatchIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToRadixBatchIndexInformer(informer cache.SharedIndexInformer) RadixBatchIndexInformer {
+	if informer, ok := informer.(RadixBatchIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisradixv1.RadixBatch](informer)
 }

@@ -1,15 +1,14 @@
 package deployment
 
 import (
-	"context"
 	"strings"
 	"testing"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
@@ -125,18 +124,12 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
 				return builders
 			})
-			deployment := getDeployment(t, rdBuilder)
-			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
-			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
-				if err != nil {
-					t.Log(err.Error())
-				} else {
-					t.Logf("created secret provider class %s", spc.Name)
-				}
-			}
-			volumes, err := volumemount.GetVolumes(context.Background(), deployment.kubeutil, namespace, radixDeployComponent, deployment.radixDeployment.GetName(), nil)
-			require.NoError(t, err, "failed to get volumes")
+			tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
+			_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient, rdBuilder)
+			require.NoError(t, err)
+			deployment, err := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, environment)).Get(t.Context(), scenario.componentName, metav1.GetOptions{})
+			require.NoError(t, err)
+			volumes := deployment.Spec.Template.Spec.Volumes
 			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
 			if len(scenario.expectedVolumeProps) == 0 {
 				continue
@@ -146,9 +139,9 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 				volume := volumes[i]
 				assert.Less(t, len(volume.Name), 64, "volume name is too long")
 				assert.NotNil(t, volume.CSI, "CSI should ne not nil")
-				assert.NotEmpty(t, volume.CSI.VolumeAttributes[volumemount.CsiVolumeSourceVolumeAttributeSecretProviderClass], "VolumeAttributes should not be empty")
+				assert.NotEmpty(t, volume.CSI.VolumeAttributes["secretProviderClass"], "secretProviderClass must be set")
 				assert.NotNil(t, volume.CSI.NodePublishSecretRef, "NodePublishSecretRef should not be nil")
-				assert.Equal(t, volumemount.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver, "Volume driver should be %s, but it is %s", volumemount.CsiVolumeSourceDriverSecretStore, volume.CSI.Driver)
+				assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
 
 				volumeProp := scenario.expectedVolumeProps[i]
 				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
@@ -172,20 +165,13 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
 				return builders
 			})
-			deployment := getDeployment(t, rdBuilder)
-			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
-			for _, azureKeyVault := range scenario.azureKeyVaults {
-				spc, err := deployment.CreateAzureKeyVaultSecretProviderClassForRadixDeployment(context.Background(), namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
-				if err != nil {
-					t.Log(err.Error())
-				} else {
-					t.Logf("created secret provider class %s", spc.Name)
-				}
-			}
 
-			volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(radixDeployComponent, deployment.radixDeployment.GetName())
-			require.Nil(t, err)
-
+			tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
+			_, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient, rdBuilder)
+			require.NoError(t, err)
+			deployment, err := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, environment)).Get(t.Context(), scenario.componentName, metav1.GetOptions{})
+			require.NoError(t, err)
+			volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
 			assert.Len(t, volumeMounts, len(scenario.expectedVolumeProps))
 			if len(scenario.expectedVolumeProps) == 0 {
 				continue
@@ -202,14 +188,6 @@ func Test_CreateOrUpdateCsiAzureKeyVaultResources(t *testing.T) {
 			}
 		}
 	})
-}
-
-func getDeployment(t *testing.T, deploymentBuilder utils.DeploymentBuilder) *Deployment {
-	tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, _, certClient := SetupTest(t)
-	rd, err := ApplyDeploymentWithSync(tu, client, kubeUtil, radixClient, kedaClient, prometheusClient, certClient,
-		deploymentBuilder)
-	require.NoError(t, err)
-	return &Deployment{radixclient: radixClient, kubeutil: kubeUtil, radixDeployment: rd, config: testConfig}
 }
 
 func getRdBuilderWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) utils.DeploymentBuilder {

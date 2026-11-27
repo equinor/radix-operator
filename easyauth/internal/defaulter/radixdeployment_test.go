@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -38,7 +37,7 @@ func newRD(appName string, annotations map[string]string) *radixv1.RadixDeployme
 
 func requestContext(op admissionv1.Operation) context.Context {
 	return admission.NewContextWithRequest(context.Background(), admission.Request{
-		AdmissionRequest: admissionv1.AdmissionRequest{Operation: op},
+		Operation: op,
 	})
 }
 
@@ -79,10 +78,9 @@ func TestRadixDeploymentDefault_OnCreate(t *testing.T) {
 			if tt.ra != nil {
 				objs = append(objs, tt.ra)
 			}
-			objs = append(objs, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			objs = append(objs, &corev1.Namespace{
 				Name:   tt.rd.Namespace,
-				Labels: map[string]string{kube.RadixAppLabel: "my-app"},
-			}})
+				Labels: map[string]string{kube.RadixAppLabel: "my-app"}})
 			d := newRDDefaulter(objs...)
 			require.NoError(t, d.Default(requestContext(admissionv1.Create), tt.rd))
 			assert.Equal(t, tt.expected, tt.rd.Annotations)
@@ -101,7 +99,7 @@ func TestRadixDeploymentDefault_FailsWithoutAppName(t *testing.T) {
 func TestRadixDeploymentDefault_RemovesAnnotationInNamespaceWithoutApp(t *testing.T) {
 	rd := newRD("my-app", map[string]string{annotation: "", "other": "keep"})
 
-	d := newRDDefaulter(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: rd.Namespace}})
+	d := newRDDefaulter(&corev1.Namespace{Name: rd.Namespace})
 	require.NoError(t, d.Default(requestContext(admissionv1.Create), rd))
 	assert.Equal(t, map[string]string{"other": "keep"}, rd.Annotations)
 }

@@ -12,7 +12,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/internal"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	testutils "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -28,23 +30,23 @@ func TestVolumeMountTestSuite(t *testing.T) {
 }
 
 func (s *volumeMountTestSuite) Test_NoVolumeMounts() {
-	volumeMounts, _ := GetRadixDeployComponentVolumeMounts(&radixv1.RadixDeployComponent{}, "")
+	volumeMounts, _ := getRadixDeployComponentVolumeMounts(&radixv1.RadixDeployComponent{}, "")
 	s.Equal(0, len(volumeMounts))
 }
 
 func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storagename1", Path: "TestPath1"},
-			expectedVolumeName: "csi-az-blob-app-volume1-storagename1",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume1", Path: "TestPath1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storagename1"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-app-volume1-storagename1",
 		},
 		{
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storagename2", Path: "TestPath2"},
-			expectedVolumeName: "csi-az-blob-app-volume2-storagename2",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume2", Path: "TestPath2", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storagename2"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-app-volume2-storagename2",
 		},
 		{
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "blobstoragename-with-long-name", Path: "TestPath2"},
-			expectedVolumeName: "csi-az-blob-app-volume-with-long-name-blobstoragename-wit-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume-with-long-name", Path: "TestPath2", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "blobstoragename-with-long-name"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-app-volume-with-long-name-blobstorage-12345",
 		},
 	}
 	s.Run("One Blob CSI Azure volume mount ", func() {
@@ -52,7 +54,7 @@ func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 		s.T().Logf("Test case %s", scenarios[0].name)
 		component := &radixv1.RadixDeployComponent{Name: "app", VolumeMounts: []radixv1.RadixVolumeMount{scenarios[0].radixVolumeMount}}
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+		volumeMounts, err := getRadixDeployComponentVolumeMounts(component, "")
 		s.Nil(err)
 		s.Equal(1, len(volumeMounts), "Unexpected volume count")
 		if len(volumeMounts) > 0 {
@@ -70,7 +72,7 @@ func (s *volumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			Name:         "app",
 			VolumeMounts: []radixv1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount},
 		}
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+		volumeMounts, err := getRadixDeployComponentVolumeMounts(component, "")
 		s.Equal(3, len(volumeMounts), "Unexpected volume count")
 		s.Nil(err)
 		for idx, testCase := range scenarios {
@@ -93,12 +95,12 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:             "Missed volume mount name",
-			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Storage: "storagename1", Path: "TestPath1"},
+			radixVolumeMount: radixv1.RadixVolumeMount{Path: "TestPath1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storagename1"}},
 			expectedError:    "name is empty for volume mount in the component app",
 		},
 		{
 			name:             "Missed volume mount storage",
-			radixVolumeMount: radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Path: "TestPath1"},
+			radixVolumeMount: radixv1.RadixVolumeMount{Name: "volume1", Path: "TestPath1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{}},
 			expectedError:    "storage is empty for volume mount volume1 in the component app",
 		},
 	}
@@ -108,7 +110,7 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 			s.T().Logf("Test case %s", testCase.name)
 			component := &radixv1.RadixDeployComponent{Name: "app", VolumeMounts: []radixv1.RadixVolumeMount{testCase.radixVolumeMount}}
 
-			_, err := GetRadixDeployComponentVolumeMounts(component, "")
+			_, err := getRadixDeployComponentVolumeMounts(component, "")
 			s.NotNil(err)
 			s.Equal(testCase.expectedError, err.Error())
 		}
@@ -116,27 +118,26 @@ func (s *volumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 }
 
 func (s *volumeMountTestSuite) Test_GetNewVolumes() {
-	namespace := "some-namespace"
 	componentName := "some-component"
 	s.Run("No volumes in component", func() {
 		s.T().Parallel()
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts().BuildComponent()
-		volumes, err := GetVolumes(context.Background(), s.kubeUtil, namespace, &component, "", nil)
+		volumes, err := s.ensureVolumes(&component)
 		s.Nil(err)
 		s.Len(volumes, 0)
 	})
 	scenarios := []volumeMountTestScenario{
 		{
 			name:               "Blob CSI Azure volume",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-volume1-storage1",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-volume1-storage1-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume1", Path: "path1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage1", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-volume1-storage1",
+			expectedPvcName:    "pvc-some-component-volume1-01arz3ndektsv4rrffq69g5fav",
 		},
 		{
 			name:               "Blob CSI Azure volume with long names",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "blobstoragesame-with-long-name", Path: "path1", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-volume-with-long-name-blobstor-12345",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-volume-with-long-name-blobstor-einhp-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "volume-with-long-name", Path: "path1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "blobstoragesame-with-long-name", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-volume-with-long-name--12345",
+			expectedPvcName:    "pvc-some-component-volume-with-long-name-01arz3ndektsv4rrffq69g5fav",
 		},
 	}
 	s.Run("CSI Azure volumes", func() {
@@ -145,7 +146,7 @@ func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 		for _, scenario := range scenarios {
 			s.T().Logf("Scenario %s", scenario.name)
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
-			volumes, err := GetVolumes(context.Background(), s.kubeUtil, namespace, &component, "", nil)
+			volumes, err := s.ensureVolumes(&component)
 			s.Nil(err)
 			s.Len(volumes, 1, "Unexpected volume count")
 			volume := volumes[0]
@@ -156,20 +157,20 @@ func (s *volumeMountTestSuite) Test_GetNewVolumes() {
 			}
 			s.Less(len(volume.Name), 64, "Volume name is too long")
 			s.NotNil(volume.PersistentVolumeClaim, "PVC is nil")
-			s.True(internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
+			s.True(internal.EqualTillPostfix(scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName, ulid.EncodedSize), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volume.PersistentVolumeClaim.ClaimName)
 		}
 	})
-	s.Run("Unsupported volume type", func() {
+	s.Run("Missing volume configuration", func() {
 		s.T().Parallel()
 
 		mounts := []radixv1.RadixVolumeMount{
-			{Type: "unsupported-type", Name: "volume1", Container: "storage1", Path: "path1"},
+			{Name: "volume1", Path: "path1"},
 		}
 		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(mounts...).BuildComponent()
-		volumes, err := GetVolumes(context.Background(), s.kubeUtil, namespace, &component, "", nil)
+		volumes, err := s.ensureVolumes(&component)
 		s.Len(volumes, 0, "Unexpected volume count")
 		s.NotNil(err)
-		s.Equal("unsupported volume type unsupported-type", err.Error())
+		s.Equal("missing configuration for volumeMount volume1", err.Error())
 	})
 }
 
@@ -183,15 +184,15 @@ func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:               "Blob CSI Azure volume, Status phase: Bound",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-blob-volume1-storage1",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume1-storage1-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "blob-volume1", Path: "path1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage1", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-blob-volume1-storage1",
+			expectedPvcName:    "pvc-some-component-blob-volume1-01arz3ndektsv4rrffq69g5fav",
 		},
 		{
 			name:               "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-blob-volume2-storage2",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume2-storage2-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "blob-volume2", Path: "path2", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage2", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-blob-volume2-storage2",
+			expectedPvcName:    "pvc-some-component-blob-volume2-01arz3ndektsv4rrffq69g5fav",
 		},
 	}
 
@@ -201,7 +202,7 @@ func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 		radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
 		deployComponent := radixDeployment.Spec.Components[0]
 
-		volumes, err := GetVolumes(context.Background(), s.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
+		volumes, err := s.ensureVolumes(&deployComponent)
 
 		s.Nil(err)
 		s.Len(volumes, 0, "No volumes should be returned")
@@ -215,13 +216,13 @@ func (s *volumeMountTestSuite) Test_GetVolumesForComponent() {
 			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
 			deployComponent := radixDeployment.Spec.Components[0]
 
-			volumes, err := GetVolumes(context.Background(), s.kubeUtil, radixDeployment.GetNamespace(), &deployComponent, radixDeployment.GetName(), nil)
+			volumes, err := s.ensureVolumes(&deployComponent)
 
 			s.Nil(err)
 			s.Len(volumes, 1, "Unexpected volume count")
 			s.Equal(scenario.expectedVolumeName, volumes[0].Name, "Mismatching volume names")
 			s.NotNil(volumes[0].PersistentVolumeClaim, "PVC is nil")
-			s.True(internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, nameRandPartLength), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
+			s.True(internal.EqualTillPostfix(scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName, ulid.EncodedSize), "Mismatching PVC name prefixes %s and %s", scenario.expectedPvcName, volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 
 	})
@@ -236,21 +237,21 @@ func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:               "Blob CSI Azure volume, Status phase: Bound",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-blob-volume1-storage1",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume1-storage1-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "blob-volume1", Path: "path1", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage1", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-blob-volume1-storage1",
+			expectedPvcName:    "pvc-some-component-blob-volume1-01arz3ndektsv4rrffq69g5fav",
 		},
 		{
 			name:               "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-blob-volume2-storage2",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume2-storage2-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "blob-volume2", Path: "path2", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage2", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-blob-volume2-storage2",
+			expectedPvcName:    "pvc-some-component-blob-volume2-01arz3ndektsv4rrffq69g5fav",
 		},
 		{
 			name:               "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:   radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
-			expectedVolumeName: "csi-az-blob-some-component-blob-volume-with-long-name-sto-12345",
-			expectedPvcName:    "pvc-csi-az-blob-some-component-blob-volume-with-long-name-12345",
+			radixVolumeMount:   radixv1.RadixVolumeMount{Name: "blob-volume-with-long-name", Path: "path2", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "storage-with-long-name", GID: "1000"}},
+			expectedVolumeName: "csi-blobfuse2-fuse2-some-component-blob-volume-with-long--12345",
+			expectedPvcName:    "pvc-some-component-blob-volume-with-long-name-01arz3ndektsv4rrffq69g5fav",
 		},
 	}
 
@@ -259,7 +260,7 @@ func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{})
 		deployComponent := radixDeployment.Spec.Components[0]
 
-		volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
+		volumes, err := getRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 		s.Nil(err)
 		s.Len(volumes, 0, "No volumes should be returned")
@@ -272,7 +273,7 @@ func (s *volumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			radixDeployment := buildRd(appName, environment, componentName, "", []radixv1.RadixVolumeMount{scenario.radixVolumeMount})
 			deployComponent := radixDeployment.Spec.Components[0]
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
+			volumeMounts, err := getRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 			s.Nil(err)
 			s.Len(volumeMounts, 1)
@@ -292,14 +293,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCAndPVBinding() {
 	tests := map[string]struct {
 		volumeMount radixv1.RadixVolumeMount
 	}{
-		"deprecated volume": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "anyname",
-				Path:    "anypath",
-				Storage: "anystorage",
-			},
-		},
 		"blofuse2": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "anyname",
@@ -316,23 +309,18 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCAndPVBinding() {
 			const (
 				appName       = "anyapp"
 				envName       = "anyenv"
-				namespace     = "anyns"
 				componentName = "anycomp"
-				pvcName       = "anypvc"
 			)
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, appName, envName)
 
 			rd := &radixv1.RadixDeployment{
 				Name: "anyrd", Namespace: namespace,
 				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
 			}
 			component := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount}}
-			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
+			volumeName, err := getVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
-			desiredVolumes := []corev1.Volume{{Name: volumeName, PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}
-			actualVolumes, err := CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
-			s.Require().NoError(err)
-			s.Require().Len(actualVolumes, 1)
-			s.Equal(pvcName, actualVolumes[0].VolumeSource.PersistentVolumeClaim.ClaimName)
+			pvcName := s.ensureClaimName(appName, rd, component, volumeName)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			_, err = s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
@@ -346,80 +334,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 		volumeMount     radixv1.RadixVolumeMount
 		expectedPVCSpec corev1.PersistentVolumeClaimSpec
 	}{
-		"deprecated volume: default settings": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "anyname",
-				Path:    "anypath",
-				Storage: "anystorage",
-			},
-			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
-				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: new(""),
-				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
-			},
-		},
-		"deprecated volume: AccessMode=ReadOnlyMany": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "anyname",
-				Path:       "anypath",
-				Storage:    "anystorage",
-				AccessMode: "ReadOnlyMany",
-			},
-			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
-				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: new(""),
-				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
-			},
-		},
-		"deprecated volume: AccessMode=ReadWriteOnce": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "anyname",
-				Path:       "anypath",
-				Storage:    "anystorage",
-				AccessMode: "ReadWriteOnce",
-			},
-			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
-				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: new(""),
-				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
-			},
-		},
-		"deprecated volume: AccessMode=ReadWriteMany": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "anyname",
-				Path:       "anypath",
-				Storage:    "anystorage",
-				AccessMode: "ReadWriteMany",
-			},
-			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
-				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}},
-				StorageClassName: new(""),
-				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
-			},
-		},
-		"deprecated volume: RequestsStorage": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "anyname",
-				Path:            "anypath",
-				Storage:         "anystorage",
-				RequestsStorage: resource.MustParse("123G"),
-			},
-			expectedPVCSpec: corev1.PersistentVolumeClaimSpec{
-				AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				Resources:        corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("123G")}},
-				StorageClassName: new(""),
-				VolumeMode:       new(corev1.PersistentVolumeFilesystem),
-			},
-		},
 		"blofuse2: default settings": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "anyname",
@@ -506,20 +420,17 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCSpec() {
 			const (
 				appName       = "anyapp"
 				envName       = "anyenv"
-				namespace     = "anyns"
 				componentName = "anycomp"
-				pvcName       = "anypvc"
 			)
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, appName, envName)
 			rd := &radixv1.RadixDeployment{
 				Name: "anyrd", Namespace: namespace,
 				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
 			}
 			component := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount}}
-			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
+			volumeName, err := getVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
-			desiredVolumes := []corev1.Volume{{Name: volumeName, PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}
-			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
-			s.Require().NoError(err)
+			pvcName := s.ensureClaimName(appName, rd, component, volumeName)
 			actualPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 
@@ -554,22 +465,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCLabels() {
 		componentName  string
 		expectedLabels map[string]string
 	}{
-		"deprecated volume": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "vol1",
-				Path:    "anypath",
-				Storage: "anystorage",
-			},
-			appName:       "app1",
-			componentName: "comp1",
-			expectedLabels: map[string]string{
-				kube.RadixAppLabel:             "app1",
-				kube.RadixComponentLabel:       "comp1",
-				kube.RadixVolumeMountNameLabel: "vol1",
-				kube.RadixMountTypeLabel:       string(radixv1.MountTypeBlobFuse2FuseCsiAzure),
-			},
-		},
 		"blofuse2": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "vol2",
@@ -591,21 +486,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVCLabels() {
 
 	for testName, test := range tests {
 		s.Run(testName, func() {
-			const (
-				envName   = "anyenv"
-				namespace = "anyns"
-				pvcName   = "anypvc"
-			)
+			const envName = "anyenv"
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, test.appName, envName)
 			rd := &radixv1.RadixDeployment{
 				Name: "anyrd", Namespace: namespace,
 				Spec: radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: envName},
 			}
 			component := &radixv1.RadixDeployComponent{Name: test.componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount}}
-			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
+			volumeName, err := getVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
-			desiredVolumes := []corev1.Volume{{Name: volumeName, PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}
-			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
-			s.Require().NoError(err)
+			pvcName := s.ensureClaimName(test.appName, rd, component, volumeName)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			s.Equal(test.expectedLabels, pvc.GetLabels())
@@ -622,160 +512,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 		volumeMount    radixv1.RadixVolumeMount
 		expectedPVSpec corev1.PersistentVolumeSpec
 	}{
-		"deprecated volume: default settings": {
-			appName:       "app1",
-			envName:       "env1",
-			componentName: "comp1",
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "vol1",
-				Path:    "anypath",
-				Storage: "storage1",
-			},
-			expectedPVSpec: corev1.PersistentVolumeSpec{
-				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				PersistentVolumeSource: corev1.PersistentVolumeSource{
-					CSI: &corev1.CSIPersistentVolumeSource{
-						Driver: "blob.csi.azure.com",
-						NodeStageSecretRef: &corev1.SecretReference{
-							Namespace: "app1-env1",
-							Name:      defaults.GetCsiAzureVolumeMountCredsSecretName("comp1", "vol1"),
-						},
-						VolumeAttributes: map[string]string{
-							"protocol":        "fuse",
-							"containerName":   "storage1",
-							"secretnamespace": "app1-env1",
-						},
-					},
-				},
-				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-			},
-		},
-		"deprecated volume: AccessMode=ReadOnlyMany": {
-			appName:       "app1",
-			envName:       "env1",
-			componentName: "comp1",
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "vol1",
-				Path:       "anypath",
-				Storage:    "storage1",
-				AccessMode: "ReadOnlyMany",
-			},
-			expectedPVSpec: corev1.PersistentVolumeSpec{
-				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				PersistentVolumeSource: corev1.PersistentVolumeSource{
-					CSI: &corev1.CSIPersistentVolumeSource{
-						Driver: "blob.csi.azure.com",
-						NodeStageSecretRef: &corev1.SecretReference{
-							Namespace: "app1-env1",
-							Name:      defaults.GetCsiAzureVolumeMountCredsSecretName("comp1", "vol1"),
-						},
-						VolumeAttributes: map[string]string{
-							"protocol":        "fuse",
-							"containerName":   "storage1",
-							"secretnamespace": "app1-env1",
-						},
-					},
-				},
-				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-			},
-		},
-		"deprecated volume: AccessMode=ReadWriteOnce": {
-			appName:       "app1",
-			envName:       "env1",
-			componentName: "comp1",
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "vol1",
-				Path:       "anypath",
-				Storage:    "storage1",
-				AccessMode: "ReadWriteOnce",
-			},
-			expectedPVSpec: corev1.PersistentVolumeSpec{
-				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				PersistentVolumeSource: corev1.PersistentVolumeSource{
-					CSI: &corev1.CSIPersistentVolumeSource{
-						Driver: "blob.csi.azure.com",
-						NodeStageSecretRef: &corev1.SecretReference{
-							Namespace: "app1-env1",
-							Name:      defaults.GetCsiAzureVolumeMountCredsSecretName("comp1", "vol1"),
-						},
-						VolumeAttributes: map[string]string{
-							"protocol":        "fuse",
-							"containerName":   "storage1",
-							"secretnamespace": "app1-env1",
-						},
-					},
-				},
-				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-			},
-		},
-		"deprecated volume: AccessMode=ReadWriteMany": {
-			appName:       "app1",
-			envName:       "env1",
-			componentName: "comp1",
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "vol1",
-				Path:       "anypath",
-				Storage:    "storage1",
-				AccessMode: "ReadWriteMany",
-			},
-			expectedPVSpec: corev1.PersistentVolumeSpec{
-				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")},
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
-				PersistentVolumeSource: corev1.PersistentVolumeSource{
-					CSI: &corev1.CSIPersistentVolumeSource{
-						Driver: "blob.csi.azure.com",
-						NodeStageSecretRef: &corev1.SecretReference{
-							Namespace: "app1-env1",
-							Name:      defaults.GetCsiAzureVolumeMountCredsSecretName("comp1", "vol1"),
-						},
-						VolumeAttributes: map[string]string{
-							"protocol":        "fuse",
-							"containerName":   "storage1",
-							"secretnamespace": "app1-env1",
-						},
-					},
-				},
-				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-			},
-		},
-		"deprecated volume: RequestsStorage": {
-			appName:       "app1",
-			envName:       "env1",
-			componentName: "comp1",
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "vol1",
-				Path:            "anypath",
-				Storage:         "storage1",
-				RequestsStorage: resource.MustParse("123G"),
-			},
-			expectedPVSpec: corev1.PersistentVolumeSpec{
-				Capacity:    corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("123G")},
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
-				PersistentVolumeSource: corev1.PersistentVolumeSource{
-					CSI: &corev1.CSIPersistentVolumeSource{
-						Driver: "blob.csi.azure.com",
-						NodeStageSecretRef: &corev1.SecretReference{
-							Namespace: "app1-env1",
-							Name:      defaults.GetCsiAzureVolumeMountCredsSecretName("comp1", "vol1"),
-						},
-						VolumeAttributes: map[string]string{
-							"protocol":        "fuse",
-							"containerName":   "storage1",
-							"secretnamespace": "app1-env1",
-						},
-					},
-				},
-				PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
-			},
-		},
 		"blofuse2: default settings": {
 			appName:       "app2",
 			envName:       "env2",
@@ -1072,10 +808,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 
 	for testName, test := range tests {
 		s.Run(testName, func() {
-			const (
-				pvcName = "anypvc"
-			)
-			namespace := utils.GetEnvironmentNamespace(test.appName, test.envName)
+			const ()
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, test.appName, test.envName)
 			rd := &radixv1.RadixDeployment{
 				Name: "anyrd", Namespace: namespace,
 				Spec: radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: test.envName},
@@ -1085,11 +819,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_ExcludingMountOptions
 				VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount},
 				Identity:     &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: test.clientId}},
 			}
-			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
+			volumeName, err := getVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
-			desiredVolumes := []corev1.Volume{{Name: volumeName, PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}
-			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
-			s.Require().NoError(err)
+			pvcName := s.ensureClaimName(test.appName, rd, component, volumeName)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			actualPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
@@ -1147,119 +879,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 		expectedMountOptions            []string
 		expectedMountOptionsArgNameOnly []string
 	}{
-		"deprecated volume: default settings": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "anyvol",
-				Path:    "anypath",
-				Storage: "anystorage",
-			},
-			expectedMountOptions: []string{
-				"--file-cache-timeout-in-seconds=120",
-				"--cancel-list-on-mount-seconds=0",
-				"--attr-cache-timeout=0",
-				"--allow-other",
-				"--attr-timeout=0",
-				"--entry-timeout=0",
-				"--negative-timeout=0",
-				"--read-only=true",
-			},
-		},
-		"deprecated volume: AccessMode=ReadOnlyMany": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "anyvol",
-				Path:       "anypath",
-				Storage:    "anystorage",
-				AccessMode: "ReadOnlyMany",
-			},
-			expectedMountOptions: []string{
-				"--file-cache-timeout-in-seconds=120",
-				"--cancel-list-on-mount-seconds=0",
-				"--attr-cache-timeout=0",
-				"--allow-other",
-				"--attr-timeout=0",
-				"--entry-timeout=0",
-				"--negative-timeout=0",
-				"--read-only=true",
-			},
-		},
-		"deprecated volume: AccessMode=ReadWriteOnce": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "anyvol",
-				Path:       "anypath",
-				Storage:    "anystorage",
-				AccessMode: "ReadWriteOnce",
-			},
-			expectedMountOptions: []string{
-				"--file-cache-timeout-in-seconds=120",
-				"--cancel-list-on-mount-seconds=0",
-				"--attr-cache-timeout=0",
-				"--allow-other",
-				"--attr-timeout=0",
-				"--entry-timeout=0",
-				"--negative-timeout=0",
-			},
-		},
-		"deprecated volume: AccessMode=ReadWriteMany": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "anyvol",
-				Path:       "anypath",
-				Storage:    "anystorage",
-				AccessMode: "ReadWriteOnce",
-			},
-			expectedMountOptions: []string{
-				"--file-cache-timeout-in-seconds=120",
-				"--cancel-list-on-mount-seconds=0",
-				"--attr-cache-timeout=0",
-				"--allow-other",
-				"--attr-timeout=0",
-				"--entry-timeout=0",
-				"--negative-timeout=0",
-			},
-		},
-		"deprecated volume: GID set": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "anyvol",
-				Path:    "anypath",
-				Storage: "anystorage",
-				GID:     "1337",
-			},
-			expectedMountOptions: []string{
-				"--file-cache-timeout-in-seconds=120",
-				"--cancel-list-on-mount-seconds=0",
-				"--attr-cache-timeout=0",
-				"--allow-other",
-				"--attr-timeout=0",
-				"--entry-timeout=0",
-				"--negative-timeout=0",
-				"--read-only=true",
-				"-o gid=1337",
-			},
-		},
-		"deprecated volume: UID set": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "anyvol",
-				Path:    "anypath",
-				Storage: "anystorage",
-				UID:     "1337",
-			},
-			expectedMountOptions: []string{
-				"--file-cache-timeout-in-seconds=120",
-				"--cancel-list-on-mount-seconds=0",
-				"--attr-cache-timeout=0",
-				"--allow-other",
-				"--attr-timeout=0",
-				"--entry-timeout=0",
-				"--negative-timeout=0",
-				"--read-only=true",
-				"-o uid=1337",
-			},
-		},
 		"blobfuse2: default settings": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "anyvol",
@@ -1737,9 +1356,8 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				appName       = "anyapp"
 				envName       = "anyenv"
 				componentName = "anycomp"
-				namespace     = "anyns"
-				pvcName       = "anypvc"
 			)
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, appName, envName)
 			rd := &radixv1.RadixDeployment{
 				Name: "anyrd", Namespace: namespace,
 				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
@@ -1748,11 +1366,9 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVSpec_MountOptions() {
 				Name:         componentName,
 				VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount},
 			}
-			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, componentName)
+			volumeName, err := getVolumeMountVolumeName(&test.volumeMount, componentName)
 			s.Require().NoError(err)
-			desiredVolumes := []corev1.Volume{{Name: volumeName, PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}
-			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
-			s.Require().NoError(err)
+			pvcName := s.ensureClaimName(appName, rd, component, volumeName)
 			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			actualPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
@@ -1771,27 +1387,10 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 	tests := map[string]struct {
 		volumeMount    radixv1.RadixVolumeMount
 		appName        string
+		envName        string
 		componentName  string
-		namespace      string
 		expectedLabels map[string]string
 	}{
-		"deprecated volume": {
-			volumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "vol1",
-				Path:    "anypath",
-				Storage: "anystorage",
-			},
-			appName:       "app1",
-			componentName: "comp1",
-			namespace:     "ns1",
-			expectedLabels: map[string]string{
-				kube.RadixAppLabel:             "app1",
-				kube.RadixComponentLabel:       "comp1",
-				kube.RadixNamespace:            "ns1",
-				kube.RadixVolumeMountNameLabel: "vol1",
-			},
-		},
 		"blofuse2": {
 			volumeMount: radixv1.RadixVolumeMount{
 				Name: "vol2",
@@ -1801,12 +1400,12 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 				},
 			},
 			appName:       "app2",
+			envName:       "env2",
 			componentName: "comp2",
-			namespace:     "ns2",
 			expectedLabels: map[string]string{
 				kube.RadixAppLabel:             "app2",
 				kube.RadixComponentLabel:       "comp2",
-				kube.RadixNamespace:            "ns2",
+				kube.RadixNamespace:            "app2-env2",
 				kube.RadixVolumeMountNameLabel: "vol2",
 			},
 		},
@@ -1814,20 +1413,16 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVLabels() {
 
 	for testName, test := range tests {
 		s.Run(testName, func() {
-			const (
-				pvcName = "anypvc"
-			)
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, test.appName, test.envName)
 			rd := &radixv1.RadixDeployment{
-				Name: "anyrd", Namespace: test.namespace,
-				Spec: radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: "anyenv"},
+				Name: "anyrd", Namespace: namespace,
+				Spec: radixv1.RadixDeploymentSpec{AppName: test.appName, Environment: test.envName},
 			}
 			component := &radixv1.RadixDeployComponent{Name: test.componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.volumeMount}}
-			volumeName, err := GetVolumeMountVolumeName(&test.volumeMount, test.componentName)
+			volumeName, err := getVolumeMountVolumeName(&test.volumeMount, test.componentName)
 			s.Require().NoError(err)
-			desiredVolumes := []corev1.Volume{{Name: volumeName, PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName}}}
-			_, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, component, desiredVolumes)
-			s.Require().NoError(err)
-			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(test.namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+			pvcName := s.ensureClaimName(test.appName, rd, component, volumeName)
+			pvc, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvcName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			actualPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvc.Spec.VolumeName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -1844,239 +1439,6 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 		changedIdentity    *radixv1.Identity
 		expectRecreate     bool
 	}{
-		"deprecated volume: same spec should not recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			expectRecreate: false,
-		},
-		"deprecated volume: change Storage should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "initial",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "changed",
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: set GID should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				GID:     "1337",
-			},
-
-			expectRecreate: true,
-		},
-		"deprecated volume: change GID should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				GID:     "1000",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				GID:     "1337",
-			},
-
-			expectRecreate: true,
-		},
-		"deprecated volume: keep GID should not recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				GID:     "1337",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				GID:     "1337",
-			},
-
-			expectRecreate: false,
-		},
-		"deprecated volume: set UID should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				UID:     "1337",
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: change UID should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				UID:     "1000",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				UID:     "1337",
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: keep UID should not recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				UID:     "1337",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-				UID:     "1337",
-			},
-			expectRecreate: false,
-		},
-		"deprecated volume: set RequestsStorage should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "any",
-				Storage:         "any",
-				RequestsStorage: resource.MustParse("1337M"),
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: change RequestsStorage should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "any",
-				Storage:         "any",
-				RequestsStorage: resource.MustParse("100M"),
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "any",
-				Storage:         "any",
-				RequestsStorage: resource.MustParse("1337M"),
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: keep RequestsStorage should not recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "any",
-				Storage:         "any",
-				RequestsStorage: resource.MustParse("1337M"),
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:            radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:            "any",
-				Storage:         "any",
-				RequestsStorage: resource.MustParse("1337M"),
-			},
-			expectRecreate: false,
-		},
-		"deprecated volume: setting AccessMode to the defined default should not recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "any",
-				Storage:    "any",
-				AccessMode: "ReadOnlyMany",
-			},
-			expectRecreate: false,
-		},
-		"deprecated volume: setting AccessMode to a non-default value should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "any",
-				Storage:    "any",
-				AccessMode: "ReadWriteMany",
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: change AccessMode should recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "any",
-				Storage:    "any",
-				AccessMode: "ReadWriteOnce",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "any",
-				Storage:    "any",
-				AccessMode: "ReadWriteMany",
-			},
-			expectRecreate: true,
-		},
-		"deprecated volume: keep AccessMode should not recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "any",
-				Storage:    "any",
-				AccessMode: "ReadWriteOnce",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Type:       radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:       "any",
-				Storage:    "any",
-				AccessMode: "ReadWriteOnce",
-			},
-			expectRecreate: false,
-		},
-		"change from deprecated volume to blobfuse2 to recreate PV and PVC": {
-			initialVolumeMount: radixv1.RadixVolumeMount{
-				Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-				Name:    "any",
-				Storage: "any",
-			},
-			changedVolumeMount: radixv1.RadixVolumeMount{
-				Name: "any",
-				BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{
-					Container: "any",
-				},
-			},
-			expectRecreate: true,
-		},
 		"blobfuse2: same default spec should not recreate PV and PVC": {
 			initialVolumeMount: radixv1.RadixVolumeMount{
 				Name: "any",
@@ -3492,25 +2854,22 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 		s.Run(testName, func() {
 			const (
 				appName       = "anyapp"
+				envName       = "anyenv"
 				componentName = "anycomp"
-				namespace     = "anyns"
-				pvcName       = "anypvc"
 			)
+			namespace := testutils.CreateEnvNamespace(s.kubeClient, appName, envName)
 			rd := &radixv1.RadixDeployment{
 				Name: "anyrd", Namespace: namespace,
-				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: "anyenv"},
+				Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
 			}
 
 			// Run sync with initialVolumeMount to create initial PV and PVC
 			initialComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.initialVolumeMount}, Identity: test.initialIdentity}
-			initialVolumeName, err := GetVolumeMountVolumeName(&test.initialVolumeMount, componentName)
+			initialVolumeName, err := getVolumeMountVolumeName(&test.initialVolumeMount, componentName)
 			s.Require().NoError(err)
-			initialVolumes := []corev1.Volume{{
-				Name:                  initialVolumeName,
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: pvcName},
-			}}
-			initialVolumes, err = CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, initialComponent, initialVolumes)
+			initialVolumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, appName, rd, initialComponent)
 			s.Require().NoError(err)
+			s.Require().Equal(initialVolumeName, initialVolumes[0].Name)
 			initialPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), initialVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 			s.Require().NoError(err)
 			initialPV, err := s.kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), initialPVC.Spec.VolumeName, metav1.GetOptions{})
@@ -3520,13 +2879,7 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			// Run sync with changedVolumeMount to verify recreation of new PV and PVC
 			changedComponent := &radixv1.RadixDeployComponent{Name: componentName, VolumeMounts: []radixv1.RadixVolumeMount{test.changedVolumeMount}, Identity: test.changedIdentity}
 
-			// The next four lines is a hack because the generated volume name includes info from the RadixVolumeMount that relates to the driver and external storage container.
-			changedVolumeName, err := GetVolumeMountVolumeName(&test.changedVolumeMount, componentName)
-			s.Require().NoError(err)
-			initialVolumeModified := initialVolumes[0].DeepCopy()
-			initialVolumeModified.Name = changedVolumeName
-
-			changedVolumes, err := CreateOrUpdatePVCVolumeResourcesForDeployComponent(context.Background(), s.kubeClient, rd, changedComponent, []corev1.Volume{*initialVolumeModified})
+			changedVolumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, appName, rd, changedComponent)
 			s.Require().NoError(err)
 			changedPVC, err := s.kubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), changedVolumes[0].PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
 			s.Require().NoError(err)
@@ -3552,4 +2905,22 @@ func (s *volumeMountTestSuite) Test_RadixVolumeMountPVAndPVCRecreateOnChange() {
 			}
 		})
 	}
+}
+
+func (s *volumeMountTestSuite) ensureClaimName(appName string, rd *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, volumeName string) string {
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, appName, rd, component)
+	s.Require().NoError(err)
+	claimName := claimNameOf(volumes, volumeName)
+	s.Require().NotEmpty(claimName)
+	return claimName
+}
+
+func (s *volumeMountTestSuite) ensureVolumes(component radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
+	const appName, envName = "any-app", "any-env"
+	rd := &radixv1.RadixDeployment{
+		Name: "any-rd", Namespace: testutils.CreateEnvNamespace(s.kubeClient, appName, envName),
+		Spec: radixv1.RadixDeploymentSpec{AppName: appName, Environment: envName},
+	}
+	volumes, _, err := EnsureComponentVolumes(context.Background(), s.kubeUtil, appName, rd, component)
+	return volumes, err
 }

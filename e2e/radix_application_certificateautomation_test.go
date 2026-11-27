@@ -9,7 +9,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -131,10 +130,8 @@ func TestRadixApplicationCertificateAutomationValidation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ra := &v1.RadixApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      appName,
-					Namespace: appNamespace,
-				},
+				Name:      appName,
+				Namespace: appNamespace,
 				Spec: v1.RadixApplicationSpec{
 					Environments: []v1.Environment{{Name: envName}},
 					Components: []v1.RadixComponent{

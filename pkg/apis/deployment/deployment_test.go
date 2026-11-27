@@ -221,11 +221,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithVolumeMounts(
 								radixv1.RadixVolumeMount{
-									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-									Name:    blobCsiAzureVolumeName,
-									Storage: "some-storage",
-									Path:    "some-path2",
-									GID:     "1000",
+									Name:      blobCsiAzureVolumeName,
+									Path:      "some-path2",
+									BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "some-storage", GID: "1000"},
 								},
 							).
 							WithSecrets([]string{outdatedSecret, remainingSecret}))
@@ -584,10 +582,9 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 							}).
 							WithVolumeMounts(
 								radixv1.RadixVolumeMount{
-									Type:    radixv1.MountTypeBlobFuse2FuseCsiAzure,
-									Name:    blobCsiAzureVolumeName,
-									Storage: "some-storage",
-									Path:    "some-path",
+									Name:      blobCsiAzureVolumeName,
+									Path:      "some-path",
+									BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "some-storage"},
 								}).
 							WithSchedulerPort(new(int32(8000))).
 							WithPayloadPath(&payloadPath).
@@ -877,7 +874,7 @@ func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Depl
 func Test_ReconcileStatus(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, _, prometheusclient, _, certClient := SetupTest(t)
 	rr := &radixv1.RadixRegistration{}
-	rd := &radixv1.RadixDeployment{Name: "any-rd", Generation: 42}
+	rd := &radixv1.RadixDeployment{Name: "any-rd", Namespace: test.CreateEnvNamespace(kubeclient, "any-app", "any-env"), Generation: 42}
 	rd, err := radixclient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -3303,6 +3300,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
+	test.CreateEnvNamespace(kubeclient, "app", "dev")
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
@@ -3323,6 +3321,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http").WithPort("http", 8080)).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
+	test.CreateEnvNamespace(kubeclient, "app", "dev")
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
@@ -3344,6 +3343,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
+	test.CreateEnvNamespace(kubeclient, "app", "dev")
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 	ctrl := gomock.NewController(t)
@@ -3375,7 +3375,7 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName(compName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						radixv1.RadixVolumeMount{Name: "blobcsi", Path: "blobcsipath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "blobcsistorage"}},
 					),
 			),
 	)
@@ -3405,7 +3405,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName(jobName).
 					WithVolumeMounts(
-						radixv1.RadixVolumeMount{Type: radixv1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						radixv1.RadixVolumeMount{Name: "blobcsi", Path: "blobcsipath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Container: "blobcsistorage"}},
 					),
 			),
 	)
@@ -3416,7 +3416,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	require.Len(t, deploymentList.Items, 1)
 	deployment := deploymentList.Items[0]
 	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 1, "incorrect number of volumes")
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 0, "incorrect number of volumemounts")
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 1, "incorrect number of volumemounts")
 }
 
 func Test_ComponentSynced_SecretRefs(t *testing.T) {
@@ -3911,6 +3911,7 @@ func Test_ExternalDNS_CertificateDurationAndRenewBefore_MinValue(t *testing.T) {
 	).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
+	test.CreateEnvNamespace(kubeclient, "app", "dev")
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -3990,6 +3991,7 @@ func Test_ExternalDNS_ClusterIssuerNotSet(t *testing.T) {
 	).BuildRD()
 	_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 	require.NoError(t, err)
+	test.CreateEnvNamespace(kubeclient, "app", "dev")
 	_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	require.NoError(t, err)
 
@@ -4043,6 +4045,7 @@ func Test_ExternalDNS_CertificateUsesCorrectClusterIssuer(t *testing.T) {
 			).BuildRD()
 		_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 		require.NoError(t, err)
+		test.CreateEnvNamespace(kubeclient, "app2", envName)
 		_, err = radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace("app2", envName)).Create(context.Background(), rd, metav1.CreateOptions{})
 		require.NoError(t, err)
 
@@ -4134,31 +4137,32 @@ func Test_Deployment_ImagePullSecrets(t *testing.T) {
 		},
 	}
 
-	for testName, test := range tests {
+	for testName, scenario := range tests {
 		t.Run(testName, func(t *testing.T) {
 			_, kubeclient, kubeUtil, radixclient, _, promClient, _, certClient := SetupTest(t)
 
 			rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
-			rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithImagePullSecrets(test.rdImagePullSecrets).
+			rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithImagePullSecrets(scenario.rdImagePullSecrets).
 				WithComponents(utils.NewDeployComponentBuilder().WithName("comp")).
 				WithJobComponents(utils.NewDeployJobComponentBuilder().WithName("job")).
 				BuildRD()
 			_, err := radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 			require.NoError(t, err)
+			test.CreateEnvNamespace(kubeclient, "app", "dev")
 			_, err = radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			cfg := config.Config{Common: config.CommonConfig{ExternalRegistryAuthSecret: test.defaultRegistryAuthSecret}}
+			cfg := config.Config{Common: config.CommonConfig{ExternalRegistryAuthSecret: scenario.defaultRegistryAuthSecret}}
 
 			syncer := NewDeploymentSyncer(kubeclient, kubeUtil, radixclient, promClient, certClient, rr, rd, nil, cfg)
 			err = syncer.OnSync(context.Background())
 			require.NoError(t, err)
 			compDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "comp", metav1.GetOptions{})
 			require.NoError(t, err)
-			assert.ElementsMatch(t, test.expectedImagePullSecrets, compDeployment.Spec.Template.Spec.ImagePullSecrets, "comp deployment")
+			assert.ElementsMatch(t, scenario.expectedImagePullSecrets, compDeployment.Spec.Template.Spec.ImagePullSecrets, "comp deployment")
 			jobDeployment, err := kubeclient.AppsV1().Deployments("app-dev").Get(context.Background(), "job", metav1.GetOptions{})
 			require.NoError(t, err)
-			assert.ElementsMatch(t, test.expectedImagePullSecrets, jobDeployment.Spec.Template.Spec.ImagePullSecrets, "job component")
+			assert.ElementsMatch(t, scenario.expectedImagePullSecrets, jobDeployment.Spec.Template.Spec.ImagePullSecrets, "job component")
 		})
 	}
 }

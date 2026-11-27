@@ -3,7 +3,6 @@ package batch
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/config"
@@ -98,24 +97,26 @@ func (s *syncer) reconcile(ctx context.Context) error {
 		return err
 	}
 
-	actualVolumesGetter := sync.OnceValues(func() ([]corev1.Volume, error) {
-		existingVolumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, s.kubeUtil, namespace, jobComponent.GetName())
-		if err != nil {
-			return nil, err
-		}
-		desiredVolumes, err := volumemount.GetVolumes(ctx, s.kubeUtil, namespace, jobComponent, rd.Name, existingVolumes)
-		if err != nil {
-			return nil, err
-		}
-		return volumemount.CreateOrUpdatePVCVolumeResourcesForDeployComponent(ctx, s.kubeUtil.KubeClient(), rd, jobComponent, desiredVolumes)
-	})
+	// Volumes are ensured at most once per reconcile, and only when a Kubernetes Job is going to be created.
+	// The RadixDeployment referenced by the batch may be an older, inactive RadixDeployment; its jobs get the storage defined in it.
+	// Ensuring volumes never deletes anything, storage that is no longer needed is deleted when the RadixDeployment syncs.
+	var volumes []corev1.Volume
+	var volumeMounts []corev1.VolumeMount
+	volumesEnsured := false
 
 	for i, batchJob := range s.radixBatch.Spec.Jobs {
 		if err := s.reconcileService(ctx, &batchJob, rd, jobComponent, existingServices); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile service: %w", batchJob.Name, err)
 		}
 
-		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, actualVolumesGetter); err != nil {
+		if !volumesEnsured && s.kubeJobMustBeCreated(&batchJob, existingJobs) {
+			if volumes, volumeMounts, err = volumemount.EnsureComponentVolumes(ctx, s.kubeUtil, s.registration.Name, rd, jobComponent); err != nil {
+				return fmt.Errorf("batchjob %s: failed to ensure volumes: %w", batchJob.Name, err)
+			}
+			volumesEnsured = true
+		}
+
+		if err := s.reconcileKubeJob(ctx, &batchJob, rd, jobComponent, existingJobs, volumes, volumeMounts); err != nil {
 			return fmt.Errorf("batchjob %s: failed to reconcile kubejob: %w", batchJob.Name, err)
 		}
 

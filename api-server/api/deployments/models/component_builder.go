@@ -163,7 +163,7 @@ func (b *componentBuilder) WithComponent(component radixv1.RadixCommonDeployComp
 		}
 		volumeMountType := volumeMount.GetVolumeMountType()
 		switch volumeMountType {
-		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
+		case radixv1.MountTypeBlobFuse2Fuse2CsiAzure:
 			secretName := defaults.GetCsiAzureVolumeMountCredsSecretName(component.GetName(), volumeMount.Name)
 			b.secrets = append(b.secrets, secretName+defaults.CsiAzureCredsAccountKeyPartSuffix)
 			if len(volumemountUtils.GetBlobFuse2VolumeMountStorageAccount(volumeMount)) == 0 {

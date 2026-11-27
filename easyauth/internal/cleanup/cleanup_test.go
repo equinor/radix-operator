@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -48,7 +47,7 @@ func newCleaner(fakeDex *dextest.FakeDex, apps ...app) *DexClientCleaner {
 		if !a.missingNamespaceAppLabel {
 			namespaceLabels[kube.RadixAppLabel] = a.name
 		}
-		objs = append(objs, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: a.name + "-dev", Labels: namespaceLabels}})
+		objs = append(objs, &corev1.Namespace{Name: a.name + "-dev", Labels: namespaceLabels})
 		for _, d := range a.rds {
 			rd := &radixv1.RadixDeployment{
 				Name:      d.name,

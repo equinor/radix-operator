@@ -12,10 +12,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ErrNamespaceHasNoAppLabel is returned by GetAppNameFromNamespace for a namespace that doesn't belong to an application
+// ErrNamespaceHasNoAppLabel is returned by GetAppNameFromNamespace and GetAppNameFromNamespaceWithKubeClient for a namespace that doesn't belong to an application
 var ErrNamespaceHasNoAppLabel = errors.New("namespace has no " + RadixAppLabel + " label")
 
 // GetAppNameFromNamespace returns the Radix application name from a namespace's radix-app label.
@@ -25,9 +26,24 @@ func GetAppNameFromNamespace(ctx context.Context, namespace string, reader clien
 		return "", fmt.Errorf("failed to get namespace %s: %w", namespace, err)
 	}
 
+	return getAppNameFromNamespaceLabel(ns)
+}
+
+// GetAppNameFromNamespaceWithKubeClient returns the Radix application name from a namespace's radix-app label,
+// reading the namespace with the client-go kubernetes client.
+func GetAppNameFromNamespaceWithKubeClient(ctx context.Context, namespace string, kubeClient kubernetes.Interface) (string, error) {
+	ns, err := kubeClient.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get namespace %s: %w", namespace, err)
+	}
+
+	return getAppNameFromNamespaceLabel(ns)
+}
+
+func getAppNameFromNamespaceLabel(ns *corev1.Namespace) (string, error) {
 	appName := ns.Labels[RadixAppLabel]
 	if appName == "" {
-		return "", fmt.Errorf("%w: %s", ErrNamespaceHasNoAppLabel, namespace)
+		return "", fmt.Errorf("%w: %s", ErrNamespaceHasNoAppLabel, ns.GetName())
 	}
 	return appName, nil
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/pkg/apis/volumemount"
 	"github.com/rs/zerolog/log"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,9 +21,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	namespace := deploy.radixDeployment.Namespace
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, namespace, deployComponent)
+	isJobScheduler := internal.IsDeployComponentJobSchedulerDeployment(deployComponent)
+	deploymentVolumes, deploymentVolumeMounts := volumes, volumeMounts
+	if isJobScheduler {
+		// The job scheduler does not mount the job volumes, they are mounted by the job-aux Deployment
+		deploymentVolumes, deploymentVolumeMounts = nil, nil
+	}
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(ctx, namespace, deployComponent, deploymentVolumes, deploymentVolumeMounts)
 	if err != nil {
 		return err
 	}
@@ -38,23 +43,16 @@ func (deploy *Deployment) reconcileDeployComponent(ctx context.Context, deployCo
 			return err
 		}
 	}
-	actualVolumes, err := volumemount.CreateOrUpdatePVCVolumeResourcesForDeployComponent(ctx, deploy.kubeutil.KubeClient(), deploy.radixDeployment, deployComponent, desiredDeployment.Spec.Template.Spec.Volumes)
-	if err != nil {
-		return err
-	}
-	desiredDeployment.Spec.Template.Spec.Volumes = actualVolumes
-	desiredVolumeMounts := desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	if err = deploy.handleJobAuxDeployment(ctx, deployComponent, desiredDeployment, actualVolumes, desiredVolumeMounts); err != nil {
-		return err
+	if isJobScheduler {
+		if err = deploy.reconcileJobAuxDeployment(ctx, deployComponent, volumes, volumeMounts); err != nil {
+			return err
+		}
 	}
 	return deploy.kubeutil.ApplyDeployment(ctx, namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
-	if !internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		return nil
-	}
-
+// reconcileJobAuxDeployment applies the job-aux Deployment, which mounts the job volumes
+func (deploy *Deployment) reconcileJobAuxDeployment(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(ctx, deployComponent, volumes, volumeMounts)
 	if err != nil {
 		return err
@@ -68,10 +66,6 @@ func (deploy *Deployment) handleJobAuxDeployment(ctx context.Context, deployComp
 
 		currentJobAuxDeployment = nil
 	}
-
-	// Remove volumes and volume mounts from job scheduler deployment, they are set to aux deployment
-	desiredDeployment.Spec.Template.Spec.Volumes = nil
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
 
 	return deploy.kubeutil.ApplyDeployment(ctx, deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
@@ -152,19 +146,19 @@ func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(ctx context.Conte
 	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }
 
-func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(ctx, namespace, deployComponent)
+func (deploy *Deployment) getCurrentAndDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(ctx, namespace, deployComponent, volumes, volumeMounts)
 	if err != nil {
 		return nil, nil, err
 	}
 	return currentDeployment, desiredDeployment, err
 }
 
-func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace string, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	currentDeployment, err := deploy.kubeutil.GetDeployment(ctx, namespace, deployComponent.GetName())
 
 	if err == nil && currentDeployment != nil {
-		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment)
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(ctx, deployComponent, currentDeployment, volumes, volumeMounts)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -176,7 +170,7 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 		return nil, nil, err
 	}
 
-	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(ctx, deployComponent)
+	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(ctx, deployComponent, volumes, volumeMounts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,7 +178,7 @@ func (deploy *Deployment) getDesiredDeployment(ctx context.Context, namespace st
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, error) {
 	log.Ctx(ctx).Debug().Msgf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := &appsv1.Deployment{
@@ -199,15 +193,15 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(ctx context.Context,
 		},
 	}
 
-	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment, volumes, volumeMounts)
 	return desiredDeployment, err
 }
 
-func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) (*appsv1.Deployment, error) {
 	log.Ctx(ctx).Debug().Msgf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName) //nolint:staticcheck
 
 	desiredDeployment := currentDeployment.DeepCopy()
-	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment)
+	err := deploy.setDesiredDeploymentProperties(ctx, deployComponent, desiredDeployment, volumes, volumeMounts)
 
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
 	// We must keep this value as long as replicas >= 0.
@@ -282,7 +276,7 @@ func (deploy *Deployment) getDeploymentAnnotations() map[string]string {
 	)
 }
 
-func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) error {
 	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName() //nolint:staticcheck
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
@@ -306,14 +300,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetAffinityForDeployComponent(ctx, deployComponent, appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetDeploymentPodSpecTolerations(deployComponent)
 
-	existingVolumes, err := deploy.getDeployComponentExistingVolumes(ctx, deployComponent, desiredDeployment)
-	if err != nil {
-		return err
-	}
-	volumes, err := volumemount.GetVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent, deploy.radixDeployment.GetName(), existingVolumes)
-	if err != nil {
-		return err
-	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
 
 	options := []securitycontext.ContainerOption{
@@ -330,17 +316,14 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = containerSecurityCtx
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources, err = utils.GetResourceRequirements(deploy.config, deployComponent)
+	resources, err := utils.GetResourceRequirements(deploy.config, deployComponent)
 	if err != nil {
 		return err
 	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = resources
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = deployComponent.GetCommand()
 	desiredDeployment.Spec.Template.Spec.Containers[0].Args = deployComponent.GetArgs()
 
-	volumeMounts, err := volumemount.GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
-	if err != nil {
-		return err
-	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 	if hc := deployComponent.GetHealthChecks(); hc != nil {
@@ -361,17 +344,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(ctx context.Context, de
 	desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 
 	return nil
-}
-
-func (deploy *Deployment) getDeployComponentExistingVolumes(ctx context.Context, deployComponent v1.RadixCommonDeployComponent, deployment *appsv1.Deployment) ([]corev1.Volume, error) {
-	if internal.IsDeployComponentJobSchedulerDeployment(deployComponent) {
-		volumes, err := volumemount.GetExistingJobAuxComponentVolumes(ctx, deploy.kubeutil, deploy.radixDeployment.Namespace, deployComponent.GetName())
-		if err != nil {
-			return nil, err
-		}
-		return volumes, nil
-	}
-	return deployment.Spec.Template.Spec.Volumes, nil
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {

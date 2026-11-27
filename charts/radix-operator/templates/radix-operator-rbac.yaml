@@ -82,6 +82,12 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - apps
+  resources:
+  - replicasets
+  verbs:
+  - list # required to keep PersistentVolumeClaims used by ReplicaSets
+- apiGroups:
   - batch
   resources:
   - jobs

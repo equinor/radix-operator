@@ -29,6 +29,10 @@ config:
     certificateAutomation:
       defaultIssuer: "" # Optional. If set, must match a key in issuers
       issuers: {} # Map of issuer name to issuer config. Default empty
+      # some-name:
+      #   clusterIssuerName: "letsencrypt-prod-http01"
+      #   duration: 2160h
+      #   renewBefore: 720h
   pipelineRunner:
     containerRegistry: ""
     cacheContainerRegistry: ""
@@ -151,7 +155,7 @@ config:
     pipelineRunnerTemplate:
       base: null # Defaults to content in file ./files/pipeline-runner-base.yaml
       overlay: null
-    
+
     oauth2ProxyTemplate:
       # Must expose port 4180!
       base: null # Defaults to content in file ./files/oauth2-proxy-base.yaml

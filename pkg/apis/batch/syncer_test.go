@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -55,8 +56,18 @@ func TestSyncerTestSuite(t *testing.T) {
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch, cfg config.Config, options ...SyncerOption) Syncer {
 	defaultRR := utils.ARadixRegistration().BuildRR()
+	// A RadixBatch always lives in an environment namespace of the application
+	s.createNamespace(forJob.GetNamespace(), defaultRR.GetName())
 
 	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, defaultRR, forJob, cfg, options...)
+}
+
+// createNamespace creates the namespace with the radix-app label, unless it exists
+func (s *syncerTestSuite) createNamespace(namespace, appName string) {
+	ns := &corev1.Namespace{Name: namespace, Labels: map[string]string{kube.RadixAppLabel: appName}}
+	if _, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{}); !k8serrors.IsAlreadyExists(err) {
+		s.Require().NoError(err)
+	}
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -993,7 +1004,7 @@ func (s *syncerTestSuite) Test_BatchRecreatesDeletedKubernetesJob() {
 	s.Require().NoError(s.kubeClient.CoreV1().Pods(batch.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{}))
 	rd := &radixv1.RadixDeployment{Name: "any-rd", Namespace: batch.Namespace, Spec: radixv1.RadixDeploymentSpec{AppName: "any-app"}}
 	component := &radixv1.RadixDeployJobComponent{Name: "compute", Image: "any-image"}
-	s.Require().NoError(sut.reconcileKubeJob(ctx, batchJob, rd, component, nil, func() ([]corev1.Volume, error) { return nil, nil }))
+	s.Require().NoError(sut.reconcileKubeJob(ctx, batchJob, rd, component, nil, nil, nil))
 	jobs[0], err = s.kubeClient.BatchV1().Jobs(batch.Namespace).Get(ctx, jobs[0].Name, metav1.GetOptions{})
 	s.Require().NoError(err, "the deleted Kubernetes Job must be recreated")
 
@@ -1697,6 +1708,7 @@ func (s *syncerTestSuite) Test_JobWithResources() {
 func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
 	jobName := "any-job"
+	s.createNamespace(namespace, appName)
 	batch := &radixv1.RadixBatch{
 		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
@@ -1737,52 +1749,10 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	s.Equal("/azureblob2path", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
 
-func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {
-	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-ns", "any-rd"
-	jobName := "any-job"
-	batch := &radixv1.RadixBatch{
-		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
-		Spec: radixv1.RadixBatchSpec{
-			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
-				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
-				Job:                  componentName,
-			},
-			Jobs: []radixv1.RadixBatchJob{{Name: jobName}},
-		},
-	}
-	rd := &radixv1.RadixDeployment{
-		Name: rdName,
-		Spec: radixv1.RadixDeploymentSpec{
-			AppName: appName,
-			Jobs: []radixv1.RadixDeployJobComponent{
-				{
-					Name: componentName,
-					VolumeMounts: []radixv1.RadixVolumeMount{
-						{Type: "azure-blob", Name: "azureblobname", Storage: "azureblobcontainer", Path: "/azureblobpath"},
-					},
-				},
-			},
-		},
-	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	s.Require().NoError(err)
-
-	sut := s.createSyncer(batch, config.Config{})
-	s.Require().NoError(sut.OnSync(context.Background()))
-	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
-	s.Require().Len(jobs.Items, 1)
-	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
-	s.Require().Len(job.Spec.Template.Spec.Volumes, 1)
-	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 1)
-	s.Equal(job.Spec.Template.Spec.Volumes[0].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
-	s.Equal("/azureblobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
-}
-
 func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-job", "compute", "any-app-dev", "any-rd"
 	jobName := "any-job"
+	s.createNamespace(namespace, appName)
 	batch := &radixv1.RadixBatch{
 		Name: batchName, Labels: radixlabels.ForJobScheduleJobType(),
 		Spec: radixv1.RadixBatchSpec{
